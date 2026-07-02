@@ -18,6 +18,7 @@ from engine.models import (
     CATEGORY_COLORS,
     Driver,
     DriverCategory,
+    Infeasibility,
     PlanResult,
     RaceConfig,
     format_duration,
@@ -113,43 +114,82 @@ def _plan_to_cache(plan: PlanResult) -> dict:
     }
 
 
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _cache_to_plan(cached: dict) -> PlanResult:
-    config = RaceConfig.from_dict(cached["config"])
     from engine.models import Infeasibility, Stint
+
+    if not cached:
+        return PlanResult(
+            config=RaceConfig.from_dict({}),
+            infeasibilities=[
+                Infeasibility(
+                    code="missing_cache",
+                    message="Plan cache is empty.",
+                    suggestion="Click Recompute Plan in the sidebar.",
+                )
+            ],
+        )
+
+    try:
+        config = RaceConfig.from_dict(cached.get("config", {}))
+    except (TypeError, ValueError, KeyError):
+        config = RaceConfig.from_dict({})
 
     stints = []
     for raw in cached.get("stints_raw", []):
-        driver = Driver(
-            name=raw["driver_name"],
-            category=DriverCategory(raw["driver_category"]),
-            pace_delta_sec=raw.get("pace_delta_sec", 0.0),
-        )
-        stints.append(
-            Stint(
-                stint_number=raw["stint_number"],
-                driver=driver,
-                start_min=raw["start_min"],
-                duration_min=raw["duration_min"],
-                laps=raw["laps"],
-                fuel_load_liters=raw["fuel_load_liters"],
-                fuel_used_liters=raw["fuel_used_liters"],
-                tyres_new=raw["tyres_new"],
-                tyre_age_at_start_laps=raw.get("tyre_age_at_start_laps", 0),
-                limiting_factor=raw.get("limiting_factor", ""),
-                notes=raw.get("notes", ""),
+        try:
+            driver = Driver(
+                name=str(raw.get("driver_name", "Driver")),
+                category=DriverCategory(raw.get("driver_category", "Pro")),
+                pace_delta_sec=float(raw.get("pace_delta_sec", 0.0)),
             )
-        )
+            stints.append(
+                Stint(
+                    stint_number=int(raw.get("stint_number", 0)),
+                    driver=driver,
+                    start_min=float(raw.get("start_min", 0.0)),
+                    duration_min=float(raw.get("duration_min", 0.0)),
+                    laps=int(raw.get("laps", 0)),
+                    fuel_load_liters=float(raw.get("fuel_load_liters", 0.0)),
+                    fuel_used_liters=float(raw.get("fuel_used_liters", 0.0)),
+                    tyres_new=bool(raw.get("tyres_new", True)),
+                    tyre_age_at_start_laps=int(raw.get("tyre_age_at_start_laps", 0)),
+                    limiting_factor=str(raw.get("limiting_factor", "")),
+                    notes=str(raw.get("notes", "")),
+                )
+            )
+        except (TypeError, ValueError, KeyError):
+            continue
+
+    infeasibilities = []
+    for item in cached.get("infeasibilities", []):
+        try:
+            infeasibilities.append(Infeasibility(**item))
+        except (TypeError, ValueError):
+            continue
+
     return PlanResult(
         config=config,
         stints=stints,
-        total_pit_stops=cached["total_pit_stops"],
-        total_fuel_used_liters=cached["total_fuel_used_liters"],
-        predicted_laps=cached["predicted_laps"],
-        time_margin_at_flag_min=cached["time_margin_at_flag_min"],
-        infeasibilities=[
-            Infeasibility(**i) for i in cached.get("infeasibilities", [])
-        ],
-        warnings=cached.get("warnings", []),
+        total_pit_stops=_safe_int(cached.get("total_pit_stops"), 0),
+        total_fuel_used_liters=_safe_float(cached.get("total_fuel_used_liters"), 0.0),
+        predicted_laps=_safe_int(cached.get("predicted_laps"), 0),
+        time_margin_at_flag_min=_safe_float(cached.get("time_margin_at_flag_min"), 0.0),
+        infeasibilities=infeasibilities,
+        warnings=list(cached.get("warnings", [])),
     )
 
 
@@ -176,9 +216,25 @@ def _planning_fingerprint(cfg: dict) -> str:
 
 
 def _recompute_plan(cfg: dict, *, clear_sc: bool = True) -> None:
-    st.session_state.plan_cache = cached_compute_plan(cfg)
+    try:
+        st.session_state.plan_cache = cached_compute_plan(cfg)
+    except Exception as exc:
+        st.session_state.plan_cache = _plan_to_cache(
+            PlanResult(
+                config=RaceConfig.from_dict(cfg),
+                infeasibilities=[
+                    Infeasibility(
+                        code="recompute_error",
+                        message=f"Could not compute plan: {exc}",
+                        suggestion="Reset inputs or switch preset, then click Recompute Plan.",
+                    )
+                ],
+            )
+        )
     st.session_state.plan_fingerprint = _planning_fingerprint(cfg)
-    st.session_state.tyre_life_override = int(cfg.get("tyre_life_laps", 28))
+    st.session_state.tyre_life_override = _clamp_tyre_life(
+        cfg.get("tyre_life_laps", 28)
+    )
     if clear_sc:
         st.session_state.sc_comparison = None
 
@@ -190,7 +246,7 @@ def _apply_circuit_to_session(circuit_id: str, *, recompute: bool = True) -> Non
     cfg = apply_circuit_to_config(st.session_state.config_dict, circuit)
     st.session_state.config_dict = cfg
     st.session_state.circuit_id = circuit_id
-    st.session_state.tyre_life_override = int(cfg["tyre_life_laps"])
+    st.session_state.tyre_life_override = _clamp_tyre_life(cfg["tyre_life_laps"])
     if recompute:
         _recompute_plan(cfg)
 
@@ -216,6 +272,32 @@ def _category_color(category: str) -> str:
         return CATEGORY_COLORS[DriverCategory(category)]
     except (KeyError, ValueError):
         return "#6C757D"
+
+
+def _driver_category_index(category: str) -> int:
+    values = [c.value for c in DriverCategory]
+    return values.index(category) if category in values else 0
+
+
+def _clamp_tyre_life(laps: int, *, min_laps: int = 5, max_laps: int = 80) -> int:
+    return max(min_laps, min(max_laps, int(laps)))
+
+
+def _ensure_plan_cache(cfg: dict) -> dict:
+    """Guarantee session has a valid plan cache before tab rendering."""
+    if "plan_cache" not in st.session_state:
+        _recompute_plan(cfg)
+    return st.session_state.plan_cache
+
+
+def _safe_render_tab(tab_name: str, render_fn, *args, **kwargs) -> None:
+    """Isolate tab failures so one broken view does not crash the whole app."""
+    try:
+        render_fn(*args, **kwargs)
+    except Exception:
+        st.error(f"Could not render **{tab_name}**. Other tabs may still work.")
+        with st.expander("Technical details"):
+            st.code(traceback.format_exc())
 
 
 def _build_timeline_figure(plan: PlanResult, title: str) -> go.Figure:
@@ -399,6 +481,7 @@ def _sidebar_config() -> RaceConfig:
         circuit_id = st.session_state.get("circuit_id", DEFAULT_CIRCUIT_ID)
         with st.spinner("Computing strategy…"):
             _apply_circuit_to_session(circuit_id, recompute=True)
+        st.rerun()
 
     cfg = st.session_state.config_dict
     regs = cfg.get("regulations", {})
@@ -491,22 +574,32 @@ def _sidebar_config() -> RaceConfig:
         drivers_data = st.session_state.drivers_data
         updated_drivers = []
         remove_idx: Optional[int] = None
+        driver_key_suffix = (
+            f"{st.session_state.get('preset', 'custom')}_{len(drivers_data)}"
+        )
 
         for i, d in enumerate(drivers_data):
             st.markdown(f"**Driver {i + 1}**")
-            name = st.text_input("Name", value=d.get("name", f"Driver {i+1}"), key=f"dname_{i}")
+            name = st.text_input(
+                "Name",
+                value=d.get("name", f"Driver {i+1}"),
+                key=f"dname_{i}_{driver_key_suffix}",
+            )
             category = st.selectbox(
                 "Category", [c.value for c in DriverCategory],
-                index=[c.value for c in DriverCategory].index(d.get("category", "Pro")),
-                key=f"dcat_{i}",
+                index=_driver_category_index(d.get("category", "Pro")),
+                key=f"dcat_{i}_{driver_key_suffix}",
             )
             pace = st.number_input(
                 "Pace delta (s)", min_value=-5.0, max_value=10.0,
                 value=float(d.get("pace_delta_sec", 0.0)), step=0.1,
-                key=f"dpace_{i}",
+                key=f"dpace_{i}_{driver_key_suffix}",
                 help="Lap time offset vs base pace. Positive = slower.",
             )
-            if st.button("Remove", key=f"drem_{i}") and len(drivers_data) > 1:
+            if (
+                st.button("Remove", key=f"drem_{i}_{driver_key_suffix}")
+                and len(drivers_data) > 1
+            ):
                 remove_idx = i
             updated_drivers.append({
                 "name": name, "category": category, "pace_delta_sec": pace,
@@ -517,7 +610,7 @@ def _sidebar_config() -> RaceConfig:
             st.session_state.drivers_data = updated_drivers
             st.rerun()
 
-        if st.button("+ Add driver") and len(updated_drivers) < 6:
+        if st.button("+ Add driver", key=f"dadd_{driver_key_suffix}") and len(updated_drivers) < 6:
             updated_drivers.append({
                 "name": f"Driver {len(updated_drivers) + 1}",
                 "category": "Silver",
@@ -574,7 +667,7 @@ def _sidebar_config() -> RaceConfig:
         with st.spinner("Computing strategy…"):
             _recompute_plan(cfg)
 
-    plan = _cache_to_plan(st.session_state.plan_cache)
+    plan = _cache_to_plan(_ensure_plan_cache(cfg))
     status = "Ready" if plan.is_feasible else "Infeasible — see Stint Plan"
     st.sidebar.caption(f"Plan status: **{status}**")
 
@@ -693,10 +786,15 @@ def _tab_driver_compliance(plan: PlanResult) -> None:
 
 
 def _tab_tyre_strategy(plan: PlanResult, config: RaceConfig) -> None:
+    tyre_slider_max = 80
     tyre_life = st.slider(
         "Tyre life assumption (laps)",
-        min_value=5, max_value=60,
-        value=int(st.session_state.get("tyre_life_override", config.tyre_life_laps)),
+        min_value=5,
+        max_value=tyre_slider_max,
+        value=_clamp_tyre_life(
+            st.session_state.get("tyre_life_override", config.tyre_life_laps),
+            max_laps=tyre_slider_max,
+        ),
         help="Live what-if: adjust tyre life and see impact on stint count.",
     )
     st.session_state.tyre_life_override = tyre_life
@@ -900,7 +998,7 @@ def main() -> None:
                 f"{circuit.name} · {circuit.length_km:.2f} km · "
                 f"Tyre wear {circuit.tyre_wear}"
             )
-        cached = st.session_state.plan_cache
+        cached = _ensure_plan_cache(st.session_state.config_dict)
         plan = _cache_to_plan(cached)
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -912,19 +1010,19 @@ def main() -> None:
         ])
 
         with tab1:
-            _tab_stint_plan(plan, cached, config)
+            _safe_render_tab("Stint Plan", _tab_stint_plan, plan, cached, config)
         with tab2:
-            _tab_driver_compliance(plan)
+            _safe_render_tab("Driver Compliance", _tab_driver_compliance, plan)
         with tab3:
-            _tab_tyre_strategy(plan, config)
+            _safe_render_tab("Tyre Strategy", _tab_tyre_strategy, plan, config)
         with tab4:
-            _tab_safety_car(plan, config)
+            _safe_render_tab("What-If / Safety Car", _tab_safety_car, plan, config)
         with tab5:
-            _tab_methodology()
+            _safe_render_tab("Methodology", _tab_methodology)
 
     except Exception:
         st.error(
-            "Something went wrong computing this plan — try adjusting inputs."
+            "Something went wrong loading the planner — check sidebar inputs."
         )
         with st.expander("Technical details"):
             st.code(traceback.format_exc())
