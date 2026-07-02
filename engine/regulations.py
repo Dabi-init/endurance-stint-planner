@@ -166,16 +166,22 @@ def check_compliance(plan: PlanResult) -> ComplianceReport:
     regulations = config.regulations
     totals = plan.driver_totals()
     race_min = config.race_duration_min
+    stint_violations = _max_stint_violations(plan.stints, regulations)
 
     driver_results: list[DriverCompliance] = []
     for driver in config.drivers:
         driven = totals.get(driver.name, 0.0)
         checks = _build_driver_checks(driver, driven, regulations, race_min)
+        driver_stint_fails = [
+            v for v in stint_violations if driver.name in v
+        ]
+        for check in checks:
+            if check.rule_id == "max_continuous_stint" and driver_stint_fails:
+                check.passed = False
+                check.detail = driver_stint_fails[0]
         driver_results.append(
             DriverCompliance(driver=driver, total_drive_min=driven, checks=checks)
         )
-
-    stint_violations = _max_stint_violations(plan.stints, regulations)
     return ComplianceReport(
         driver_results=driver_results,
         stint_violations=stint_violations,

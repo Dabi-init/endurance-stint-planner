@@ -5,13 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from engine.models import PlanResult, RaceConfig, Stint, format_duration
+from engine.models import Infeasibility, PlanResult, RaceConfig, Stint, format_duration
 from engine.planner import (
     _RotationState,
     _build_plan_internal,
     compute_plan,
+    laps_for_minutes,
+    minutes_for_laps,
     pit_stop_duration_sec,
 )
+from engine.regulations import preflight_infeasibility_checks
 
 
 @dataclass
@@ -147,21 +150,26 @@ def replan_with_safety_car(
         if active:
             elapsed = deploy - active.start_min
             max_cap = config.regulations.max_stint_for_category(active.driver.category)
-            extended = min(elapsed + (duration * 0.5 if sc.pull_pit_into_sc else 0.0), max_cap)
-            extended = max(extended, elapsed)
-            from engine.planner import laps_for_minutes, minutes_for_laps
+            if sc.pull_pit_into_sc:
+                target_end = min(sc_end, active.start_min + max_cap)
+            else:
+                target_end = min(active.end_min, active.start_min + max_cap)
+            extended = max(target_end - active.start_min, elapsed)
+            extended = min(extended, max_cap)
 
             laps = laps_for_minutes(
                 extended,
                 config.base_lap_time_sec,
                 active.driver.pace_delta_sec,
+                max_laps=active.laps,
             )
             laps = max(laps, 1)
             extended = min(
                 minutes_for_laps(
                     laps, config.base_lap_time_sec, active.driver.pace_delta_sec
                 ),
-                active.end_min - active.start_min + duration,
+                extended,
+                max_cap,
             )
             completed = list(completed)
             completed.append(
@@ -176,18 +184,16 @@ def replan_with_safety_car(
                     tyres_new=active.tyres_new,
                     tyre_age_at_start_laps=active.tyre_age_at_start_laps,
                     limiting_factor=active.limiting_factor,
-                    notes=f"Extended under SC (+{format_duration(extended - elapsed)})",
+                    notes=f"Extended under SC (+{format_duration(max(0.0, extended - elapsed))})",
                 )
             )
             rotation.record(active.driver, extended)
             resume_min = completed[-1].end_min
 
-            if sc.pull_pit_into_sc and sc_end > resume_min:
-                resume_min = min(sc_end - 0.5, sc_end)
-                pit_loss = sc.sc_pit_loss_sec / 60.0
-            else:
-                pit_loss = pit_stop_duration_sec(config, True) / 60.0
-
+            pit_loss = (
+                sc.sc_pit_loss_sec if sc.pull_pit_into_sc
+                else pit_stop_duration_sec(config, True)
+            ) / 60.0
             resume_min += pit_loss
             names = [d.name for d in config.drivers]
             idx = names.index(active.driver.name)
@@ -219,11 +225,8 @@ def replan_with_safety_car(
             )
 
         sc_config = RaceConfig.from_dict(config.to_dict())
-        sc_config.pit_stop_time_loss_sec = sc.sc_pit_loss_sec
-        if sc.lap_time_multiplier > 1.0:
-            sc_config.base_lap_time_sec = (
-                config.base_lap_time_sec * sc.lap_time_multiplier
-            )
+        if sc.pull_pit_into_sc:
+            sc_config.pit_stop_time_loss_sec = sc.sc_pit_loss_sec
 
         rotation.set_current(resume_driver)
         remainder = _build_plan_internal(
@@ -240,16 +243,30 @@ def replan_with_safety_car(
             stint.notes = ("SC re-plan | " + stint.notes).strip(" |")
             merged_stints.append(stint)
 
+        margin = max(race_end - (merged_stints[-1].end_min if merged_stints else resume_min), 0.0)
         replanned = PlanResult(
             config=sc_config,
             stints=merged_stints,
             total_pit_stops=max(0, len(merged_stints) - 1),
             total_fuel_used_liters=sum(s.fuel_used_liters for s in merged_stints),
             predicted_laps=sum(s.laps for s in merged_stints),
-            time_margin_at_flag_min=remainder.time_margin_at_flag_min,
-            infeasibilities=remainder.infeasibilities,
+            time_margin_at_flag_min=margin,
             warnings=[f"Safety Car re-plan from {format_duration(deploy)}"],
         )
+        if sc.lap_time_multiplier > 1.0:
+            replanned.warnings.append(
+                f"SC pace multiplier ×{sc.lap_time_multiplier:.2f} noted; "
+                "remainder planned at green-flag pace."
+            )
+
+        for reason in preflight_infeasibility_checks(config, replanned.driver_totals()):
+            replanned.infeasibilities.append(
+                Infeasibility(
+                    code="post_sc_regulation",
+                    message=reason,
+                    suggestion="Adjust SC timing or driver regulation limits.",
+                )
+            )
 
         fuel_saved = original.total_fuel_used_liters - replanned.total_fuel_used_liters
         time_delta = replanned.time_margin_at_flag_min - original.time_margin_at_flag_min
