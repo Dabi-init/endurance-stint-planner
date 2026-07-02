@@ -72,7 +72,7 @@ class TestDefaultUserJourney:
         assert not at.exception, [str(e.value) for e in at.exception]
         error_texts = [e.value for e in at.error]
         assert not any(
-            "Something went wrong computing this plan" in t for t in error_texts
+            "Something went wrong" in t for t in error_texts
         ), error_texts
 
     def test_engine_never_raises_on_bad_input(self):
