@@ -18,19 +18,27 @@ Built for race engineers, team managers, and strategists briefing before green f
 
 ## Quick Start
 
+### First time (new users)
+
 ```bash
 git clone https://github.com/Dabi-init/endurance-stint-planner.git
 cd endurance-stint-planner
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
-pip install -r requirements.txt
-streamlit run app.py
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-**Already cloned?** Skip the first two lines, then run the rest from inside the project folder.
+### Already downloaded? (returning users — no `git clone`)
 
-Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required.
+Open a terminal **inside the project folder** (skip `git clone` — it fails if the folder already exists):
+
+```bash
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
+```
+
+Windows shortcut: open the project folder and double-click **`run.bat`**.
+
+Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required. Requires **Python 3.10+**.
 
 ---
 
@@ -142,7 +150,7 @@ Copy-paste from your project folder:
 git status
 
 # Stage all project files
-git add app.py engine/ circuits/ presets/ tests/ .streamlit/ requirements.txt requirements-dev.txt README.md assets/
+git add app.py engine/ circuits/ presets/ tests/ .streamlit/ requirements.txt requirements-dev.txt README.md run.bat assets/
 
 # Commit with a clear message
 git commit -m "feat: polish Streamlit app v1.2 — five tabs, auto-recompute, circuit profiles"
