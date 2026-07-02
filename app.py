@@ -707,7 +707,7 @@ def _tab_tyre_strategy(plan: PlanResult, config: RaceConfig) -> None:
     col1, col2, col3 = st.columns(3)
     col1.metric("Fuel-limited laps", fuel_laps)
     col2.metric("Tyre life (assumed)", tyre_life)
-    limiting = "Fuel" if fuel_laps < tyre_life else ("Tyre" if tyre_laps < fuel_laps else "Equal")
+    limiting = "Fuel" if fuel_laps < tyre_life else ("Tyre" if tyre_life < fuel_laps else "Equal")
     col3.metric("Limiting factor", limiting)
 
     if tyre_plan.is_feasible:

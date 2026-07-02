@@ -64,6 +64,17 @@ class TestDefaultUserJourney:
         assert app.APP_VERSION
         assert app.DEFAULT_PRESET == "6h Endurance"
 
+    def test_app_loads_without_runtime_error(self):
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30)
+        at.run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        error_texts = [e.value for e in at.error]
+        assert not any(
+            "Something went wrong computing this plan" in t for t in error_texts
+        ), error_texts
+
     def test_engine_never_raises_on_bad_input(self):
         from engine.models import RaceConfig
         from engine.planner import compute_plan
