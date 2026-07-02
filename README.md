@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/endurance-stint-planner-logo.jpg" alt="Endurance Stint Planner" width="640">
+</p>
+
 # Endurance Race Stint Planner
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
