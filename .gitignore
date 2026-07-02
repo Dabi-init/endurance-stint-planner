@@ -56,6 +56,9 @@ fix_author.ps1
 rewrite_authors.ps1
 env-filter.sh
 
+# Nested duplicate clone (local only)
+endurance-stint-planner/
+
 # MCP local config (not part of the application)
 mcps/
 

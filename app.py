@@ -893,6 +893,13 @@ def main() -> None:
 
     try:
         config = _sidebar_config()
+        circuit = get_circuit(st.session_state.get("circuit_id", DEFAULT_CIRCUIT_ID))
+        if circuit:
+            st.caption(
+                f"**{st.session_state.get('preset', DEFAULT_PRESET)}** · "
+                f"{circuit.name} · {circuit.length_km:.2f} km · "
+                f"Tyre wear {circuit.tyre_wear}"
+            )
         cached = st.session_state.plan_cache
         plan = _cache_to_plan(cached)
 

@@ -92,7 +92,8 @@ endurance-stint-planner/
 │   └── safety_car.py           # Safety Car re-planning
 ├── circuits/circuits.json      # Extensible track data
 ├── presets/                    # 4h, 6h, 24h JSON presets
-├── tests/                      # 26 unit tests
+├── tests/                      # 30+ unit & smoke tests
+├── .github/workflows/ci.yml    # Automated test on push
 ├── .streamlit/config.toml      # Dark theme
 ├── assets/                     # Project logo
 └── requirements.txt
@@ -117,6 +118,8 @@ High tyre-wear circuits automatically shorten stint targets. Driver rotation pri
 pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
+
+CI runs automatically on every push to `main` (Python 3.11 and 3.12).
 
 ---
 

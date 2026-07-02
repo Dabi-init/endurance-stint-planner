@@ -1,5 +1,6 @@
 {
   "race_name": "6h Endurance — GT3",
+  "circuit_id": "spa-francorchamps",
   "race_duration_hours": 6.0,
   "base_lap_time_sec": 120.0,
   "fuel_tank_liters": 100.0,
