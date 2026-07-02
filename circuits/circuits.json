@@ -1,0 +1,80 @@
+[
+  {
+    "id": "spa-francorchamps",
+    "name": "Spa-Francorchamps",
+    "country": "Belgium",
+    "length_km": 7.004,
+    "base_lap_time_sec": 142.0,
+    "tyre_wear": "High",
+    "tyre_life_laps": 24,
+    "fuel_consumption_per_lap": 3.1,
+    "pit_loss_sec": 48.0,
+    "sc_risk": "Medium",
+    "characteristics": "Long lap, elevation changes, high lateral load in Sector 2"
+  },
+  {
+    "id": "le-mans",
+    "name": "Circuit de la Sarthe (Le Mans)",
+    "country": "France",
+    "length_km": 13.626,
+    "base_lap_time_sec": 215.0,
+    "tyre_wear": "Medium",
+    "tyre_life_laps": 30,
+    "fuel_consumption_per_lap": 3.4,
+    "pit_loss_sec": 52.0,
+    "sc_risk": "Low",
+    "characteristics": "Very long lap, low stint count, fuel strategy dominant"
+  },
+  {
+    "id": "portimao",
+    "name": "Portimão (Algarve)",
+    "country": "Portugal",
+    "length_km": 4.653,
+    "base_lap_time_sec": 118.0,
+    "tyre_wear": "High",
+    "tyre_life_laps": 22,
+    "fuel_consumption_per_lap": 2.75,
+    "pit_loss_sec": 50.0,
+    "sc_risk": "Medium",
+    "characteristics": "Abrasive surface, heavy braking zones, high tyre degradation"
+  },
+  {
+    "id": "monza",
+    "name": "Monza",
+    "country": "Italy",
+    "length_km": 5.793,
+    "base_lap_time_sec": 108.0,
+    "tyre_wear": "Low",
+    "tyre_life_laps": 32,
+    "fuel_consumption_per_lap": 2.65,
+    "pit_loss_sec": 45.0,
+    "sc_risk": "Low",
+    "characteristics": "Low downforce, low tyre wear, fuel-limited stints typical"
+  },
+  {
+    "id": "nurburgring-gp",
+    "name": "Nürburgring GP",
+    "country": "Germany",
+    "length_km": 5.148,
+    "base_lap_time_sec": 115.0,
+    "tyre_wear": "Medium",
+    "tyre_life_laps": 28,
+    "fuel_consumption_per_lap": 2.85,
+    "pit_loss_sec": 47.0,
+    "sc_risk": "Medium",
+    "characteristics": "Mixed corners, balanced fuel/tyre trade-off"
+  },
+  {
+    "id": "fuji",
+    "name": "Fuji Speedway",
+    "country": "Japan",
+    "length_km": 4.563,
+    "base_lap_time_sec": 122.0,
+    "tyre_wear": "Medium",
+    "tyre_life_laps": 27,
+    "fuel_consumption_per_lap": 2.9,
+    "pit_loss_sec": 46.0,
+    "sc_risk": "High",
+    "characteristics": "Long main straight, variable weather risk, SC periods common"
+  }
+]

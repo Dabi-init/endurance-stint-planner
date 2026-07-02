@@ -67,6 +67,9 @@ After deploy, every `git push` to `main` auto-redeploys the app.
 | Safety Car re-plan comparison | ✅ |
 | CSV + pit-wall stint sheet export | ✅ |
 | Championship presets (4h / 6h / 24h) | ✅ |
+| Circuit / track selection (6 GT venues) | ✅ |
+| Strategy Insights & recommendations | ✅ |
+| Calculated performance metrics | ✅ |
 | Structured infeasibility reasons (no crashes) | ✅ |
 
 ---
@@ -75,15 +78,21 @@ After deploy, every `git push` to `main` auto-redeploys the app.
 
 ### Sidebar
 - **Preset selector** — 6h Endurance (default), 24h GT3 Endurance, 4h Sprint Endurance
+- **Circuit selector** — Spa, Le Mans, Portimão, Monza, Nürburgring GP, Fuji (auto-adjusts lap time, tyre life, fuel, pit loss)
 - Grouped inputs: Race Parameters, Car & Fuel, Tyres, Pit Stops, Drivers, Regulations
-- **Compute Plan** button (auto-computes on preset change)
+- **Compute Plan** button (auto-computes on preset or circuit change)
 
 ### Main Tabs
 1. **Stint Plan** — metrics, Gantt timeline, stint table, CSV/text export
-2. **Driver Compliance** — drive-time chart with regulatory bands, ✅/❌ rule table
-3. **Tyre Strategy** — live tyre-life slider with recomputed stints
-4. **What-If / Safety Car** — SC window inputs, original vs re-planned timelines
-5. **Methodology** — assumptions, limitations, validation placeholders
+2. **Strategy Insights** — race approach summary, calculated metrics, tyre/pit/driver/SC recommendations
+3. **Driver Compliance** — drive-time chart with regulatory bands, ✅/❌ rule table
+4. **Tyre Strategy** — live tyre-life slider with recomputed stints
+5. **What-If / Safety Car** — SC window inputs, original vs re-planned timelines
+6. **Methodology** — assumptions, limitations, validation placeholders
+
+### Circuits
+
+Track data lives in `circuits/circuits.json` — easy to extend. Each circuit defines length, lap time, tyre wear severity (Low/Medium/High), fuel consumption, pit loss, and SC risk. High-wear circuits automatically produce shorter stint targets.
 
 ---
 
@@ -95,14 +104,19 @@ endurance-stint-planner/
 ├── engine/
 │   ├── models.py               # Driver, RaceConfig, Stint, PlanResult, Infeasibility
 │   ├── planner.py              # Pure stint planning logic
+│   ├── circuits.py             # Track profiles and circuit-aware adjustments
+│   ├── recommendations.py      # Strategy insights from plan calculations
 │   ├── regulations.py          # Driver regulation compliance engine
 │   └── safety_car.py           # Safety Car re-planning + comparison
+├── circuits/
+│   └── circuits.json           # Track profiles (extensible)
 ├── presets/
 │   ├── 6h_endurance.json
 │   ├── 24h_gt3_endurance.json
 │   └── 4h_sprint_endurance.json
 ├── tests/
-│   └── test_planner.py
+│   ├── test_planner.py
+│   └── test_circuits.py
 ├── .streamlit/config.toml      # Dark theme
 ├── requirements.txt
 └── endurance_stint_planner.py  # Legacy CLI (reference)

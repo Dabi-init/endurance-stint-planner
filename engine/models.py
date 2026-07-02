@@ -139,6 +139,7 @@ class RaceConfig:
     tyre_change_time_sec: float
     drivers: list[Driver]
     regulations: DriverRegulations = field(default_factory=DriverRegulations)
+    circuit_id: str = ""
 
     @property
     def race_duration_min(self) -> float:
@@ -157,6 +158,7 @@ class RaceConfig:
             "tyre_change_time_sec": self.tyre_change_time_sec,
             "drivers": [d.to_dict() for d in self.drivers],
             "regulations": self.regulations.to_dict(),
+            "circuit_id": self.circuit_id,
         }
 
     @classmethod
@@ -177,6 +179,7 @@ class RaceConfig:
             tyre_change_time_sec=float(data.get("tyre_change_time_sec", 0.0)),
             drivers=drivers,
             regulations=regs,
+            circuit_id=str(data.get("circuit_id", "")),
         )
 
 

@@ -31,10 +31,19 @@ from engine.planner import (
     list_presets,
     load_preset,
 )
+from engine.circuits import (
+    DEFAULT_CIRCUIT_ID,
+    apply_circuit_to_config,
+    circuit_id_from_display,
+    get_circuit,
+    list_circuit_names,
+    recommended_stint_laps,
+)
 from engine.regulations import check_compliance
+from engine.recommendations import generate_strategy_report
 from engine.safety_car import SafetyCarConfig, replan_with_safety_car
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 PLOTLY_TEMPLATE = "plotly_dark"
 
 CUSTOM_CSS = """
@@ -146,6 +155,18 @@ def _cache_to_plan(cached: dict) -> PlanResult:
     )
 
 
+def _apply_circuit_to_session(circuit_id: str, *, recompute: bool = True) -> None:
+    circuit = get_circuit(circuit_id)
+    if not circuit:
+        return
+    cfg = apply_circuit_to_config(st.session_state.config_dict, circuit)
+    st.session_state.config_dict = cfg
+    st.session_state.circuit_id = circuit_id
+    st.session_state.tyre_life_override = int(cfg["tyre_life_laps"])
+    if recompute:
+        st.session_state.plan_cache = cached_compute_plan(cfg)
+
+
 def _init_session() -> None:
     if "initialized" not in st.session_state:
         preset = DEFAULT_PRESET
@@ -154,9 +175,9 @@ def _init_session() -> None:
         st.session_state.preset = preset
         st.session_state.config_dict = config.to_dict()
         st.session_state.drivers_data = [d.to_dict() for d in config.drivers]
-        st.session_state.plan_cache = cached_compute_plan(config.to_dict())
+        st.session_state.circuit_id = DEFAULT_CIRCUIT_ID
+        _apply_circuit_to_session(DEFAULT_CIRCUIT_ID, recompute=True)
         st.session_state.sc_comparison = None
-        st.session_state.tyre_life_override = config.tyre_life_laps
 
 
 def _category_color(category: str) -> str:
@@ -344,12 +365,33 @@ def _sidebar_config() -> RaceConfig:
         st.session_state.preset = preset
         st.session_state.config_dict = config.to_dict()
         st.session_state.drivers_data = [d.to_dict() for d in config.drivers]
-        st.session_state.tyre_life_override = config.tyre_life_laps
+        circuit_id = st.session_state.get("circuit_id", DEFAULT_CIRCUIT_ID)
         with st.spinner("Computing strategy…"):
-            st.session_state.plan_cache = cached_compute_plan(config.to_dict())
+            _apply_circuit_to_session(circuit_id, recompute=True)
 
     cfg = st.session_state.config_dict
     regs = cfg.get("regulations", {})
+
+    circuit_names = list_circuit_names()
+    current_circuit = get_circuit(st.session_state.get("circuit_id", DEFAULT_CIRCUIT_ID))
+    current_display = current_circuit.display_name if current_circuit else circuit_names[0]
+    circuit_display = st.sidebar.selectbox(
+        "Circuit",
+        circuit_names,
+        index=circuit_names.index(current_display) if current_display in circuit_names else 0,
+        help="Track profile adjusts lap time, tyre life, fuel use, and pit loss.",
+    )
+    selected_circuit_id = circuit_id_from_display(circuit_display)
+    if selected_circuit_id and selected_circuit_id != st.session_state.get("circuit_id"):
+        with st.spinner("Applying circuit profile…"):
+            _apply_circuit_to_session(selected_circuit_id, recompute=True)
+
+    if current_circuit:
+        st.sidebar.caption(
+            f"{current_circuit.length_km:.3f} km · "
+            f"Tyre wear: **{current_circuit.tyre_wear}** · "
+            f"SC risk: **{current_circuit.sc_risk}**"
+        )
 
     with st.sidebar.expander("Race Parameters", expanded=True):
         cfg["race_name"] = st.text_input(
@@ -691,6 +733,67 @@ def _tab_safety_car(plan: PlanResult, config: RaceConfig) -> None:
             st.markdown(f"- {note}")
 
 
+def _tab_strategy_insights(plan: PlanResult, config: RaceConfig) -> None:
+    circuit_id = st.session_state.get("circuit_id", config.circuit_id or DEFAULT_CIRCUIT_ID)
+    report = generate_strategy_report(plan, circuit_id)
+
+    if report.circuit:
+        c = report.circuit
+        st.subheader(f"Strategy Insights — {c.name}")
+        st.caption(c.characteristics)
+    else:
+        st.subheader("Strategy Insights")
+
+    if not plan.is_feasible:
+        _render_infeasibility_cards(plan)
+        st.info("Recommendations are limited until the plan is feasible.")
+        return
+
+    st.markdown(report.race_approach_summary)
+
+    m = report.metrics
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Avg stint", f"{m.avg_stint_laps:.0f} laps")
+    col2.metric("Avg stint time", format_duration(m.avg_stint_min))
+    col3.metric("Fuel / Tyre limit", m.limiting_factor)
+    col4.metric("Pit stops / hour", f"{m.pit_stops_per_hour:.1f}")
+
+    st.markdown("#### Calculated metrics")
+    mc1, mc2, mc3 = st.columns(3)
+    mc1.metric("Fuel geometry", f"{m.fuel_laps_geometry} laps/stint")
+    mc2.metric("Tyre geometry", f"{m.tyre_laps_geometry} laps/stint")
+    mc3.metric("Fuel–tyre gap", f"{m.fuel_tyre_gap_laps} laps")
+
+    mc4, mc5, mc6 = st.columns(3)
+    mc4.metric("Tyre-limited stints", f"{m.tyre_limited_stint_pct:.0f}%")
+    mc5.metric("Est. deg / lap", f"{m.estimated_deg_per_lap_sec:.2f}s")
+    mc6.metric("Pace loss (stint end)", f"+{m.estimated_pace_loss_final_lap_sec:.1f}s")
+
+    if report.circuit:
+        geom = recommended_stint_laps(config.to_dict(), report.circuit)
+        st.caption(
+            f"Circuit recommendation: **{geom['recommended_laps']} laps/stint** "
+            f"({geom['limiting']}-limited at {report.circuit.name})."
+        )
+
+    st.markdown("#### Recommendations")
+    if not report.insights:
+        st.info("No specific recommendations — plan geometry is balanced.")
+    else:
+        for insight in report.insights:
+            with st.expander(f"{insight.icon()} {insight.title}", expanded=insight.priority == "high"):
+                st.markdown(f"**{insight.category}**")
+                st.write(insight.detail)
+
+    st.markdown("---")
+    st.markdown(
+        "##### Data & telemetry note\n"
+        "Metrics above are **calculated from your plan inputs**, not live telemetry. "
+        "Future versions can import session CSV / timing data for calibrated fuel, "
+        "tyre wear, and pace predictions."
+    )
+
+
 def _tab_methodology() -> None:
     st.markdown("""
 ## Model Assumptions
@@ -706,6 +809,8 @@ This planner uses a **deterministic, green-flag geometry model**:
 - **Pace**: Each driver applies a fixed lap-time delta vs. the base lap.
 - **Driver rotation**: Greedy selection favouring drivers below minimum
   drive quotas, then round-robin.
+- **Circuits**: Six GT/endurance profiles adjust lap time, tyre life,
+  fuel consumption, and pit loss. High-wear tracks shorten stints automatically.
 
 ## What This Model Does NOT Simulate
 
@@ -717,6 +822,7 @@ This planner uses a **deterministic, green-flag geometry model**:
 | FCY vs full Safety Car procedures | Not modelled |
 | Driver fatigue or pace degradation | Not modelled |
 | Compulsory driver-change windows (series-specific) | Roadmap |
+| Live telemetry / session data import | Roadmap (placeholder in Strategy Insights) |
 
 ## Regulation Model
 
@@ -778,8 +884,9 @@ def main() -> None:
         cached = st.session_state.plan_cache
         plan = _cache_to_plan(cached)
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "Stint Plan",
+            "Strategy Insights",
             "Driver Compliance",
             "Tyre Strategy",
             "What-If / Safety Car",
@@ -789,12 +896,14 @@ def main() -> None:
         with tab1:
             _tab_stint_plan(plan, cached)
         with tab2:
-            _tab_driver_compliance(plan)
+            _tab_strategy_insights(plan, config)
         with tab3:
-            _tab_tyre_strategy(plan, config)
+            _tab_driver_compliance(plan)
         with tab4:
-            _tab_safety_car(plan, config)
+            _tab_tyre_strategy(plan, config)
         with tab5:
+            _tab_safety_car(plan, config)
+        with tab6:
             _tab_methodology()
 
     except Exception:
