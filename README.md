@@ -8,9 +8,9 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-**Professional race strategy tool** for endurance sportscar racing — fuel-limited stints, tyre life, GT-style driver regulations, Safety Car what-if, and pit-wall exports.
+**Production race strategy tool** for endurance GT and sportscar racing — fuel-limited stints, tyre life, Pro/Silver/Bronze driver regulations, circuit profiles, Safety Car what-if, and pit-wall exports.
 
-Built for race engineers briefing before green flag. Not live timing software.
+Built for race engineers, team managers, and strategists briefing before green flag. Not live timing software.
 
 **Repository:** [github.com/Dabi-init/endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
 
@@ -28,29 +28,19 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app opens with the **6h Endurance** preset loaded and a complete stint plan — no input required.
+Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required.
 
 ---
 
-## Deploy live (Streamlit Community Cloud)
+## Who This Is For
 
-Get a public URL in ~2 minutes — free, no server setup.
+| User | What they get |
+|------|----------------|
+| **Race engineer** | Instant stint sheet, Gantt timeline, fuel/tyre geometry, exports |
+| **Team manager** | Driver compliance pass/fail, Bronze minimum checks, rotation summary |
+| **Strategist** | Tyre what-if slider, Safety Car replan comparison, circuit-aware defaults |
 
-1. Open **[share.streamlit.io](https://share.streamlit.io)** and sign in with **GitHub** (`Dabi-init`).
-2. Click **Create app** (top right).
-3. Fill in exactly:
-   - **Repository:** `Dabi-init/endurance-stint-planner`
-   - **Branch:** `main`
-   - **Main file path:** `app.py`
-4. Click **Deploy**.
-
-Your app will be live at a URL like:
-
-`https://endurance-stint-planner-dabi-init.streamlit.app`
-
-(Exact subdomain may vary — Streamlit assigns it on first deploy.)
-
-After deploy, every `git push` to `main` auto-redeploys the app.
+The calculation engine is separated from the UI. Invalid inputs return structured **Infeasibility** messages with suggested fixes — the app does not crash on bad data.
 
 ---
 
@@ -58,41 +48,33 @@ After deploy, every `git push` to `main` auto-redeploys the app.
 
 | Capability | Status |
 |------------|--------|
-| Fuel-limited stint geometry | ✅ |
-| Tyre life cap per stint | ✅ |
-| Pro / Silver / Bronze driver regulations | ✅ |
-| Interactive Plotly stint timeline | ✅ |
-| Driver compliance pass/fail table | ✅ |
+| Fuel + tyre limited stint planning | ✅ |
+| Pro / Silver / Bronze regulations | ✅ |
+| Interactive Plotly Gantt timeline | ✅ |
+| Driver compliance pass/fail | ✅ |
 | Tyre strategy what-if slider | ✅ |
-| Safety Car re-plan comparison | ✅ |
+| Safety Car replan + comparison | ✅ |
+| Circuit selection (6 GT venues) | ✅ |
 | CSV + pit-wall stint sheet export | ✅ |
+| Auto-recompute on input change | ✅ |
 | Championship presets (4h / 6h / 24h) | ✅ |
-| Circuit / track selection (6 GT venues) | ✅ |
-| Strategy Insights & recommendations | ✅ |
-| Calculated performance metrics | ✅ |
-| Structured infeasibility reasons (no crashes) | ✅ |
 
 ---
 
-## UI Overview
+## UI — Five Tabs
+
+1. **Stint Plan** — metrics, Plotly Gantt, stint table, strategy briefing, CSV/text export
+2. **Driver Compliance** — drive-time chart, regulatory bands, ✅/❌ rule table
+3. **Tyre Strategy** — live tyre-life slider with recomputed stints
+4. **What-If / Safety Car** — SC inputs, original vs re-planned timelines
+5. **Methodology** — assumptions, limitations, validation placeholders
 
 ### Sidebar
-- **Preset selector** — 6h Endurance (default), 24h GT3 Endurance, 4h Sprint Endurance
-- **Circuit selector** — Spa, Le Mans, Portimão, Monza, Nürburgring GP, Fuji (auto-adjusts lap time, tyre life, fuel, pit loss)
+
+- Preset selector (default: **6h Endurance**)
+- Circuit selector (Spa, Le Mans, Portimão, Monza, Nürburgring GP, Fuji)
 - Grouped inputs: Race Parameters, Car & Fuel, Tyres, Pit Stops, Drivers, Regulations
-- **Compute Plan** button (auto-computes on preset or circuit change)
-
-### Main Tabs
-1. **Stint Plan** — metrics, Gantt timeline, stint table, CSV/text export
-2. **Strategy Insights** — race approach summary, calculated metrics, tyre/pit/driver/SC recommendations
-3. **Driver Compliance** — drive-time chart with regulatory bands, ✅/❌ rule table
-4. **Tyre Strategy** — live tyre-life slider with recomputed stints
-5. **What-If / Safety Car** — SC window inputs, original vs re-planned timelines
-6. **Methodology** — assumptions, limitations, validation placeholders
-
-### Circuits
-
-Track data lives in `circuits/circuits.json` — easy to extend. Each circuit defines length, lap time, tyre wear severity (Low/Medium/High), fuel consumption, pit loss, and SC risk. High-wear circuits automatically produce shorter stint targets.
+- Plan updates automatically when inputs change; **Recompute Plan** forces a refresh
 
 ---
 
@@ -104,22 +86,16 @@ endurance-stint-planner/
 ├── engine/
 │   ├── models.py               # Driver, RaceConfig, Stint, PlanResult, Infeasibility
 │   ├── planner.py              # Pure stint planning logic
-│   ├── circuits.py             # Track profiles and circuit-aware adjustments
-│   ├── recommendations.py      # Strategy insights from plan calculations
-│   ├── regulations.py          # Driver regulation compliance engine
-│   └── safety_car.py           # Safety Car re-planning + comparison
-├── circuits/
-│   └── circuits.json           # Track profiles (extensible)
-├── presets/
-│   ├── 6h_endurance.json
-│   ├── 24h_gt3_endurance.json
-│   └── 4h_sprint_endurance.json
-├── tests/
-│   ├── test_planner.py
-│   └── test_circuits.py
+│   ├── circuits.py             # Track profiles
+│   ├── recommendations.py      # Plan-based strategy briefing
+│   ├── regulations.py          # Driver compliance engine
+│   └── safety_car.py           # Safety Car re-planning
+├── circuits/circuits.json      # Extensible track data
+├── presets/                    # 4h, 6h, 24h JSON presets
+├── tests/                      # 26 unit tests
 ├── .streamlit/config.toml      # Dark theme
-├── requirements.txt
-└── endurance_stint_planner.py  # Legacy CLI (reference)
+├── assets/                     # Project logo
+└── requirements.txt
 ```
 
 ---
@@ -127,21 +103,11 @@ endurance-stint-planner/
 ## Strategy Logic
 
 ```
-stint_laps = min(fuel_laps, tyre_life_laps, laps_for_driver_cap)
-pit_time   = pit_lane_loss + (tyre_change if enabled)
+stint_laps = min(fuel_laps, tyre_life_laps, driver_cap_laps)
+pit_time   = pit_lane_loss + tyre_change (if enabled)
 ```
 
-Driver rotation prioritises drivers below minimum drive quotas, then rotates. Regulation compliance is validated after planning.
-
----
-
-## Presets
-
-| Preset | Duration | Drivers | Notes |
-|--------|----------|---------|-------|
-| 6h Endurance | 6 hours | 3 (Pro/Silver/Bronze) | Default — ELMS-style Bronze 2h minimum |
-| 24h GT3 Endurance | 24 hours | 4 | Max drive cap per driver |
-| 4h Sprint Endurance | 4 hours | 2 | Pro + Silver sprint format |
+High tyre-wear circuits automatically shorten stint targets. Driver rotation prioritises minimum-drive quotas, then round-robins.
 
 ---
 
@@ -152,36 +118,70 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-Covers fuel/tyre limiting, driver regulations, infeasibility handling, Safety Car replan, edge cases, and preset loading.
+---
+
+## Deploy (Streamlit Community Cloud)
+
+1. Go to [share.streamlit.io](https://share.streamlit.io) → sign in with GitHub
+2. **Create app** → Repository: `Dabi-init/endurance-stint-planner`, Branch: `main`, Main file: `app.py`
+3. Deploy — auto-redeploys on every push to `main`
 
 ---
 
-## Legacy CLI
+## Push Updates to GitHub
 
-The original command-line planner remains available:
+Copy-paste from your project folder:
 
 ```bash
-python endurance_stint_planner.py --preset fun-cup
-python endurance_stint_planner.py --validate-case
+# Check what changed
+git status
+
+# Stage all project files
+git add app.py engine/ circuits/ presets/ tests/ .streamlit/ requirements.txt requirements-dev.txt README.md assets/
+
+# Commit with a clear message
+git commit -m "feat: polish Streamlit app v1.2 — five tabs, auto-recompute, circuit profiles"
+
+# Push to GitHub
+git push origin main
 ```
+
+First-time setup (if cloning fresh):
+
+```bash
+git clone https://github.com/Dabi-init/endurance-stint-planner.git
+cd endurance-stint-planner
+# ... make changes ...
+git add .
+git commit -m "your message"
+git push origin main
+```
+
+### Set the repository logo / social preview image
+
+GitHub shows the **first image in README.md** on the repo home page (already set to `assets/endurance-stint-planner-logo.jpg`).
+
+For the **social preview** (link cards on Twitter/LinkedIn/Slack):
+
+1. Open `https://github.com/Dabi-init/endurance-stint-planner/settings`
+2. Under **General** → **Social preview** → **Edit**
+3. Upload `assets/endurance-stint-planner-logo.jpg` (recommended 1280×640 px)
+4. Save
 
 ---
 
 ## Limitations
 
-- No live timing feed or real-time race-day re-planning
+- No live timing or real-time race-day feeds
 - No traffic, weather, or competitor gap modelling
-- Constant fuel consumption and linear tyre life
-- Safety Car model is strategic what-if, not procedure-accurate FCY/SC
+- Constant fuel consumption; linear tyre life cap
+- Safety Car model is strategic what-if, not procedure-accurate
 
 ---
 
 ## Author
 
-**Sreenath R.** — ESSEC MIM 2026
-
-- **GitHub:** [@Dabi-init](https://github.com/Dabi-init)
-- **Project:** [endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
+**Sreenath R.** — ESSEC MIM 2026 · [github.com/Dabi-init](https://github.com/Dabi-init)
 
 ---
 
