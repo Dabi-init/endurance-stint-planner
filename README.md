@@ -226,6 +226,17 @@ This project shows you can:
 
 ---
 
+## Future Improvements
+
+The current tool covers pre-race stint planning and reactive Safety Car re-plans. Next steps focus on validating plans against real data and expanding into live-race decision support:
+
+- Integrate live timing data (FastF1 or series timing feeds) for real-race validation
+- Add tyre degradation and compound strategy modelling
+- Build a simple Streamlit dashboard for interactive strategy simulation
+- Expand Safety Car and Full Course Yellow modelling with probabilistic scenarios
+
+---
+
 ## Author
 
 **Sreenath R.** — ESSEC MIM 2026
@@ -234,16 +245,6 @@ Endurance motorsport strategy | Python for race operations | Targeting sportscar
 
 - **GitHub:** [@Dabi-init](https://github.com/Dabi-init)
 - **Project:** [endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
-
----
-
-## Future Improvements
-
-- [ ] Live timing / telemetry import
-- [ ] Tyre stint and compound modelling
-- [ ] Multi-car offset and undercut windows
-- [ ] Streamlit dashboard for real-time use
-- [ ] Automated unit tests for regulatory edge cases
 
 ---
 
