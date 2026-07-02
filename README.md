@@ -19,16 +19,12 @@ Built for race engineers, team managers, and strategists briefing before green f
 ## Quick Start
 
 ```bash
-git clone https://github.com/Dabi-init/endurance-stint-planner.git
-cd endurance-stint-planner
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
-pip install -r requirements.txt
-streamlit run app.py
+git clone https://github.com/Dabi-init/endurance-stint-planner.git && cd endurance-stint-planner && pip install -r requirements.txt && streamlit run app.py
 ```
 
-Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required.
+Already cloned? Run: `pip install -r requirements.txt && streamlit run app.py`
+
+Opens at [http://localhost:8501](http://localhost:8501) with a complete **6h Endurance** plan at Spa — no input required. Requires **Python 3.10+**.
 
 ---
 
