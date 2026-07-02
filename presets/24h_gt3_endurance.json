@@ -1,0 +1,28 @@
+{
+  "race_name": "24h GT3 Endurance",
+  "race_duration_hours": 24.0,
+  "base_lap_time_sec": 118.0,
+  "fuel_tank_liters": 100.0,
+  "fuel_consumption_per_lap": 2.85,
+  "pit_stop_time_loss_sec": 52.0,
+  "refuel_rate_liters_per_sec": 2.8,
+  "tyre_life_laps": 30,
+  "tyre_change_time_sec": 16.0,
+  "drivers": [
+    {"name": "Liam Pro", "category": "Pro", "pace_delta_sec": -0.3},
+    {"name": "Nina Pro", "category": "Pro", "pace_delta_sec": 0.1},
+    {"name": "Oscar Silver", "category": "Silver", "pace_delta_sec": 0.6},
+    {"name": "Paul Bronze", "category": "Bronze", "pace_delta_sec": 1.5}
+  ],
+  "regulations": {
+    "pro_max_continuous_stint_min": 120.0,
+    "silver_max_continuous_stint_min": 90.0,
+    "bronze_max_continuous_stint_min": 65.0,
+    "bronze_min_drive_min": 240.0,
+    "silver_min_drive_min": 120.0,
+    "min_total_drive_min": 0.0,
+    "max_total_drive_min": 480.0,
+    "fuel_safety_laps": 1,
+    "change_tyres_every_stop": true
+  }
+}

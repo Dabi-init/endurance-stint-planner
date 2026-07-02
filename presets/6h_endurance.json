@@ -1,0 +1,27 @@
+{
+  "race_name": "6h Endurance — GT3",
+  "race_duration_hours": 6.0,
+  "base_lap_time_sec": 120.0,
+  "fuel_tank_liters": 100.0,
+  "fuel_consumption_per_lap": 2.9,
+  "pit_stop_time_loss_sec": 55.0,
+  "refuel_rate_liters_per_sec": 2.5,
+  "tyre_life_laps": 28,
+  "tyre_change_time_sec": 18.0,
+  "drivers": [
+    {"name": "Alex Pro", "category": "Pro", "pace_delta_sec": 0.0},
+    {"name": "Sarah Silver", "category": "Silver", "pace_delta_sec": 0.5},
+    {"name": "Marco Bronze", "category": "Bronze", "pace_delta_sec": 1.2}
+  ],
+  "regulations": {
+    "pro_max_continuous_stint_min": 120.0,
+    "silver_max_continuous_stint_min": 90.0,
+    "bronze_max_continuous_stint_min": 65.0,
+    "bronze_min_drive_min": 120.0,
+    "silver_min_drive_min": 0.0,
+    "min_total_drive_min": 0.0,
+    "max_total_drive_min": 0.0,
+    "fuel_safety_laps": 1,
+    "change_tyres_every_stop": true
+  }
+}

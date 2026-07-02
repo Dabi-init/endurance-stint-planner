@@ -1,0 +1,26 @@
+{
+  "race_name": "4h Sprint Endurance",
+  "race_duration_hours": 4.0,
+  "base_lap_time_sec": 115.0,
+  "fuel_tank_liters": 90.0,
+  "fuel_consumption_per_lap": 2.7,
+  "pit_stop_time_loss_sec": 48.0,
+  "refuel_rate_liters_per_sec": 2.6,
+  "tyre_life_laps": 26,
+  "tyre_change_time_sec": 15.0,
+  "drivers": [
+    {"name": "Chris Pro", "category": "Pro", "pace_delta_sec": 0.0},
+    {"name": "Dana Silver", "category": "Silver", "pace_delta_sec": 0.4}
+  ],
+  "regulations": {
+    "pro_max_continuous_stint_min": 110.0,
+    "silver_max_continuous_stint_min": 85.0,
+    "bronze_max_continuous_stint_min": 65.0,
+    "bronze_min_drive_min": 0.0,
+    "silver_min_drive_min": 0.0,
+    "min_total_drive_min": 0.0,
+    "max_total_drive_min": 0.0,
+    "fuel_safety_laps": 1,
+    "change_tyres_every_stop": true
+  }
+}
