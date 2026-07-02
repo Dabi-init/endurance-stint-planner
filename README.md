@@ -83,6 +83,14 @@ python endurance_stint_planner.py --preset fun-cup
 
 You should see a fuel summary followed by a full stint table in the terminal.
 
+### Step 5 — Verify everything works (optional)
+
+```bash
+python endurance_stint_planner.py --self-test
+```
+
+This runs all presets, a Safety Car scenario, and custom driver input. You should see `All self-tests passed.` at the end.
+
 ### More commands to try
 
 ```bash
@@ -215,11 +223,22 @@ endurance-stint-planner/
 
 ---
 
+## Why This Matters for Strategy Roles
+
+This project shows you can:
+
+- Translate **fuel windows** and **pit timing** into a structured pre-race plan
+- Apply **FIA driver category rules** (Pro / Silver / Bronze min-max stints)
+- **Re-plan under Safety Car** — a real pit-wall scenario
+- Present output in formats strategists use: **tables**, **CSV**, and **timeline charts**
+
+---
+
 ## Author
 
 **Sreenath R.** — ESSEC MIM 2026
 
-Motorsport strategy and Python for endurance race operations. Targeting race engineering and strategy roles in sportscar championships.
+Endurance motorsport strategy | Python for race operations | Targeting sportscar strategy and race engineering roles (Fun Cup, Lamera Cup, ELMS, WEC).
 
 - **GitHub:** [@Dabi-init](https://github.com/Dabi-init)
 - **Project:** [endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)

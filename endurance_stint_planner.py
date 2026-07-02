@@ -311,6 +311,18 @@ class DriverRotationManager:
                 best_deficit = deficit
                 best_index = index
 
+        # Closing stints: satisfy any outstanding minimum-drive quota first.
+        if remaining_race_min < fuel_limited_min * 1.5:
+            for index, driver in enumerate(self.drivers):
+                driven = self._cumulative_drive[driver.name]
+                deficit = max(0.0, driver.min_total_drive_min - driven)
+                stint_cap = self.stint_cap_minutes(
+                    driver, fuel_limited_min, remaining_race_min
+                )
+                if deficit > 0 and stint_cap >= min(driver.min_stint_min, remaining_race_min):
+                    self._index = index
+                    return
+
         if best_deficit > 0:
             self._index = best_index
         else:
@@ -565,7 +577,13 @@ class SafetyCarReplanner:
 
         if active_stint is None:
             resume_min = sc_deployed_min
-            resume_driver = self.drivers[0]
+            if completed_stints:
+                last_driver = completed_stints[-1].driver
+                names = [d.name for d in self.drivers]
+                idx = names.index(last_driver.name)
+                resume_driver = self.drivers[(idx + 1) % len(self.drivers)]
+            else:
+                resume_driver = self.drivers[0]
         else:
             elapsed_in_stint = sc_deployed_min - active_stint.start_min
             extended_duration = elapsed_in_stint + extend_current_stint_min
@@ -1097,5 +1115,28 @@ def main(argv: Optional[list[str]] = None) -> int:
     return 0
 
 
+def run_self_tests() -> None:
+    """Quick smoke tests for portfolio confidence (no external test runner)."""
+    tests = [
+        ["--preset", "fun-cup"],
+        ["--preset", "elms"],
+        ["--preset", "wec", "--safety-car", "185", "--extend-stint", "8"],
+        [
+            "--race-hours", "4",
+            "--lap-time", "2:08",
+            "--tank", "80",
+            "--fuel-per-lap", "2.6",
+            "--drivers", "A:Pro::90:0,B:Bronze:45:65:96",
+        ],
+    ]
+    for argv in tests:
+        if main(argv) != 0:
+            raise RuntimeError(f"Self-test failed: {argv}")
+    print("All self-tests passed.")
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        run_self_tests()
+    else:
+        raise SystemExit(main())
