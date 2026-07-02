@@ -18,29 +18,19 @@ Built for race engineers, team managers, and strategists briefing before green f
 
 ## Quick Start
 
-**One command — works whether you have the repo already or not** (run from any folder, e.g. your home directory):
-
-**Windows (Command Prompt):**
-```cmd
-if exist endurance-stint-planner (cd endurance-stint-planner) else (git clone https://github.com/Dabi-init/endurance-stint-planner.git && cd endurance-stint-planner) && pip install -r requirements.txt && streamlit run app.py
-```
-
-**Windows (PowerShell):**
-```powershell
-if (-not (Test-Path endurance-stint-planner)) { git clone https://github.com/Dabi-init/endurance-stint-planner.git }; cd endurance-stint-planner; pip install -r requirements.txt; streamlit run app.py
-```
-
-**macOS / Linux:**
 ```bash
-[ -d endurance-stint-planner ] || git clone https://github.com/Dabi-init/endurance-stint-planner.git; cd endurance-stint-planner && pip install -r requirements.txt && streamlit run app.py
+git clone https://github.com/Dabi-init/endurance-stint-planner.git
+cd endurance-stint-planner
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS / Linux
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-**Already inside the project folder?** Double-click `run.bat` (Windows) or run:
-```bash
-pip install -r requirements.txt && streamlit run app.py
-```
+**Already cloned?** Skip the first two lines, then run the rest from inside the project folder.
 
-Opens at [http://localhost:8501](http://localhost:8501) with a complete **6h Endurance** plan at Spa — no input required. Requires **Python 3.10+**.
+Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required.
 
 ---
 
