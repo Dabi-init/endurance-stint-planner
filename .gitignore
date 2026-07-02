@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project outputs
+outputs/
+*.png
+*.csv
+!docs/*.png
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# Setup scripts (local only)
+setup_github.ps1
+profile_README.md
+check_commits.ps1
+reset_repo.ps1
+squash_clean.ps1
+fix_git_authors.py
+fix_author.ps1
+rewrite_authors.ps1
+env-filter.sh
+
+# MCP local config (not part of the application)
+mcps/
+
+# IDE / agent terminal state
+terminals/
