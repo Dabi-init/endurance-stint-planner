@@ -5,197 +5,171 @@
 [![matplotlib](https://img.shields.io/badge/matplotlib-3.7+-11557c?style=flat-square)](https://matplotlib.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-**A Python race-strategy tool for endurance sportscar championships** — built as a portfolio project for roles in **Fun Cup**, **Lamera Cup**, **ELMS**, and **WEC**.
-
-Plan fuel-limited stints, rotate Pro / Silver / Bronze drivers within regulatory limits, define pit windows, and re-plan instantly when a Safety Car drops.
+**Pre-race stint planning tool** for endurance sportscar racing — with series-specific regulations, fuel + tyre limits, gap simulation, and a real-race validation case study.
 
 **Repository:** [github.com/Dabi-init/endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
 
 ---
 
-## At a Glance
+## What This Tool Does (Honestly)
 
-| Capability | What it does |
-|------------|--------------|
-| Fuel geometry | Laps and minutes per stint from tank size, consumption, and safety margin |
-| Driver rotation | Pro / Silver / Bronze stints with min/max drive-time rules |
-| Pit windows | Earliest and latest pit entry for each stop |
-| Safety Car re-plan | Rebuilds the remaining schedule after an SC |
-| Table output | Pandas stint plan in the terminal or CSV |
-| Timeline chart | Matplotlib Gantt chart for briefings |
+This is a **pre-race planning and briefing tool**, not live pit-wall software. It helps you:
 
----
-
-## Why This Project?
-
-Endurance race strategy lives or dies on **fuel windows**, **driver quotas**, and **pit timing**. This tool automates the pre-race plan a strategist would sketch on the pit wall — then re-plans instantly when a Safety Car drops.
-
-Built to demonstrate:
-
-- Applied Python for real motorsport operations
-- Understanding of FIA driver categories (Pro / Silver / Bronze)
-- Fuel-limited stint geometry and pit window framing
-- Dynamic re-planning under Safety Car conditions
+| Capability | Status |
+|------------|--------|
+| Fuel-limited stint geometry | ✅ Implemented |
+| Tyre degradation + compound selection | ✅ Basic model |
+| Series-specific regulations (Fun Cup, ELMS) | ✅ Fun Cup + ELMS rule packs |
+| Mandatory Fun Cup refuelling windows | ✅ Enforced in planner |
+| Driver balance / Bronze drive quotas | ✅ Validated with errors/warnings |
+| Gap / crossover simulation | ✅ Basic static model |
+| Safety Car re-plan | ✅ Implemented |
+| Real-race validation case study | ✅ Fun Cup Portimão 2024 8h |
+| Live timing integration | ❌ Not included |
+| FCY vs SC procedure differences | ❌ Not included |
+| Multi-car competitor modelling | ❌ Not included |
 
 ---
 
-## Demo & Output
-
-Real terminal output from the Fun Cup preset — the same format a strategist would review before a 4-hour GT4 race.
-
-### Fun Cup 4h Portimão — Standard Stint Plan
-
-Pre-race plan with Pro + Bronze rotation, fuel-limited stints, and pit windows.
-
-```bash
-python endurance_stint_planner.py --preset fun-cup
-```
-
-![Fun Cup 4h Portimao - Standard Stint Plan](docs/fun_cup_normal.png)
-
-*4 stints | 3 pit stops | Bronze meets ~40% minimum drive requirement*
-
----
-
-### Fun Cup 4h Portimão — Safety Car Re-plan at Minute 125
-
-Safety Car deployed at **2:05:00** during stint 2. Strategy extends the Bronze stint by 8 minutes before pitting under SC with reduced pit loss.
-
-```bash
-python endurance_stint_planner.py --preset fun-cup --safety-car 125 --extend-stint 8
-```
-
-![Fun Cup 4h Portimao - Safety Car Re-plan](docs/fun_cup_safety_car.png)
-
-*Active stint extended under SC | Remaining stints rebuilt | Driver quotas re-validated*
-
----
-
-## How to Run
-
-You only need **Python 3.10+** and two packages (`pandas`, `matplotlib`). No prior coding experience required — follow these steps exactly.
-
-### Step 1 — Download the project
+## Quick Start
 
 ```bash
 git clone https://github.com/Dabi-init/endurance-stint-planner.git
 cd endurance-stint-planner
-```
-
-### Step 2 — Create a virtual environment (recommended)
-
-A virtual environment keeps this project's packages separate from the rest of your computer.
-
-**Windows (PowerShell or Command Prompt):**
-
-```bash
 python -m venv .venv
-.venv\Scripts\activate
-```
-
-**macOS / Linux:**
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-You know it worked when you see `(.venv)` at the start of your terminal line.
-
-### Step 3 — Install dependencies
-
-```bash
+.venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-```
-
-### Step 4 — Run your first plan
-
-```bash
 python endurance_stint_planner.py --preset fun-cup
-```
-
-You should see a fuel summary followed by a full stint table in the terminal.
-
-### Step 5 — Verify everything works (optional)
-
-```bash
 python endurance_stint_planner.py --self-test
 ```
 
-This runs all presets, a Safety Car scenario, and custom driver input. You should see `All self-tests passed.` at the end.
+---
 
-### More commands to try
+## New Features
 
-```bash
-# Save a timeline chart (no pop-up window)
-python endurance_stint_planner.py --preset fun-cup --output outputs/fun_cup.png
+### 1. Series-Specific Regulations
 
-# Export stint table to CSV
-python endurance_stint_planner.py --preset elms --export-csv outputs/elms_plan.csv
+Regulations are loaded per preset from published sporting rules:
 
-# Safety Car re-plan at race minute 125, extend stint by 8 minutes
-python endurance_stint_planner.py --preset fun-cup --safety-car 125 --extend-stint 8
+| Preset | Regulation pack | Key rules |
+|--------|-----------------|-----------|
+| `fun-cup` | Fun Cup GT4 (2024 regs) | Mandatory 10-min refuelling windows; driver balance (no driver > 2× others) |
+| `elms` | ELMS LMGT3 | Bronze max 65 min/stint, min 45 min/stint, min 2h total drive |
+| `wec` | WEC Hypercar (simplified) | Bronze stint caps only — energy/hybrid not modelled |
 
-# Show interactive chart
-python endurance_stint_planner.py --preset wec --plot
+Regulation breaches print as **ERRORS** (✗). Soft issues print as **warnings** (!).
+
+### 2. Tyre Strategy
+
+Stint length is capped by **both fuel and tyres**:
+
+```
+effective_stint = min(fuel_limited, tyre_limited, regulatory_cap, mandatory_window)
 ```
 
-### Troubleshooting
+Compounds: `GTR2` (Fun Cup), `MEDIUM`, `HARD`, `SOFT` (ELMS/WEC).
 
-| Problem | Solution |
-|---------|----------|
-| `python` not found | Try `python3` instead, or install Python from [python.org](https://www.python.org/downloads/) |
-| `pip` not found | Run `python -m pip install -r requirements.txt` |
-| Chart window does not open | Use `--output path/to/chart.png` to save a file instead of `--plot` |
-| `Configuration error` | Use a `--preset` or provide all custom fields (`--race-hours`, `--lap-time`, `--tank`, `--fuel-per-lap`) |
+```bash
+# Fun Cup — single mandatory Giti GTR2 compound
+python endurance_stint_planner.py --preset fun-cup
+
+# ELMS — alternate compounds per stint
+python endurance_stint_planner.py --preset elms --compounds MEDIUM,HARD,MEDIUM,HARD
+```
+
+Output includes **Grip End %** (remaining tyre life) and **Limit** column (Fuel-limited / Tyre-limited).
+
+### 3. Gap / Crossover Simulation
+
+Simple static model: compare gap to leader after pitting at different laps.
+
+```bash
+python endurance_stint_planner.py --preset fun-cup --gap-sim --gap-to-leader 12 --leader-lap-time 2:06
+```
+
+**Limitations:** Assumes constant lap times, no traffic, no SC. Useful for pre-race undercut/overcut sketches only.
+
+### 4. Real-Race Validation Case Study
+
+Compare model output against published stint times from **Fun Cup Portimão 2024 8h, Car #424 (Bollen-Leenders, P2)**.
+
+Source: [Fun Racing Cars pit/stint timing PDF](https://resultscdn.getraceresults.com/2024/Autodromo%20Internacional%20Algarve/FUN%20CUP%20-%20PORTIMAO/FUN%20CUP%20-%20FUN%20CUP%20-%20Course%20%252F%20Race%20-%208h%20-%20Pit%20and%20Stint-times.pdf)
+
+```bash
+python endurance_stint_planner.py --validate-case
+```
+
+The report shows:
+- Assumptions used (fuel, lap time, pit loss, tyre deg)
+- Side-by-side actual vs model stint durations
+- Mean/max delta — gaps reflect SC, traffic, and repairs the model does not simulate
+
+---
+
+## All Commands
+
+```bash
+# Standard 4h Fun Cup plan (fuel + tyre + mandatory windows)
+python endurance_stint_planner.py --preset fun-cup
+
+# ELMS 6h with compound rotation
+python endurance_stint_planner.py --preset elms --compounds MEDIUM,HARD,MEDIUM
+
+# Gap simulation on first stint
+python endurance_stint_planner.py --preset fun-cup --gap-sim --gap-to-leader 15
+
+# Safety Car re-plan
+python endurance_stint_planner.py --preset fun-cup --safety-car 125 --extend-stint 8
+
+# Export outputs
+python endurance_stint_planner.py --preset fun-cup --export-csv outputs/plan.csv --output outputs/timeline.png
+
+# Real-race validation
+python endurance_stint_planner.py --validate-case
+
+# Run all smoke tests
+python endurance_stint_planner.py --self-test
+```
 
 ---
 
 ## Championship Presets
 
-| Preset | Series | Duration | Driver lineup |
-|--------|--------|----------|---------------|
-| `fun-cup` | Fun Cup / Lamera Cup GT4 | 4 hours | Pro + Bronze |
-| `elms` | ELMS LMGT3 | 6 hours | Pro + Silver + Bronze |
-| `wec` | WEC Hypercar | 6 hours | Pro + Pro + Bronze |
-
-```bash
-python endurance_stint_planner.py --preset fun-cup
-python endurance_stint_planner.py --preset elms
-python endurance_stint_planner.py --preset wec
-```
+| Preset | Series | Duration | Tyre default | Regulations |
+|--------|--------|----------|--------------|-------------|
+| `fun-cup` | Fun Cup GT4 | 4 hours | GTR2 | Mandatory windows + driver balance |
+| `elms` | ELMS LMGT3 | 6 hours | MEDIUM/HARD rotation | FIA Bronze limits |
+| `wec` | WEC Hypercar | 6 hours | MEDIUM/HARD | Bronze limits (energy not modelled) |
 
 ---
 
 ## Strategy Logic
 
-### 1. Fuel-limited stint
+### Stint length
 
 ```
-usable_fuel = tank_capacity - (safety_laps x consumption_per_lap)
-laps_per_stint = floor(usable_fuel / consumption_per_lap)
+usable_fuel = tank - (safety_laps × consumption)
+fuel_laps   = floor(usable_fuel / consumption)
+tyre_laps   = compound max laps with linear deg (cliff after threshold)
+stint_laps  = min(fuel_laps, tyre_laps, laps_to_mandatory_window)
 ```
 
-A one-lap safety margin avoids running the tank dry under traffic or Safety Car conditions.
+### Fun Cup mandatory windows (4h)
 
-### 2. Driver rotation
+| Window | Race minutes |
+|--------|-------------|
+| 1 | 40 – 50 |
+| 2 | 80 – 90 |
+| 3 | 120 – 130 |
+| 4 | 160 – 170 |
+| 5 | 200 – 210 |
 
-Each stint is capped at the minimum of:
+*Source: 2024 Fun Cup Sporting Regulations §2.4.4*
 
-- Fuel-limited stint length
-- Driver maximum (Bronze capped at 65 min/stint in WEC/ELMS)
-- Remaining race time
+### Driver regulations
 
-Drivers below their **minimum total drive** are prioritised, while avoiding unnecessary back-to-back stints when another driver is available.
-
-### 3. Pit windows
-
-- **Open** = stint start + driver minimum stint
-- **Close** = stint end (fuel limit)
-
-### 4. Safety Car re-plan
-
-`--safety-car` preserves completed stints, can extend the active stint, applies reduced pit loss, and rebuilds the remaining schedule.
+- **Fun Cup:** Neither driver may exceed 2× combined drive of all others (§2.4.3)
+- **ELMS LMGT3:** Bronze max 65 min/stint, min 45 min/stint, min 2h total in 6h race
 
 ---
 
@@ -205,43 +179,44 @@ Drivers below their **minimum total drive** are prioritised, while avoiding unne
 endurance-stint-planner/
 ├── endurance_stint_planner.py   # Main application
 ├── requirements.txt
-├── LICENSE
 ├── README.md
-├── docs/
-│   ├── fun_cup_normal.png       # Standard stint plan screenshot
-│   └── fun_cup_safety_car.png   # Safety Car re-plan screenshot
-└── outputs/                     # Your generated files (git-ignored)
+├── docs/                        # Screenshots
+└── outputs/                     # Generated files (git-ignored)
 ```
 
 ---
 
-## Why This Matters for Strategy Roles
+## Current Limitations
 
-This project shows you can:
+Be explicit about what this tool **cannot** do:
 
-- Translate **fuel windows** and **pit timing** into a structured pre-race plan
-- Apply **FIA driver category rules** (Pro / Silver / Bronze min-max stints)
-- **Re-plan under Safety Car** — a real pit-wall scenario
-- Present output in formats strategists use: **tables**, **CSV**, and **timeline charts**
+- No live timing feed or real-time re-planning during a race
+- No FCY vs Safety Car procedure differences
+- No multi-car traffic or class-lapped traffic modelling
+- No weather, track evolution, or driver-pace delta per stint
+- WEC Hypercar energy management is not modelled
+- Gap simulation uses static lap times only
+- Tyre model is linear degradation — no thermal cycles or compound crossover vs competitors
 
 ---
 
 ## Future Improvements
 
-The current tool covers pre-race stint planning and reactive Safety Car re-plans. Next steps focus on validating plans against real data and expanding into live-race decision support:
+Items previously listed that are now **implemented**: tyre degradation, gap simulation, series regulations, real-race validation.
 
-- Integrate live timing data (FastF1 or series timing feeds) for real-race validation
-- Add tyre degradation and compound strategy modelling
-- Build a simple Streamlit dashboard for interactive strategy simulation
-- Expand Safety Car and Full Course Yellow modelling with probabilistic scenarios
+Remaining meaningful next steps:
+
+- Interactive Streamlit dashboard for what-if during briefings
+- Timing CSV import to auto-calibrate fuel/lap time from long runs
+- FCY vs SC separate pit-loss and procedure models
+- Multi-scenario planner (Plan A / SC-early / SC-late branches)
+- LMGT3 compound crossover vs competitor stints
 
 ---
 
 ## Author
 
 **Sreenath R.** — ESSEC MIM 2026
-
-Endurance motorsport strategy | Python for race operations | Targeting sportscar strategy and race engineering roles (Fun Cup, Lamera Cup, ELMS, WEC).
 
 - **GitHub:** [@Dabi-init](https://github.com/Dabi-init)
 - **Project:** [endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
