@@ -50,6 +50,7 @@ profile_README.md
 check_commits.ps1
 reset_repo.ps1
 squash_clean.ps1
+create_and_push.ps1
 fix_git_authors.py
 fix_author.ps1
 rewrite_authors.ps1
