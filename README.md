@@ -26,15 +26,48 @@ Plan fuel-limited stints, rotate Pro / Silver / Bronze drivers within regulatory
 
 ---
 
-## Screenshots
+## Why This Project?
 
-**Fun Cup — 4h (Pro + Bronze)**
+Endurance race strategy lives or dies on **fuel windows**, **driver quotas**, and **pit timing**. This tool automates the pre-race plan a strategist would sketch on the pit wall — then re-plans instantly when a Safety Car drops.
 
-![Fun Cup stint timeline](docs/fun_cup_timeline.png)
+Built to demonstrate:
 
-**ELMS — 6h Spa LMGT3 (Pro + Silver + Bronze)**
+- Applied Python for real motorsport operations
+- Understanding of FIA driver categories (Pro / Silver / Bronze)
+- Fuel-limited stint geometry and pit window framing
+- Dynamic re-planning under Safety Car conditions
 
-![ELMS stint timeline](docs/elms_timeline.png)
+---
+
+## Demo & Output
+
+Real terminal output from the Fun Cup preset — the same format a strategist would review before a 4-hour GT4 race.
+
+### Fun Cup 4h Portimão — Standard Stint Plan
+
+Pre-race plan with Pro + Bronze rotation, fuel-limited stints, and pit windows.
+
+```bash
+python endurance_stint_planner.py --preset fun-cup
+```
+
+![Fun Cup 4h Portimao - Standard Stint Plan](docs/fun_cup_normal.png)
+
+*4 stints | 3 pit stops | Bronze meets ~40% minimum drive requirement*
+
+---
+
+### Fun Cup 4h Portimão — Safety Car Re-plan at Minute 125
+
+Safety Car deployed at **2:05:00** during stint 2. Strategy extends the Bronze stint by 8 minutes before pitting under SC with reduced pit loss.
+
+```bash
+python endurance_stint_planner.py --preset fun-cup --safety-car 125 --extend-stint 8
+```
+
+![Fun Cup 4h Portimao - Safety Car Re-plan](docs/fun_cup_safety_car.png)
+
+*Active stint extended under SC | Remaining stints rebuilt | Driver quotas re-validated*
 
 ---
 
@@ -134,49 +167,6 @@ python endurance_stint_planner.py --preset wec
 
 ---
 
-## Example Output — Fun Cup 4h
-
-```
-Fuel geometry: 29 laps/stint (1:01:52)
-Lap time: 128.000s  |  Consumption: 2.60 L/lap  |  Tank: 80 L
-
- Stint       Driver Category   Start     End Duration  Laps  Fuel (L)
-     1   Martin Pro      Pro    5:00 1:06:52  1:01:52    29      75.4
-     2 Lucas Bronze   Bronze 1:07:42 2:09:34  1:01:52    29      75.4
-     3   Martin Pro      Pro 2:10:24 3:12:16  1:01:52    29      75.4
-     4 Lucas Bronze   Bronze 3:13:06 3:57:54    44:48    21      54.6
-
-Total stints: 4  |  Pit stops: 3
-
-Driver totals:
-  Martin Pro            2:03:44  (51.6% of race)
-  Lucas Bronze          1:46:40  (44.4% of race)
-```
-
-Bronze meets the typical ~40% minimum drive requirement (96 minutes).
-
----
-
-## Custom Race Setup
-
-```bash
-python endurance_stint_planner.py ^
-  --race-hours 4 ^
-  --race-name "Test Day" ^
-  --lap-time 2:08 ^
-  --tank 80 ^
-  --fuel-per-lap 2.6 ^
-  --drivers "Martin:Pro:45:90:0,Lucas:Bronze:45:65:96"
-```
-
-**Driver format:** `Name:Category:min_stint:max_stint:min_total_minutes`
-
-Leave a field blank to use the default. Example: `Martin:Pro::90:0` keeps the default 45 min minimum stint.
-
-**Categories:** `Pro`, `Silver`, `Bronze`, `Amateur`
-
----
-
 ## Strategy Logic
 
 ### 1. Fuel-limited stint
@@ -217,7 +207,9 @@ endurance-stint-planner/
 ├── requirements.txt
 ├── LICENSE
 ├── README.md
-├── docs/                        # Timeline images
+├── docs/
+│   ├── fun_cup_normal.png       # Standard stint plan screenshot
+│   └── fun_cup_safety_car.png   # Safety Car re-plan screenshot
 └── outputs/                     # Your generated files (git-ignored)
 ```
 
