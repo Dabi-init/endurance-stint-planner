@@ -32,6 +32,28 @@ The app opens with the **6h Endurance** preset loaded and a complete stint plan 
 
 ---
 
+## Deploy live (Streamlit Community Cloud)
+
+Get a public URL in ~2 minutes — free, no server setup.
+
+1. Open **[share.streamlit.io](https://share.streamlit.io)** and sign in with **GitHub** (`Dabi-init`).
+2. Click **Create app** (top right).
+3. Fill in exactly:
+   - **Repository:** `Dabi-init/endurance-stint-planner`
+   - **Branch:** `main`
+   - **Main file path:** `app.py`
+4. Click **Deploy**.
+
+Your app will be live at a URL like:
+
+`https://endurance-stint-planner-dabi-init.streamlit.app`
+
+(Exact subdomain may vary — Streamlit assigns it on first deploy.)
+
+After deploy, every `git push` to `main` auto-redeploys the app.
+
+---
+
 ## Features
 
 | Capability | Status |
@@ -112,6 +134,7 @@ Driver rotation prioritises drivers below minimum drive quotas, then rotates. Re
 ## Tests
 
 ```bash
+pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
