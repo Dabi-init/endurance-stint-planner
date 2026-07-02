@@ -3,9 +3,9 @@
 Endurance Race Stint Planner
 ============================
 
-A strategy planning tool for endurance sportscar racing (Lamera Cup, Fun Cup,
+Strategy planning tool for endurance sportscar racing (Lamera Cup, Fun Cup,
 ELMS, WEC). Computes fuel-limited stint lengths, driver rotations with
-regulatory min/max drive times, pit window targets, and safety-car re-plans.
+regulatory min/max drive times, pit window targets, and Safety Car re-plans.
 
 Author: Sreenath R. — ESSEC MIM 2026
 """
@@ -20,8 +20,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -58,6 +58,12 @@ def parse_lap_time(lap_time_str: str) -> float:
     raise ValueError(f"Invalid lap time format: {lap_time_str}")
 
 
+def parse_optional_float(value: str, default: float) -> float:
+    """Parse a CLI field that may be left blank to use a default."""
+    value = value.strip()
+    return float(value) if value else default
+
+
 # ---------------------------------------------------------------------------
 # Domain models
 # ---------------------------------------------------------------------------
@@ -75,9 +81,9 @@ class Driver:
     """Driver profile with regulatory stint constraints."""
     name: str
     category: DriverCategory
-    min_stint_min: float = 45.0   # Series minimum (e.g. WEC Bronze: 45 min)
-    max_stint_min: float = 90.0   # Series maximum (e.g. WEC Bronze: 65 min enforced separately)
-    min_total_drive_min: float = 0.0  # Minimum total driving time over the race
+    min_stint_min: float = 45.0
+    max_stint_min: float = 90.0
+    min_total_drive_min: float = 0.0
 
     def effective_max_stint(self) -> float:
         """Bronze drivers face a stricter per-stint cap in most championships."""
@@ -94,9 +100,9 @@ class RaceConfig:
     lap_time_sec: float
     fuel_tank_liters: float
     fuel_per_lap_liters: float
-    fuel_safety_laps: int = 1       # Reserve laps kept in tank at pit entry
-    pit_loss_sec: float = 45.0      # In-lap + stationary + out-lap delta vs flying lap
-    formation_lap_min: float = 5.0  # Time before green flag racing begins
+    fuel_safety_laps: int = 1
+    pit_loss_sec: float = 45.0
+    formation_lap_min: float = 5.0
 
     @property
     def lap_time_min(self) -> float:
@@ -106,10 +112,12 @@ class RaceConfig:
         """
         Fuel-limited stint length in laps.
 
-        Strategy note: we never run the tank dry — safety laps protect against
-        consumption drift, traffic, and SC pace running higher fuel burn.
+        Strategy: keep a safety margin in the tank to cover consumption drift,
+        traffic, and Safety Car periods at higher burn.
         """
-        usable_fuel = self.fuel_tank_liters - (self.fuel_safety_laps * self.fuel_per_lap_liters)
+        usable_fuel = self.fuel_tank_liters - (
+            self.fuel_safety_laps * self.fuel_per_lap_liters
+        )
         if usable_fuel <= 0:
             raise ValueError("Fuel tank too small for configured safety margin.")
         return int(math.floor(usable_fuel / self.fuel_per_lap_liters))
@@ -129,7 +137,6 @@ class Stint:
     duration_min: float
     laps: int
     fuel_used_liters: float
-    is_pit_stop: bool = False
     pit_window_open_min: Optional[float] = None
     pit_window_close_min: Optional[float] = None
     notes: str = ""
@@ -150,11 +157,13 @@ class Stint:
             "Fuel (L)": round(self.fuel_used_liters, 1),
             "Pit Window Open": (
                 format_duration(self.pit_window_open_min)
-                if self.pit_window_open_min is not None else "—"
+                if self.pit_window_open_min is not None
+                else "-"
             ),
             "Pit Window Close": (
                 format_duration(self.pit_window_close_min)
-                if self.pit_window_close_min is not None else "—"
+                if self.pit_window_close_min is not None
+                else "-"
             ),
             "Notes": self.notes,
         }
@@ -167,6 +176,11 @@ class StintPlan:
     stints: list[Stint] = field(default_factory=list)
     total_pit_stops: int = 0
     warnings: list[str] = field(default_factory=list)
+
+    @property
+    def race_end_min(self) -> float:
+        """Chequered-flag time used for summaries and charts."""
+        return self.config.race_duration_min
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame([s.to_dict() for s in self.stints])
@@ -207,6 +221,8 @@ class FuelCalculator:
 
     def laps_for_minutes(self, minutes: float) -> int:
         """Floor lap count achievable within a time budget."""
+        if minutes <= 0:
+            return 0
         return int(math.floor(minutes / self.config.lap_time_min))
 
     def minutes_for_laps(self, laps: int) -> float:
@@ -237,9 +253,11 @@ class DriverRotationManager:
     def current_driver(self) -> Driver:
         return self.drivers[self._index]
 
-    def advance(self) -> Driver:
-        self._index = (self._index + 1) % len(self.drivers)
-        return self.current_driver
+    def set_current_driver(self, driver: Driver) -> None:
+        names = [d.name for d in self.drivers]
+        if driver.name not in names:
+            raise ValueError(f"Driver {driver.name} is not in the lineup.")
+        self._index = names.index(driver.name)
 
     def record_drive(self, driver: Driver, minutes: float) -> None:
         self._cumulative_drive[driver.name] += minutes
@@ -251,23 +269,56 @@ class DriverRotationManager:
         remaining_race_min: float,
     ) -> float:
         """
-        Effective stint length is the minimum of:
-          1. Fuel tank range
-          2. Driver regulatory maximum
-          3. Remaining race time (final stint may be shorter)
+        Effective stint cap = min(fuel range, driver max, remaining race time).
         """
-        cap = min(fuel_limited_min, driver.effective_max_stint(), remaining_race_min)
+        cap = min(
+            fuel_limited_min,
+            driver.effective_max_stint(),
+            remaining_race_min,
+        )
         return max(cap, 0.0)
 
-    def stint_floor_minutes(self, driver: Driver) -> float:
-        return driver.min_stint_min
+    def select_priority_driver(
+        self,
+        fuel_limited_min: float,
+        remaining_race_min: float,
+        avoid_driver_name: Optional[str] = None,
+    ) -> None:
+        """
+        Pick the next driver, favouring anyone below their minimum total drive.
 
-    def validate_totals(self, race_duration_min: float) -> list[str]:
+        Strategy: meet Bronze quotas without stacking consecutive stints for
+        the same driver when another lineup choice is available.
+        """
+        next_index = (self._index + 1) % len(self.drivers)
+        best_index = next_index
+        best_deficit = 0.0
+
+        for index, driver in enumerate(self.drivers):
+            if avoid_driver_name and driver.name == avoid_driver_name:
+                continue
+
+            driven = self._cumulative_drive[driver.name]
+            deficit = max(0.0, driver.min_total_drive_min - driven)
+            stint_cap = self.stint_cap_minutes(
+                driver, fuel_limited_min, remaining_race_min
+            )
+
+            if stint_cap <= 0:
+                continue
+
+            if deficit > best_deficit:
+                best_deficit = deficit
+                best_index = index
+
+        if best_deficit > 0:
+            self._index = best_index
+        else:
+            self._index = next_index
+
+    def validate_totals(self) -> list[str]:
         """Check minimum total drive requirements (e.g. Bronze 40% rule)."""
         return validate_driver_totals(self.drivers, self._cumulative_drive)
-
-    def cumulative_drive_snapshot(self) -> dict[str, float]:
-        return dict(self._cumulative_drive)
 
 
 def validate_driver_totals(
@@ -293,7 +344,9 @@ def drive_totals_from_stints(stints: list[Stint]) -> dict[str, float]:
     """Aggregate driving minutes per driver from a stint list."""
     totals: dict[str, float] = {}
     for stint in stints:
-        totals[stint.driver.name] = totals.get(stint.driver.name, 0.0) + stint.duration_min
+        totals[stint.driver.name] = (
+            totals.get(stint.driver.name, 0.0) + stint.duration_min
+        )
     return totals
 
 
@@ -302,9 +355,8 @@ class PitWindowPlanner:
     Computes target pit windows for each stop.
 
     Strategy rationale:
-      - Open window: earliest safe pit entry (after min stint / min laps)
+      - Open window: earliest legal pit entry (after min stint)
       - Close window: latest pit entry before fuel runs critically low
-      - Undercut/overcut decisions are made live; windows frame the decision space
     """
 
     def __init__(self, config: RaceConfig, fuel_calc: FuelCalculator):
@@ -317,8 +369,7 @@ class PitWindowPlanner:
         stint_duration_min: float,
         driver: Driver,
     ) -> tuple[float, float]:
-        min_stint = driver.min_stint_min
-        window_open = stint_start_min + min_stint
+        window_open = stint_start_min + driver.min_stint_min
         window_close = stint_start_min + stint_duration_min
         return window_open, window_close
 
@@ -333,6 +384,47 @@ class StintPlanner:
         self.rotation = DriverRotationManager(drivers)
         self.pit_windows = PitWindowPlanner(config, self.fuel_calc)
 
+    def _compute_stint(
+        self,
+        driver: Driver,
+        current_min: float,
+        race_end: float,
+        fuel_limited_min: float,
+        max_laps: int,
+    ) -> tuple[int, float, bool]:
+        """Return laps, duration, and whether this is the final stint."""
+        remaining = race_end - current_min
+        duration = self.rotation.stint_cap_minutes(
+            driver, fuel_limited_min, remaining
+        )
+        if duration <= 0:
+            return 0, 0.0, True
+
+        # Final stint when remaining time cannot fit another full fuel window.
+        pit_loss_min = self.config.pit_loss_sec / 60.0
+        is_final = remaining <= fuel_limited_min + pit_loss_min
+
+        if is_final:
+            laps = max(self.fuel_calc.laps_for_minutes(remaining), 1)
+            duration = min(self.fuel_calc.minutes_for_laps(laps), remaining)
+        else:
+            laps = min(self.fuel_calc.laps_for_minutes(duration), max_laps)
+            duration = self.fuel_calc.minutes_for_laps(laps)
+
+            # Regulatory minimum stint on non-final stints.
+            if duration < driver.min_stint_min:
+                laps = min(
+                    self.fuel_calc.laps_for_minutes(driver.min_stint_min),
+                    max_laps,
+                )
+                duration = min(
+                    self.fuel_calc.minutes_for_laps(laps),
+                    remaining,
+                )
+
+        laps = max(laps, 0)
+        return laps, duration, is_final
+
     def build_plan(
         self,
         start_min: float = 0.0,
@@ -345,46 +437,45 @@ class StintPlanner:
         Generate stint sequence until race duration is covered.
 
         Loop logic:
-          1. Select current driver
+          1. Select driver (priority to minimum-drive quotas)
           2. Cap stint by fuel, driver max, and remaining race time
-          3. Enforce driver minimum on non-final stints where possible
-          4. Attach pit window for strategist reference
-          5. Rotate driver and repeat
+          3. Attach pit window for strategist reference
+          4. Rotate driver and repeat
         """
         if not preserve_rotation:
             self.rotation.reset()
+
         stints: list[Stint] = []
-        warnings: list[str] = []
         stint_number = stint_start_number
-        current_min = start_min + (0.0 if skip_formation else self.config.formation_lap_min)
-        race_end = race_end_min if race_end_min is not None else start_min + self.config.race_duration_min
+        current_min = start_min + (
+            0.0 if skip_formation else self.config.formation_lap_min
+        )
+        race_end = (
+            race_end_min
+            if race_end_min is not None
+            else start_min + self.config.race_duration_min
+        )
         fuel_limited_min = self.fuel_calc.max_stint_minutes()
         max_laps = self.fuel_calc.max_stint_laps()
         pit_stops = 0
 
+        last_driver_name: Optional[str] = None
+
         while current_min < race_end - 0.5:
-            driver = self.rotation.current_driver
             remaining = race_end - current_min
+            if stints:
+                self.rotation.select_priority_driver(
+                    fuel_limited_min,
+                    remaining,
+                    avoid_driver_name=last_driver_name,
+                )
+            driver = self.rotation.current_driver
 
-            duration = self.rotation.stint_cap_minutes(driver, fuel_limited_min, remaining)
-            if duration <= 0:
+            laps, duration, is_final = self._compute_stint(
+                driver, current_min, race_end, fuel_limited_min, max_laps
+            )
+            if laps <= 0 or duration <= 0:
                 break
-
-            laps = self.fuel_calc.laps_for_minutes(duration)
-            laps = min(laps, max_laps)
-
-            # Final stint: remaining race time is shorter than a full fuel window
-            is_final = remaining <= fuel_limited_min + self.config.pit_loss_sec / 60.0
-            if is_final:
-                laps = self.fuel_calc.laps_for_minutes(remaining)
-                laps = max(laps, 1) if remaining > 1 else 1
-                duration = min(self.fuel_calc.minutes_for_laps(laps), remaining)
-
-            # Regulatory minimum stint (skip on final stint if race ending)
-            if not is_final and duration < driver.min_stint_min:
-                laps = self.fuel_calc.laps_for_minutes(driver.min_stint_min)
-                laps = min(laps, max_laps)
-                duration = self.fuel_calc.minutes_for_laps(laps)
 
             fuel_used = self.fuel_calc.fuel_for_laps(laps)
             window_open, window_close = self.pit_windows.compute_window(
@@ -397,37 +488,36 @@ class StintPlanner:
             elif duration >= fuel_limited_min * 0.98:
                 note = "Fuel-limited stint"
 
-            stint = Stint(
-                stint_number=stint_number,
-                driver=driver,
-                start_min=current_min,
-                duration_min=duration,
-                laps=laps,
-                fuel_used_liters=fuel_used,
-                pit_window_open_min=window_open if not is_final else None,
-                pit_window_close_min=window_close if not is_final else None,
-                notes=note,
+            stints.append(
+                Stint(
+                    stint_number=stint_number,
+                    driver=driver,
+                    start_min=current_min,
+                    duration_min=duration,
+                    laps=laps,
+                    fuel_used_liters=fuel_used,
+                    pit_window_open_min=window_open if not is_final else None,
+                    pit_window_close_min=window_close if not is_final else None,
+                    notes=note,
+                )
             )
-            stints.append(stint)
             self.rotation.record_drive(driver, duration)
-
+            last_driver_name = driver.name
             current_min += duration
             stint_number += 1
 
             if is_final:
                 break
 
-            # Pit stop transitions to next driver
             current_min += self.config.pit_loss_sec / 60.0
             pit_stops += 1
-            self.rotation.advance()
 
         plan = StintPlan(
             config=self.config,
             stints=stints,
             total_pit_stops=pit_stops,
         )
-        plan.warnings = self.rotation.validate_totals(self.config.race_duration_min)
+        plan.warnings = self.rotation.validate_totals()
         return plan
 
 
@@ -435,11 +525,10 @@ class SafetyCarReplanner:
     """
     Re-plans remaining stints after a Safety Car or incident.
 
-    SC strategy considerations modelled here:
-      - Extended stint: current driver stays out while the field is bunched
-      - Fuel saved under SC pace → optional +1 lap on next stint
-      - Pit loss reduced (shorter in/out lap delta) — configurable
-      - Remaining race time recalculated from SC deployment minute
+    SC strategy modelled here:
+      - Extended stint under SC before pitting
+      - Reduced pit loss (shorter in/out lap delta)
+      - Fuel saved at SC pace → slightly relaxed safety margin
     """
 
     def __init__(
@@ -453,6 +542,7 @@ class SafetyCarReplanner:
         self.drivers = drivers
         self.sc_pit_loss_sec = sc_pit_loss_sec
         self.sc_fuel_saving_laps = sc_fuel_saving_laps
+        self.fuel_calc = FuelCalculator(config)
 
     def replan(
         self,
@@ -460,16 +550,7 @@ class SafetyCarReplanner:
         sc_deployed_min: float,
         extend_current_stint_min: float = 0.0,
     ) -> StintPlan:
-        """
-        Rebuild plan from SC deployment point.
-
-        Parameters
-        ----------
-        sc_deployed_min : float
-            Race minute when SC was deployed.
-        extend_current_stint_min : float
-            Additional minutes the lead car stays out under SC before pitting.
-        """
+        """Rebuild plan from SC deployment point."""
         completed_stints: list[Stint] = []
         active_stint: Optional[Stint] = None
 
@@ -482,11 +563,7 @@ class SafetyCarReplanner:
             else:
                 break
 
-        if active_stint is None and completed_stints:
-            # SC deployed after last recorded stint — start fresh from SC time
-            resume_min = sc_deployed_min
-            resume_driver = self.drivers[0]
-        elif active_stint is None:
+        if active_stint is None:
             resume_min = sc_deployed_min
             resume_driver = self.drivers[0]
         else:
@@ -495,9 +572,9 @@ class SafetyCarReplanner:
             extended_duration = min(
                 extended_duration,
                 active_stint.driver.effective_max_stint(),
-                active_stint.duration_min + extend_current_stint_min,
             )
-            laps = FuelCalculator(self.config).laps_for_minutes(extended_duration)
+            extended_duration = max(extended_duration, elapsed_in_stint)
+            laps = self.fuel_calc.laps_for_minutes(extended_duration)
 
             sc_stint = Stint(
                 stint_number=active_stint.stint_number,
@@ -505,20 +582,18 @@ class SafetyCarReplanner:
                 start_min=active_stint.start_min,
                 duration_min=extended_duration,
                 laps=laps,
-                fuel_used_liters=laps * self.config.fuel_per_lap_liters,
+                fuel_used_liters=self.fuel_calc.fuel_for_laps(laps),
                 notes=f"Extended under SC (+{format_duration(extend_current_stint_min)})",
             )
             completed_stints.append(sc_stint)
             resume_min = sc_stint.end_min + self.sc_pit_loss_sec / 60.0
-            # Next driver in rotation after the SC stint driver
+
             driver_names = [d.name for d in self.drivers]
             idx = driver_names.index(active_stint.driver.name)
             resume_driver = self.drivers[(idx + 1) % len(self.drivers)]
 
-        # Rebuild remainder with SC-adjusted parameters
         original_race_end = self.config.race_duration_min
-        remaining_duration = original_race_end - resume_min
-        if remaining_duration <= 0:
+        if resume_min >= original_race_end:
             return StintPlan(
                 config=self.config,
                 stints=completed_stints,
@@ -527,19 +602,23 @@ class SafetyCarReplanner:
             )
 
         sc_config = RaceConfig(
-            race_name=f"{self.config.race_name} (SC Re-plan @ {format_duration(sc_deployed_min)})",
+            race_name=(
+                f"{self.config.race_name} "
+                f"(SC Re-plan @ {format_duration(sc_deployed_min)})"
+            ),
             race_duration_min=self.config.race_duration_min,
             lap_time_sec=self.config.lap_time_sec,
             fuel_tank_liters=self.config.fuel_tank_liters,
             fuel_per_lap_liters=self.config.fuel_per_lap_liters,
-            fuel_safety_laps=max(0, self.config.fuel_safety_laps - self.sc_fuel_saving_laps),
+            fuel_safety_laps=max(
+                0, self.config.fuel_safety_laps - self.sc_fuel_saving_laps
+            ),
             pit_loss_sec=self.sc_pit_loss_sec,
             formation_lap_min=0.0,
         )
 
         planner = StintPlanner(sc_config, self.drivers)
-        names = [d.name for d in self.drivers]
-        planner.rotation._index = names.index(resume_driver.name)
+        planner.rotation.set_current_driver(resume_driver)
         for stint in completed_stints:
             planner.rotation.record_drive(stint.driver, stint.duration_min)
 
@@ -551,14 +630,10 @@ class SafetyCarReplanner:
             preserve_rotation=True,
         )
 
-        merged: list[Stint] = list(completed_stints)
+        merged = list(completed_stints)
         for stint in remainder_plan.stints:
             stint.notes = ("SC re-plan | " + stint.notes).strip(" |")
             merged.append(stint)
-
-        regulatory_warnings = validate_driver_totals(
-            self.drivers, drive_totals_from_stints(merged)
-        )
 
         return StintPlan(
             config=sc_config,
@@ -566,13 +641,15 @@ class SafetyCarReplanner:
             total_pit_stops=max(0, len(merged) - 1),
             warnings=(
                 [f"Safety Car re-plan from {format_duration(sc_deployed_min)}"]
-                + regulatory_warnings
+                + validate_driver_totals(
+                    self.drivers, drive_totals_from_stints(merged)
+                )
             ),
         )
 
 
 # ---------------------------------------------------------------------------
-# Output & visualization
+# Output and visualization
 # ---------------------------------------------------------------------------
 
 def print_plan_table(plan: StintPlan) -> None:
@@ -587,16 +664,20 @@ def print_plan_table(plan: StintPlan) -> None:
     print("=" * 100)
 
     summary = plan.summary()
-    print(f"\nTotal stints: {summary['total_stints']}  |  Pit stops: {summary['total_pit_stops']}")
+    print(
+        f"\nTotal stints: {summary['total_stints']}  |  "
+        f"Pit stops: {summary['total_pit_stops']}"
+    )
     print("\nDriver totals:")
+    race_minutes = plan.race_end_min
     for name, minutes in summary["driver_minutes"].items():
-        pct = 100.0 * minutes / plan.config.race_duration_min
+        pct = 100.0 * minutes / race_minutes if race_minutes else 0.0
         print(f"  {name:20s}  {format_duration(minutes)}  ({pct:.1f}% of race)")
 
     if plan.warnings:
-        print("\n⚠ Strategy warnings:")
-        for w in plan.warnings:
-            print(f"  • {w}")
+        print("\nStrategy warnings:")
+        for warning in plan.warnings:
+            print(f"  - {warning}")
     print()
 
 
@@ -605,11 +686,7 @@ def plot_stint_timeline(
     output_path: Optional[Path] = None,
     show: bool = True,
 ) -> None:
-    """
-    Gantt-style stint timeline for pit-wall and engineering briefings.
-
-    Colour key follows driver category; pit windows shown as dashed brackets.
-    """
+    """Gantt-style stint timeline for pit-wall briefings."""
     if not plan.stints:
         print("No stints to plot.")
         return
@@ -622,23 +699,22 @@ def plot_stint_timeline(
     }
 
     fig, ax = plt.subplots(figsize=(14, max(3, len(plan.stints) * 0.55 + 1.5)))
-    race_end = plan.config.race_duration_min
+    race_end = plan.race_end_min
 
-    for i, stint in enumerate(plan.stints):
+    for index, stint in enumerate(plan.stints):
         color = category_colors.get(stint.driver.category, "#6C757D")
         ax.barh(
-            y=i,
+            y=index,
             width=stint.duration_min,
             left=stint.start_min,
             height=0.6,
             color=color,
             edgecolor="white",
             linewidth=0.8,
-            label=stint.driver.category.value if i == 0 else "",
         )
         ax.text(
             stint.start_min + stint.duration_min / 2,
-            i,
+            index,
             f"{stint.driver.name}\n{stint.laps}L",
             ha="center",
             va="center",
@@ -647,10 +723,13 @@ def plot_stint_timeline(
             fontweight="bold",
         )
 
-        if stint.pit_window_open_min is not None and stint.pit_window_close_min is not None:
+        if (
+            stint.pit_window_open_min is not None
+            and stint.pit_window_close_min is not None
+        ):
             ax.plot(
                 [stint.pit_window_open_min, stint.pit_window_close_min],
-                [i + 0.38, i + 0.38],
+                [index + 0.38, index + 0.38],
                 color="white",
                 linestyle="--",
                 linewidth=1.5,
@@ -661,20 +740,28 @@ def plot_stint_timeline(
     ax.set_ylim(-0.5, len(plan.stints) - 0.5)
     ax.set_xlabel("Race Time (minutes)")
     ax.set_ylabel("Stint")
-    ax.set_title(f"Stint Timeline — {plan.config.race_name}", fontsize=13, fontweight="bold")
+    ax.set_title(
+        f"Stint Timeline — {plan.config.race_name}",
+        fontsize=13,
+        fontweight="bold",
+    )
     ax.set_yticks(range(len(plan.stints)))
     ax.set_yticklabels([f"S{s.stint_number}" for s in plan.stints])
-    ax.axvline(x=race_end, color="black", linestyle=":", linewidth=1, label="Race end")
+    ax.axvline(x=race_end, color="black", linestyle=":", linewidth=1)
     ax.grid(axis="x", alpha=0.3)
 
-    # Legend by category
-    seen = set()
+    seen: set[DriverCategory] = set()
     patches = []
     for stint in plan.stints:
-        cat = stint.driver.category
-        if cat not in seen:
-            patches.append(mpatches.Patch(color=category_colors[cat], label=cat.value))
-            seen.add(cat)
+        category = stint.driver.category
+        if category not in seen:
+            patches.append(
+                mpatches.Patch(
+                    color=category_colors[category],
+                    label=category.value,
+                )
+            )
+            seen.add(category)
     ax.legend(handles=patches, loc="upper right", framealpha=0.9)
 
     plt.tight_layout()
@@ -695,15 +782,9 @@ def plot_stint_timeline(
 # ---------------------------------------------------------------------------
 
 def fun_cup_preset() -> tuple[RaceConfig, list[Driver]]:
-    """
-    Fun Cup / Lamera Cup — 4-hour GT4-style race.
-
-    Realistic baseline:
-      - 2:08 lap time, 80L tank, 2.6 L/lap → ~30 lap stints (~64 min)
-      - Pro + Bronze lineup with Bronze minimum drive requirement
-    """
+    """Fun Cup / Lamera Cup — 4-hour GT4-style race (Pro + Bronze)."""
     config = RaceConfig(
-        race_name="Fun Cup — 4h Portimão",
+        race_name="Fun Cup — 4h Portimao",
         race_duration_min=240.0,
         lap_time_sec=128.0,
         fuel_tank_liters=80.0,
@@ -718,23 +799,20 @@ def fun_cup_preset() -> tuple[RaceConfig, list[Driver]]:
             category=DriverCategory.PRO,
             min_stint_min=45.0,
             max_stint_min=90.0,
-            min_total_drive_min=0.0,
         ),
         Driver(
             name="Lucas Bronze",
             category=DriverCategory.BRONZE,
             min_stint_min=45.0,
             max_stint_min=65.0,
-            min_total_drive_min=96.0,  # ~40% of 4h race
+            min_total_drive_min=96.0,
         ),
     ]
     return config, drivers
 
 
 def elms_lmgt3_preset() -> tuple[RaceConfig, list[Driver]]:
-    """
-    ELMS 6-hour LMGT3 round — higher fuel flow, longer race.
-    """
+    """ELMS 6-hour LMGT3 round (Pro + Silver + Bronze)."""
     config = RaceConfig(
         race_name="ELMS — 6h Spa-Francorchamps (LMGT3)",
         race_duration_min=360.0,
@@ -760,9 +838,7 @@ def elms_lmgt3_preset() -> tuple[RaceConfig, list[Driver]]:
 
 
 def wec_hypercar_preset() -> tuple[RaceConfig, list[Driver]]:
-    """
-    WEC 6-hour round — Hypercar parameters (faster lap, higher consumption).
-    """
+    """WEC 6-hour Hypercar round (Pro + Pro + Bronze)."""
     config = RaceConfig(
         race_name="WEC — 6h Fuji (Hypercar)",
         race_duration_min=360.0,
@@ -800,12 +876,15 @@ PRESETS = {
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Endurance Race Stint Planner — fuel, driver rotation, pit windows, SC re-plan.",
+        description=(
+            "Endurance Race Stint Planner — fuel, driver rotation, "
+            "pit windows, Safety Car re-plan."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python endurance_stint_planner.py --preset fun-cup
-  python endurance_stint_planner.py --preset elms --plot --output outputs/elms_plan.png
+  python endurance_stint_planner.py --preset elms --output outputs/elms.png
   python endurance_stint_planner.py --preset wec --safety-car 185 --extend-stint 8
   python endurance_stint_planner.py --race-hours 4 --lap-time 2:08 --tank 80 --fuel-per-lap 2.6
         """,
@@ -814,19 +893,36 @@ Examples:
     parser.add_argument(
         "--preset",
         choices=list(PRESETS.keys()),
-        help="Load a championship preset (fun-cup, elms, wec).",
+        help="Championship preset: fun-cup, elms, or wec.",
     )
     parser.add_argument("--race-hours", type=float, help="Race duration in hours.")
     parser.add_argument("--race-name", type=str, default="Custom Endurance Race")
     parser.add_argument("--lap-time", type=str, help="Lap time: seconds or M:SS.")
     parser.add_argument("--tank", type=float, help="Fuel tank capacity in litres.")
-    parser.add_argument("--fuel-per-lap", type=float, help="Fuel consumption per lap in litres.")
-    parser.add_argument("--safety-laps", type=int, default=1, help="Fuel reserve laps.")
-    parser.add_argument("--pit-loss", type=float, default=45.0, help="Pit stop time loss in seconds.")
+    parser.add_argument(
+        "--fuel-per-lap",
+        type=float,
+        help="Fuel consumption per lap in litres.",
+    )
+    parser.add_argument(
+        "--safety-laps",
+        type=int,
+        default=1,
+        help="Fuel reserve laps kept in tank at pit entry.",
+    )
+    parser.add_argument(
+        "--pit-loss",
+        type=float,
+        default=45.0,
+        help="Pit stop time loss in seconds.",
+    )
     parser.add_argument(
         "--drivers",
         type=str,
-        help="Comma-separated driver specs: Name:Category:min_stint:max_stint:min_total.",
+        help=(
+            "Comma-separated driver specs: "
+            "Name:Category:min_stint:max_stint:min_total_minutes"
+        ),
     )
     parser.add_argument(
         "--plot",
@@ -868,17 +964,27 @@ Examples:
 def parse_driver_spec(spec: str) -> Driver:
     """
     Parse 'Name:Category:min_stint:max_stint:min_total' driver string.
-    Category must be Pro, Silver, Bronze, or Amateur.
+    Blank fields use defaults. Category: Pro, Silver, Bronze, or Amateur.
     """
-    parts = spec.strip().split(":")
+    parts = [part.strip() for part in spec.strip().split(":")]
     if len(parts) < 2:
         raise ValueError(f"Invalid driver spec: {spec}")
 
     name = parts[0]
-    category = DriverCategory(parts[1])
-    min_stint = float(parts[2]) if len(parts) > 2 else 45.0
-    max_stint = float(parts[3]) if len(parts) > 3 else 90.0
-    min_total = float(parts[4]) if len(parts) > 4 else 0.0
+    if not name:
+        raise ValueError(f"Driver name is required: {spec}")
+
+    try:
+        category = DriverCategory(parts[1])
+    except ValueError as exc:
+        valid = ", ".join(c.value for c in DriverCategory)
+        raise ValueError(
+            f"Invalid category '{parts[1]}' in {spec}. Use one of: {valid}."
+        ) from exc
+
+    min_stint = parse_optional_float(parts[2], 45.0) if len(parts) > 2 else 45.0
+    max_stint = parse_optional_float(parts[3], 90.0) if len(parts) > 3 else 90.0
+    min_total = parse_optional_float(parts[4], 0.0) if len(parts) > 4 else 0.0
 
     return Driver(
         name=name,
@@ -894,9 +1000,9 @@ def config_from_args(args: argparse.Namespace) -> tuple[RaceConfig, list[Driver]
         return PRESETS[args.preset]()
 
     if not all([args.race_hours, args.lap_time, args.tank, args.fuel_per_lap]):
-        raise SystemExit(
-            "Custom mode requires --race-hours, --lap-time, --tank, and --fuel-per-lap "
-            "(or use --preset)."
+        raise ValueError(
+            "Custom mode requires --race-hours, --lap-time, --tank, and "
+            "--fuel-per-lap (or use --preset)."
         )
 
     config = RaceConfig(
@@ -910,7 +1016,7 @@ def config_from_args(args: argparse.Namespace) -> tuple[RaceConfig, list[Driver]
     )
 
     if args.drivers:
-        drivers = [parse_driver_spec(s) for s in args.drivers.split(",")]
+        drivers = [parse_driver_spec(spec) for spec in args.drivers.split(",")]
     else:
         drivers = [
             Driver(name="Driver A", category=DriverCategory.PRO),
@@ -928,6 +1034,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
+    if not args.preset and not args.race_hours:
+        parser.print_help()
+        print(
+            "\nTip: start with  python endurance_stint_planner.py --preset fun-cup\n",
+            file=sys.stderr,
+        )
+        return 1
+
     try:
         config, drivers = config_from_args(args)
     except (ValueError, KeyError) as exc:
@@ -937,24 +1051,32 @@ def main(argv: Optional[list[str]] = None) -> int:
     planner = StintPlanner(config, drivers)
     plan = planner.build_plan()
 
-    # Fuel summary for strategist
     fuel_calc = FuelCalculator(config)
-    print(f"\nFuel geometry: {fuel_calc.max_stint_laps()} laps/stint "
-          f"({format_duration(fuel_calc.max_stint_minutes())})")
-    print(f"Lap time: {config.lap_time_sec:.3f}s  |  "
-          f"Consumption: {config.fuel_per_lap_liters:.2f} L/lap  |  "
-          f"Tank: {config.fuel_tank_liters:.0f} L")
+    print(
+        f"\nFuel geometry: {fuel_calc.max_stint_laps()} laps/stint "
+        f"({format_duration(fuel_calc.max_stint_minutes())})"
+    )
+    print(
+        f"Lap time: {config.lap_time_sec:.3f}s  |  "
+        f"Consumption: {config.fuel_per_lap_liters:.2f} L/lap  |  "
+        f"Tank: {config.fuel_tank_liters:.0f} L"
+    )
 
     if args.safety_car is not None:
         replanner = SafetyCarReplanner(
-            config, drivers, sc_pit_loss_sec=args.sc_pit_loss
+            config,
+            drivers,
+            sc_pit_loss_sec=args.sc_pit_loss,
         )
         plan = replanner.replan(
             plan,
             sc_deployed_min=args.safety_car,
             extend_current_stint_min=args.extend_stint,
         )
-        print(f"\n🔄 Safety Car re-plan applied at {format_duration(args.safety_car)}")
+        print(
+            f"\n[SC] Safety Car re-plan applied at "
+            f"{format_duration(args.safety_car)}"
+        )
 
     print_plan_table(plan)
 
