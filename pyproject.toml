@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pitwall-agent"
+version = "0.3.0a1"
+description = "Local-first endurance race strategy agent with deterministic tools and optional Ollama."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sreenath R." }]
+keywords = [
+  "agent",
+  "endurance-racing",
+  "motorsport",
+  "ollama",
+  "race-strategy",
+  "sim-racing",
+  "telemetry",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  "rich>=13.9,<15",
+  "typer>=0.12,<1",
+]
+
+[project.scripts]
+pitwall = "pitwall.cli:app"
+
+[project.urls]
+Documentation = "https://github.com/Dabi-init/endurance-stint-planner#readme"
+Repository = "https://github.com/Dabi-init/endurance-stint-planner"
+Issues = "https://github.com/Dabi-init/endurance-stint-planner/issues"
+Changelog = "https://github.com/Dabi-init/endurance-stint-planner/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["engine*", "pitwall*"]
+
+[tool.setuptools.package-data]
+"pitwall.presets" = ["*.json"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["engine", "pitwall"]
+omit = [
+  "pitwall/__main__.py",
+  "pitwall/cli.py",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "RUF"]
+ignore = ["RUF001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

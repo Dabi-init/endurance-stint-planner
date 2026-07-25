@@ -1,4 +1,4 @@
-"""Endurance race stint planning engine — pure Python, no UI dependencies."""
+"""Pure-Python strategy core for Pitwall Agent."""
 
 from engine.models import (
     Driver,
@@ -9,29 +9,37 @@ from engine.models import (
     RaceConfig,
     Stint,
 )
-from engine.planner import compute_plan, load_preset, list_presets
+from engine.planner import (
+    PlanOptions,
+    compute_plan,
+    list_presets,
+    load_preset,
+)
 from engine.regulations import check_compliance
-from engine.safety_car import replan_with_safety_car
-from engine.circuits import Circuit, apply_circuit_to_config, get_circuit, load_circuits
-from engine.recommendations import StrategyReport, generate_strategy_report
+from engine.safety_car import SafetyCarConfig, replan_with_safety_car
+from engine.simulation import SimulationSummary, simulate_plan
+from engine.strategy import StrategyComparison, compare_strategies
+from engine.telemetry import TelemetryCalibration, calibrate_telemetry
 
 __all__ = [
     "Driver",
     "DriverCategory",
     "DriverRegulations",
     "Infeasibility",
+    "PlanOptions",
     "PlanResult",
     "RaceConfig",
+    "SafetyCarConfig",
+    "SimulationSummary",
     "Stint",
-    "compute_plan",
-    "load_preset",
-    "list_presets",
+    "StrategyComparison",
+    "TelemetryCalibration",
+    "calibrate_telemetry",
     "check_compliance",
+    "compare_strategies",
+    "compute_plan",
+    "list_presets",
+    "load_preset",
     "replan_with_safety_car",
-    "Circuit",
-    "apply_circuit_to_config",
-    "get_circuit",
-    "load_circuits",
-    "StrategyReport",
-    "generate_strategy_report",
+    "simulate_plan",
 ]

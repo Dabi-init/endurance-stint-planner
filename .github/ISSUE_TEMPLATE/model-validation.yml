@@ -1,0 +1,30 @@
+name: Model validation case
+description: Compare a prediction with representative actual results.
+title: "[Validation]: "
+labels: ["validation", "data"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Event and operating context
+      description: Series, track, duration, car class, simulator if applicable, and relevant conditions.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Evidence source and permission
+      description: State whether data is public, synthetic, or yours to share.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Predicted versus actual
+      description: Laps, stops, fuel, stint lengths, and important deviations.
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: Likely model gap

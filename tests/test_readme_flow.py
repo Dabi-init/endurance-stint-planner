@@ -1,111 +1,96 @@
-"""Verify README Quick Start paths work (new clone + returning user)."""
+"""Verify that documented setup and default-user paths remain reproducible."""
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
-
-_COPY_IGNORE = shutil.ignore_patterns(
+COPY_IGNORE = shutil.ignore_patterns(
     ".git",
     "__pycache__",
     ".pytest_cache",
-    "mcps",
-    "terminals",
+    ".ruff_cache",
     ".venv",
+    "build",
+    "dist",
     "venv",
-    "endurance-stint-planner",
+    "*.egg-info",
     "*.pyc",
 )
 
 
-def _copy_fresh_project(dest: Path) -> None:
-    """Copy only what a git clone contains — skip local duplicates and caches."""
-    shutil.copytree(ROOT, dest, ignore=_COPY_IGNORE)
+def _copy_fresh_project(destination: Path) -> None:
+    shutil.copytree(ROOT, destination, ignore=COPY_IGNORE)
 
 
 class TestReadmeQuickStart:
-    def test_requirements_installable(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"],
-            capture_output=True,
-            text=True,
-            cwd=ROOT,
+    def test_runtime_dependencies_are_small_and_bounded(self) -> None:
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        assert "typer>=" in pyproject and "<1" in pyproject
+        assert "rich>=" in pyproject and "<15" in pyproject
+        assert "streamlit" not in pyproject
+        assert "pandas" not in pyproject
+
+    def test_readme_has_nontechnical_and_powershell_paths(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        assert "Double-click `run.bat`" in readme
+        assert (
+            "git clone https://github.com/Dabi-init/endurance-stint-planner.git"
+            in readme
         )
-        assert result.returncode == 0, result.stderr
+        assert "run.ps1" in readme
+        assert "Python 3.11" in readme
+        assert "Evidence Level C" in readme
+        assert "Ollama" in readme
 
-    def test_streamlit_and_app_importable(self):
-        import streamlit
-        import app
+    def test_launch_scripts_use_an_isolated_install(self) -> None:
+        batch = (ROOT / "run.bat").read_text(encoding="utf-8")
+        powershell = (ROOT / "run.ps1").read_text(encoding="utf-8")
+        assert "run.ps1" in batch
+        assert "python -m venv .venv" in powershell
+        assert "-m pip install -e ." in powershell
+        assert "-m pitwall doctor" in powershell
+        assert "-m pitwall" in powershell
 
-        assert streamlit.__version__
-        assert app.APP_VERSION
-
-    def test_readme_documents_both_user_paths(self):
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        assert "git clone https://github.com/Dabi-init/endurance-stint-planner.git" in readme
-        assert "Already downloaded" in readme or "returning users" in readme.lower()
-        assert "run.bat" in readme
-        assert "streamlit run app.py" in readme
-        assert "Python 3.10" in readme
-
-    def test_returning_user_section_has_no_git_clone_command(self):
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        returning = readme.split("Already downloaded", 1)[-1].split("---", 1)[0]
-        code_blocks = re.findall(r"```(?:bash)?\s*\n(.*?)```", returning, re.DOTALL)
-        assert code_blocks, "Returning-user section should include a bash code block"
-        for block in code_blocks:
-            assert "git clone" not in block
-
-    def test_run_bat_exists_and_uses_python_modules(self):
-        bat = ROOT / "run.bat"
-        assert bat.exists()
-        content = bat.read_text(encoding="utf-8")
-        assert "python -m pip install" in content
-        assert "python -m streamlit run app.py" in content
-
-    def test_fresh_clone_simulation_smoke(self, tmp_path):
-        """Simulate new user: copy project to empty dir and verify plan loads."""
-        dest = tmp_path / "fresh-clone"
-        _copy_fresh_project(dest)
+    def test_fresh_clone_core_smoke(self, tmp_path: Path) -> None:
+        destination = tmp_path / "fresh-clone"
+        _copy_fresh_project(destination)
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/test_smoke.py", "-q"],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/test_strategy_lab.py",
+                "-q",
+            ],
             capture_output=True,
             text=True,
-            cwd=dest,
+            cwd=destination,
+            check=False,
         )
         assert result.returncode == 0, result.stdout + result.stderr
 
-    def test_returning_user_launch_commands_exist(self):
-        assert (ROOT / "app.py").exists()
-        assert (ROOT / "requirements.txt").exists()
-        assert (ROOT / "presets" / "6h_endurance.json").exists()
+    def test_documented_product_files_exist(self) -> None:
+        for relative_path in [
+            "pitwall/cli.py",
+            "pitwall/agent.py",
+            "requirements.txt",
+            "run.bat",
+            "run.ps1",
+            "examples/README.md",
+            "docs/ARCHITECTURE.md",
+            "docs/AGENT_BRAIN.md",
+            "CONTRIBUTING.md",
+            "SECURITY.md",
+        ]:
+            assert (ROOT / relative_path).exists()
 
-    def test_default_plan_feasible_via_readme_commands(self):
-        """Exact engine path a new user sees on first page load."""
-        from engine.circuits import DEFAULT_CIRCUIT_ID, apply_circuit_to_config, get_circuit
-        from engine.models import RaceConfig
+    def test_default_plan_is_feasible(self) -> None:
         from engine.planner import DEFAULT_PRESET, compute_plan, load_preset
 
-        cfg = apply_circuit_to_config(
-            load_preset(DEFAULT_PRESET).to_dict(),
-            get_circuit(DEFAULT_CIRCUIT_ID),
-        )
-        plan = compute_plan(RaceConfig.from_dict(cfg))
-        assert plan.is_feasible, [i.message for i in plan.infeasibilities]
-
-    def test_streamlit_cli_available(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "streamlit", "--version"],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0
-        assert re.search(r"\d+\.\d+", result.stdout + result.stderr)
+        plan = compute_plan(load_preset(DEFAULT_PRESET))
+        assert plan.is_feasible, [issue.message for issue in plan.infeasibilities]

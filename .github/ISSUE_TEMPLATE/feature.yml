@@ -1,0 +1,29 @@
+name: Decision-support improvement
+description: Propose a feature tied to a real strategy decision.
+title: "[Idea]: "
+labels: ["enhancement", "needs-evidence"]
+body:
+  - type: textarea
+    id: decision
+    attributes:
+      label: Race decision
+      description: Which decision should become easier or safer?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and rules
+      description: Public regulation, telemetry schema, or reproducible scenario.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Minimum useful output
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Failure modes to test

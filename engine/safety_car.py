@@ -1,29 +1,23 @@
-"""Safety Car / incident re-planning with before/after comparison."""
+"""Transparent Safety Car scenario modelling for pre-race what-if analysis."""
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Optional
 
-from engine.models import Infeasibility, PlanResult, RaceConfig, Stint, format_duration
-from engine.planner import (
-    _RotationState,
-    _build_plan_internal,
-    compute_plan,
-    laps_for_minutes,
-    minutes_for_laps,
-    pit_stop_duration_sec,
-)
-from engine.regulations import preflight_infeasibility_checks
+from engine.models import Infeasibility, PlanResult, RaceConfig, format_duration
+from engine.planner import PlanOptions, compute_plan
+from engine.regulations import check_compliance
 
 
-@dataclass
+@dataclass(frozen=True)
 class SafetyCarConfig:
     deploy_min: float
     duration_min: float
     lap_time_multiplier: float = 1.4
     sc_pit_loss_sec: float = 25.0
     pull_pit_into_sc: bool = True
+    fuel_burn_multiplier: float = 0.55
 
 
 @dataclass
@@ -34,265 +28,244 @@ class SafetyCarComparison:
     pit_stops_moved: list[str] = field(default_factory=list)
     fuel_saved_liters: float = 0.0
     notes: list[str] = field(default_factory=list)
+    confidence: str = "Scenario estimate"
 
     @property
     def time_gained(self) -> bool:
         return self.time_delta_min > 0.01
 
 
-def _find_active_stint(stints: list[Stint], time_min: float) -> Optional[Stint]:
-    for stint in stints:
-        if stint.start_min <= time_min < stint.end_min:
-            return stint
-    return None
+def _map_equivalent_time(
+    time_min: float,
+    deploy_min: float,
+    sc_duration_min: float,
+    pace_multiplier: float,
+) -> float:
+    """Map a green-equivalent race clock back to scheduled wall-clock time."""
+    compressed_sc_end = deploy_min + sc_duration_min / pace_multiplier
+    lost_min = sc_duration_min - sc_duration_min / pace_multiplier
+    if time_min <= deploy_min:
+        return time_min
+    if time_min <= compressed_sc_end:
+        return deploy_min + (time_min - deploy_min) * pace_multiplier
+    return time_min + lost_min
 
 
-def _completed_stints_before(stints: list[Stint], time_min: float) -> list[Stint]:
-    return [s for s in stints if s.end_min <= time_min + 0.01]
+def _weighted_burn(
+    config: RaceConfig,
+    deploy_min: float,
+    duration_min: float,
+    pace_multiplier: float,
+    sc_burn_multiplier: float,
+) -> float:
+    """Estimate average per-lap burn from expected green and SC laps."""
+    race_min = config.race_duration_min
+    green_min = max(race_min - duration_min, 0.0)
+    green_laps = green_min * 60.0 / max(config.base_lap_time_sec, 1.0)
+    sc_laps = duration_min * 60.0 / max(config.base_lap_time_sec * pace_multiplier, 1.0)
+    total_laps = green_laps + sc_laps
+    if total_laps <= 0:
+        return config.fuel_consumption_per_lap
+    weighted_multiplier = (green_laps + sc_laps * sc_burn_multiplier) / total_laps
+    return config.fuel_consumption_per_lap * weighted_multiplier
 
 
-def _pit_times(stints: list[Stint]) -> list[float]:
-    if len(stints) <= 1:
-        return []
-    return [s.end_min for s in stints[:-1]]
-
-
-def _compare_pit_moves(
-    original: PlanResult,
-    replanned: PlanResult,
-    sc_start: float,
+def _apply_single_sc_pit_opportunity(
+    plan: PlanResult,
+    sc: SafetyCarConfig,
+    deploy: float,
     sc_end: float,
 ) -> list[str]:
-    moved: list[str] = []
-    orig_pits = _pit_times(original.stints)
-    new_pits = _pit_times(replanned.stints)
+    """Apply reduced transit loss to one stop already inside the SC window."""
+    if not sc.pull_pit_into_sc:
+        return []
+    candidates = [
+        stint
+        for stint in plan.stints[:-1]
+        if deploy <= stint.end_min <= sc_end and stint.pit_time_after_sec > 0
+    ]
+    if not candidates:
+        return []
 
-    for i, new_pit in enumerate(new_pits):
-        in_window = sc_start <= new_pit <= sc_end
-        if not in_window:
-            continue
-        orig_near = None
-        for op in orig_pits:
-            if abs(op - new_pit) < 8.0:
-                orig_near = op
-                break
-        if orig_near is None or abs(orig_near - new_pit) > 2.0:
-            moved.append(
-                f"Pit stop moved to {format_duration(new_pit)} "
-                f"(inside SC window {format_duration(sc_start)}–"
-                f"{format_duration(sc_end)})"
-            )
-        elif orig_near and not (sc_start <= orig_near <= sc_end):
-            moved.append(
-                f"Pit stop pulled from {format_duration(orig_near)} into SC "
-                f"at {format_duration(new_pit)}"
-            )
-    return moved
+    selected = min(
+        candidates,
+        key=lambda stint: abs(stint.end_min - (deploy + sc_end) / 2.0),
+    )
+    normal_transit = max(plan.config.pit_stop_time_loss_sec, 0.0)
+    saving = max(normal_transit - max(sc.sc_pit_loss_sec, 0.0), 0.0)
+    if saving <= 0:
+        return []
+
+    selected.pit_time_after_sec = max(selected.pit_time_after_sec - saving, 0.0)
+    selected.notes = (selected.notes + " | SC pit-lane transit").strip(" |")
+    selected_index = plan.stints.index(selected)
+    for later in plan.stints[selected_index + 1 :]:
+        later.start_min -= saving / 60.0
+    plan.total_pit_time_sec = max(plan.total_pit_time_sec - saving, 0.0)
+    plan.time_margin_at_flag_min += saving / 60.0
+    return [
+        (
+            f"Stop after stint {selected.stint_number} occurs inside the SC "
+            f"window at {format_duration(selected.end_min)}; only this stop "
+            f"receives the {saving:.1f}s transit saving."
+        )
+    ]
+
+
+def _unchanged_comparison(
+    original: PlanResult,
+    note: str,
+) -> SafetyCarComparison:
+    return SafetyCarComparison(
+        original=original,
+        replanned=deepcopy(original),
+        notes=[note],
+        confidence="Not evaluated",
+    )
 
 
 def replan_with_safety_car(
     original: PlanResult,
     sc: SafetyCarConfig,
 ) -> SafetyCarComparison:
-    """
-    Re-optimize plan around a Safety Car window.
-    Never raises — returns comparison with infeasibilities on failure.
-    """
+    """Re-estimate a plan for one declared SC window without hiding assumptions."""
     try:
-        config = original.config
-        race_end = config.race_duration_min
-        deploy = max(0.0, min(sc.deploy_min, race_end))
-        duration = max(0.0, sc.duration_min)
-        sc_end = min(deploy + duration, race_end)
-
         if not original.is_feasible:
             return SafetyCarComparison(
-                original=original,
-                replanned=PlanResult(
-                    config=config,
-                    infeasibilities=original.infeasibilities,
+                original,
+                PlanResult(
+                    config=original.config,
+                    infeasibilities=deepcopy(original.infeasibilities),
                 ),
-                notes=["Cannot replan: original strategy is infeasible."],
+                notes=["Original strategy is infeasible; SC scenario not evaluated."],
+                confidence="Not evaluated",
             )
 
-        if deploy >= race_end - 0.5:
-            return SafetyCarComparison(
-                original=original,
-                replanned=PlanResult(
-                    config=config,
-                    stints=original.stints,
-                    total_pit_stops=original.total_pit_stops,
-                    total_fuel_used_liters=original.total_fuel_used_liters,
-                    predicted_laps=original.predicted_laps,
-                    time_margin_at_flag_min=original.time_margin_at_flag_min,
-                    warnings=["SC at race end — no remaining time to replan."],
-                ),
-                notes=["SC deployment at or after chequered flag — plan unchanged."],
-            )
+        config = original.config
+        race_end = config.race_duration_min
+        deploy = min(max(sc.deploy_min, 0.0), race_end)
+        duration = min(max(sc.duration_min, 0.0), max(race_end - deploy, 0.0))
+        multiplier = max(sc.lap_time_multiplier, 1.0)
+        burn_multiplier = min(max(sc.fuel_burn_multiplier, 0.05), 1.0)
+        sc_end = deploy + duration
 
         if duration <= 0:
+            return _unchanged_comparison(
+                original, "SC duration is zero; plan unchanged."
+            )
+        if deploy >= race_end - 0.01:
+            return _unchanged_comparison(
+                original, "SC starts at the chequered flag; plan unchanged."
+            )
+
+        green_equivalent_loss = duration * (1.0 - 1.0 / multiplier)
+        adjusted = RaceConfig.from_dict(config.to_dict())
+        adjusted.race_duration_hours = (race_end - green_equivalent_loss) / 60.0
+        adjusted.fuel_consumption_per_lap = _weighted_burn(
+            config,
+            deploy,
+            duration,
+            multiplier,
+            burn_multiplier,
+        )
+        adjusted.data_source = f"{config.data_source} + declared Safety Car scenario"
+
+        strategy = PlanOptions(name=f"{original.strategy_name} + SC")
+        replanned = compute_plan(adjusted, strategy)
+        if not replanned.stints:
             return SafetyCarComparison(
-                original=original,
-                replanned=original,
-                notes=["SC duration is zero — plan unchanged."],
+                original,
+                replanned,
+                notes=["SC-adjusted planning produced no complete stint."],
+                confidence="Low",
             )
 
-        completed = _completed_stints_before(original.stints, deploy)
-        active = _find_active_stint(original.stints, deploy)
-
-        rotation = _RotationState(config.drivers, config.regulations)
-        for stint in completed:
-            rotation.record(stint.driver, stint.duration_min)
-
-        resume_min = deploy
-        resume_driver = config.drivers[0]
-
-        if active:
-            elapsed = deploy - active.start_min
-            max_cap = config.regulations.max_stint_for_category(active.driver.category)
-            if sc.pull_pit_into_sc:
-                target_end = min(sc_end, active.start_min + max_cap)
-            else:
-                target_end = min(active.end_min, active.start_min + max_cap)
-            extended = max(target_end - active.start_min, elapsed)
-            extended = min(extended, max_cap)
-
-            laps = laps_for_minutes(
-                extended,
-                config.base_lap_time_sec,
-                active.driver.pace_delta_sec,
-                max_laps=active.laps,
+        for stint in replanned.stints:
+            old_end = stint.end_min
+            mapped_start = _map_equivalent_time(
+                stint.start_min, deploy, duration, multiplier
             )
-            laps = max(laps, 1)
-            extended = min(
-                minutes_for_laps(
-                    laps, config.base_lap_time_sec, active.driver.pace_delta_sec
-                ),
-                extended,
-                max_cap,
-            )
-            completed = list(completed)
-            completed.append(
-                Stint(
-                    stint_number=active.stint_number,
-                    driver=active.driver,
-                    start_min=active.start_min,
-                    duration_min=extended,
-                    laps=laps,
-                    fuel_load_liters=active.fuel_load_liters,
-                    fuel_used_liters=laps * config.fuel_consumption_per_lap,
-                    tyres_new=active.tyres_new,
-                    tyre_age_at_start_laps=active.tyre_age_at_start_laps,
-                    limiting_factor=active.limiting_factor,
-                    notes=f"Extended under SC (+{format_duration(max(0.0, extended - elapsed))})",
-                )
-            )
-            rotation.record(active.driver, extended)
-            resume_min = completed[-1].end_min
+            mapped_end = _map_equivalent_time(old_end, deploy, duration, multiplier)
+            stint.start_min = mapped_start
+            stint.duration_min = max(mapped_end - mapped_start, 0.0)
 
-            pit_loss = (
-                sc.sc_pit_loss_sec if sc.pull_pit_into_sc
-                else pit_stop_duration_sec(config, True)
-            ) / 60.0
-            resume_min += pit_loss
-            names = [d.name for d in config.drivers]
-            idx = names.index(active.driver.name)
-            resume_driver = config.drivers[(idx + 1) % len(config.drivers)]
-        elif completed:
-            last = completed[-1]
-            names = [d.name for d in config.drivers]
-            idx = names.index(last.driver.name)
-            resume_driver = config.drivers[(idx + 1) % len(config.drivers)]
-            if sc.pull_pit_into_sc:
-                resume_min = max(deploy, sc_end - 1.0) + sc.sc_pit_loss_sec / 60.0
-            else:
-                resume_min = deploy + pit_stop_duration_sec(config, True) / 60.0
-
-        if resume_min >= race_end:
-            partial = PlanResult(
-                config=config,
-                stints=completed,
-                total_pit_stops=max(0, len(completed) - 1),
-                total_fuel_used_liters=sum(s.fuel_used_liters for s in completed),
-                predicted_laps=sum(s.laps for s in completed),
-                time_margin_at_flag_min=max(race_end - resume_min, 0.0),
-                warnings=["SC leaves no remaining race time after pit stop."],
-            )
-            return SafetyCarComparison(
-                original=original,
-                replanned=partial,
-                notes=["Replan truncated — race ends during SC sequence."],
-            )
-
-        sc_config = RaceConfig.from_dict(config.to_dict())
-        if sc.pull_pit_into_sc:
-            sc_config.pit_stop_time_loss_sec = sc.sc_pit_loss_sec
-
-        rotation.set_current(resume_driver)
-        remainder = _build_plan_internal(
-            sc_config,
-            start_min=resume_min,
-            race_end_min=race_end,
-            stint_start_number=len(completed) + 1,
-            preserve_rotation=True,
-            rotation=rotation,
+        # Restore the real race clock while retaining the scenario burn estimate.
+        replanned.config.race_duration_hours = config.race_duration_hours
+        replanned.time_margin_at_flag_min = max(
+            race_end - replanned.stints[-1].end_min, 0.0
+        )
+        replanned.assumptions.extend(
+            [
+                (f"One SC from {format_duration(deploy)} to {format_duration(sc_end)}"),
+                f"SC lap time ×{multiplier:.2f}",
+                f"SC per-lap fuel burn ×{burn_multiplier:.2f}",
+                "SC effect uses a green-equivalent pre-race approximation",
+            ]
+        )
+        replanned.warnings.append(
+            "Scenario only: no live race-control feed, traffic model, "
+            "wave-by, class split, or pit-closure rule is included."
         )
 
-        merged_stints = list(completed)
-        for stint in remainder.stints:
-            stint.notes = ("SC re-plan | " + stint.notes).strip(" |")
-            merged_stints.append(stint)
-
-        margin = max(race_end - (merged_stints[-1].end_min if merged_stints else resume_min), 0.0)
-        replanned = PlanResult(
-            config=sc_config,
-            stints=merged_stints,
-            total_pit_stops=max(0, len(merged_stints) - 1),
-            total_fuel_used_liters=sum(s.fuel_used_liters for s in merged_stints),
-            predicted_laps=sum(s.laps for s in merged_stints),
-            time_margin_at_flag_min=margin,
-            warnings=[f"Safety Car re-plan from {format_duration(deploy)}"],
-        )
-        if sc.lap_time_multiplier > 1.0:
-            replanned.warnings.append(
-                f"SC pace multiplier ×{sc.lap_time_multiplier:.2f} noted; "
-                "remainder planned at green-flag pace."
+        pit_notes = _apply_single_sc_pit_opportunity(replanned, sc, deploy, sc_end)
+        if sc.pull_pit_into_sc and not pit_notes:
+            pit_notes.append(
+                "No planned stop falls inside the SC window; no pit saving applied."
             )
 
-        for reason in preflight_infeasibility_checks(config, replanned.driver_totals()):
+        compliance = check_compliance(replanned)
+        if not compliance.all_passed:
             replanned.infeasibilities.append(
                 Infeasibility(
-                    code="post_sc_regulation",
-                    message=reason,
-                    suggestion="Adjust SC timing or driver regulation limits.",
+                    "sc_driver_rule_risk",
+                    (
+                        "The slower SC clock creates a configured driver-rule "
+                        "conflict in this scenario."
+                    ),
+                    "Move a driver change or check the event-specific SC rules.",
                 )
             )
 
+        replanned.total_fuel_used_liters = sum(
+            stint.fuel_used_liters for stint in replanned.stints
+        )
         fuel_saved = original.total_fuel_used_liters - replanned.total_fuel_used_liters
-        time_delta = replanned.time_margin_at_flag_min - original.time_margin_at_flag_min
-        pit_moves = _compare_pit_moves(original, replanned, deploy, sc_end)
-
+        time_delta = (
+            replanned.time_margin_at_flag_min - original.time_margin_at_flag_min
+        )
         notes = [
-            f"SC window: {format_duration(deploy)} – {format_duration(sc_end)} "
-            f"({duration:.0f} min, pace ×{sc.lap_time_multiplier:.2f})",
+            (
+                f"SC window {format_duration(deploy)}–"
+                f"{format_duration(sc_end)} changes the green-equivalent race "
+                f"clock by {green_equivalent_loss:.1f} min."
+            ),
+            (
+                "The pace and fuel multipliers are explicit scenario inputs, "
+                "not telemetry-derived facts."
+            ),
+            *pit_notes,
         ]
-        if sc.pull_pit_into_sc:
-            notes.append("Strategy: pit stop pulled into SC window where possible.")
-        if pit_moves:
-            notes.extend(pit_moves)
-
         return SafetyCarComparison(
             original=original,
             replanned=replanned,
             time_delta_min=time_delta,
-            pit_stops_moved=pit_moves,
+            pit_stops_moved=pit_notes,
             fuel_saved_liters=fuel_saved,
             notes=notes,
+            confidence="Medium-low: deterministic pre-race scenario",
         )
     except Exception as exc:
-        fallback = compute_plan(original.config)
+        fallback = deepcopy(original)
+        fallback.infeasibilities.append(
+            Infeasibility(
+                "sc_scenario_error",
+                f"Safety Car scenario failed safely: {exc}",
+                "Reset the SC inputs and retry.",
+            )
+        )
         return SafetyCarComparison(
-            original=original,
-            replanned=fallback,
-            notes=[f"SC replan failed: {exc}"],
+            original,
+            fallback,
+            notes=[f"SC scenario failed safely: {exc}"],
+            confidence="Not evaluated",
         )

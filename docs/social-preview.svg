@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Pitwall Agent</title>
+  <desc id="desc">Local-first endurance race strategy software with deterministic tools and optional Ollama.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07090d"/>
+      <stop offset="1" stop-color="#141923"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffb000"/>
+      <stop offset="1" stop-color="#f04444"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity=".42"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="1160" cy="70" r="330" fill="#f04444" opacity=".055"/>
+  <circle cx="90" cy="650" r="300" fill="#ffb000" opacity=".04"/>
+
+  <g transform="translate(70 62)">
+    <rect width="64" height="64" rx="14" fill="#151a22" stroke="#343b48"/>
+    <path d="M19 49V17h14c11 0 16 5 16 13s-5 13-16 13H19" fill="none" stroke="#f4f7fb" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M7 53c13-7 19-18 29-14 10 3 17-9 25-19" fill="none" stroke="#f04444" stroke-width="5" stroke-linecap="round"/>
+    <text x="85" y="17" fill="#ffb000" font-family="Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.2">LOCAL-FIRST · ENDURANCE STRATEGY · OPEN SOURCE</text>
+    <text x="85" y="63" fill="#f5f7fa" font-family="Arial, sans-serif" font-size="50" font-weight="800">Pitwall Agent</text>
+    <text x="0" y="122" fill="#aab2bf" font-family="Arial, sans-serif" font-size="24">AI explains the plan. Deterministic race tools decide.</text>
+  </g>
+
+  <g transform="translate(70 236)" filter="url(#shadow)">
+    <rect width="1140" height="330" rx="22" fill="#0c1016" stroke="#2d3440"/>
+    <rect width="1140" height="43" rx="22" fill="#171c24"/>
+    <circle cx="25" cy="22" r="6" fill="#f04444"/>
+    <circle cx="46" cy="22" r="6" fill="#ffb000"/>
+    <circle cx="67" cy="22" r="6" fill="#4ac26b"/>
+    <text x="94" y="28" fill="#8e98a7" font-family="Consolas, monospace" font-size="14">pitwall compare</text>
+
+    <g transform="translate(28 78)" font-family="Consolas, monospace">
+      <text fill="#7d8796" font-size="15">CURRENT DECISION</text>
+      <text y="39" fill="#f5f7fa" font-size="27" font-weight="700">Run Conservative · 174 laps · 6 stops</text>
+      <text y="73" fill="#ffb000" font-size="16">Evidence C · Low confidence · 2-lap reserve</text>
+
+      <rect x="0" y="106" width="665" height="106" rx="12" fill="#121821" stroke="#29313d"/>
+      <text x="18" y="134" fill="#8e98a7" font-size="13">STRATEGY        P10      STOPS     RESERVE     RISK</text>
+      <text x="18" y="166" fill="#f5f7fa" font-size="16">Conservative    174.0    6         2 laps      Low</text>
+      <text x="18" y="195" fill="#9ca6b5" font-size="16">Balanced        174.0    6         1 lap       Low</text>
+
+      <g transform="translate(720 8)">
+        <text fill="#8e98a7" font-size="13">AUDITED TOOL PATH</text>
+        <path d="M0 152 C70 136 82 97 143 106 S248 58 349 45" fill="none" stroke="url(#trace)" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="0" cy="152" r="8" fill="#ffb000"/>
+        <circle cx="143" cy="106" r="8" fill="#f5f7fa"/>
+        <circle cx="349" cy="45" r="8" fill="#f04444"/>
+        <text y="192" fill="#aab2bf" font-size="14">Telemetry → tools → pit sheet</text>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -5,22 +5,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from engine.models import Driver, DriverCategory, DriverRegulations, RaceConfig
 from engine.planner import (
     DEFAULT_PRESET,
     compute_plan,
     compute_plan_with_tyre_life,
     fuel_limited_laps,
-    load_preset,
     list_presets,
+    load_preset,
     validate_config,
 )
-from engine.regulations import check_compliance
 from engine.safety_car import SafetyCarConfig, replan_with_safety_car
 
-PRESETS_DIR = Path(__file__).resolve().parent.parent / "presets"
+PRESETS_DIR = Path(__file__).resolve().parent.parent / "pitwall" / "presets"
 
 
 def _base_config(**overrides) -> RaceConfig:
@@ -31,23 +28,23 @@ def _base_config(**overrides) -> RaceConfig:
         bronze_min_drive_min=0.0,
         fuel_safety_laps=1,
     )
-    defaults = dict(
-        race_name="Test Race",
-        race_duration_hours=6.0,
-        base_lap_time_sec=120.0,
-        fuel_tank_liters=100.0,
-        fuel_consumption_per_lap=2.9,
-        pit_stop_time_loss_sec=55.0,
-        refuel_rate_liters_per_sec=2.5,
-        tyre_life_laps=28,
-        tyre_change_time_sec=18.0,
-        drivers=[
+    defaults = {
+        "race_name": "Test Race",
+        "race_duration_hours": 6.0,
+        "base_lap_time_sec": 120.0,
+        "fuel_tank_liters": 100.0,
+        "fuel_consumption_per_lap": 2.9,
+        "pit_stop_time_loss_sec": 55.0,
+        "refuel_rate_liters_per_sec": 2.5,
+        "tyre_life_laps": 28,
+        "tyre_change_time_sec": 18.0,
+        "drivers": [
             Driver("Pro1", DriverCategory.PRO, 0.0),
             Driver("Silver1", DriverCategory.SILVER, 0.5),
             Driver("Bronze1", DriverCategory.BRONZE, 1.0),
         ],
-        regulations=regs,
-    )
+        "regulations": regs,
+    }
     defaults.update(overrides)
     return RaceConfig(**defaults)
 
@@ -171,7 +168,9 @@ class TestSafetyCarReplan:
             duration_min=10.0,
         )
         comparison = replan_with_safety_car(original, sc)
-        assert "end" in " ".join(comparison.notes).lower() or comparison.replanned.stints
+        assert (
+            "end" in " ".join(comparison.notes).lower() or comparison.replanned.stints
+        )
 
 
 class TestEdgeCases:

@@ -1,4 +1,4 @@
-"""Driver regulation compliance engine — structured pass/fail per rule."""
+"""Driver-rule checks with stable identities and explicit pass/fail evidence."""
 
 from __future__ import annotations
 
@@ -6,13 +6,11 @@ from dataclasses import dataclass, field
 
 from engine.models import (
     Driver,
-    DriverCategory,
     DriverRegulations,
     PlanResult,
     RaceConfig,
     Stint,
     format_duration,
-    format_duration_from_hours,
 )
 
 
@@ -35,7 +33,7 @@ class DriverCompliance:
 
     @property
     def all_passed(self) -> bool:
-        return all(c.passed for c in self.checks)
+        return all(check.passed for check in self.checks)
 
 
 @dataclass
@@ -45,26 +43,40 @@ class ComplianceReport:
 
     @property
     def all_passed(self) -> bool:
-        if self.stint_violations:
-            return False
-        return all(d.all_passed for d in self.driver_results)
+        return not self.stint_violations and all(
+            driver.all_passed for driver in self.driver_results
+        )
 
 
-def _max_stint_violations(
+def _stint_cap(regulations: DriverRegulations, driver: Driver) -> float:
+    limits = [
+        value
+        for value in (
+            regulations.max_continuous_stint_min,
+            regulations.max_stint_for_category(driver.category),
+        )
+        if value > 0
+    ]
+    return min(limits) if limits else 0.0
+
+
+def _driver_stint_violations(
     stints: list[Stint],
+    driver: Driver,
     regulations: DriverRegulations,
 ) -> list[str]:
-    violations: list[str] = []
-    for stint in stints:
-        cap = regulations.max_stint_for_category(stint.driver.category)
-        if cap > 0 and stint.duration_min > cap + 0.5:
-            violations.append(
-                f"Stint {stint.stint_number}: {stint.driver.name} drove "
-                f"{format_duration(stint.duration_min)} — exceeds "
-                f"{stint.driver.category.value} max continuous stint "
-                f"of {format_duration(cap)}."
-            )
-    return violations
+    cap = _stint_cap(regulations, driver)
+    if cap <= 0:
+        return []
+    return [
+        (
+            f"Stint {stint.stint_number}: {driver.name} [{driver.id}] drove "
+            f"{format_duration(stint.duration_min)}, exceeding the configured "
+            f"{format_duration(cap)} continuous limit."
+        )
+        for stint in stints
+        if stint.driver.id == driver.id and stint.duration_min > cap + 0.5
+    ]
 
 
 def _build_driver_checks(
@@ -72,168 +84,166 @@ def _build_driver_checks(
     driven_min: float,
     regulations: DriverRegulations,
     race_duration_min: float,
+    stint_failures: list[str],
 ) -> list[RuleCheck]:
-    checks: list[RuleCheck] = []
-
-    max_stint_cap = regulations.max_stint_for_category(driver.category)
-    checks.append(
+    cap = _stint_cap(regulations, driver)
+    checks = [
         RuleCheck(
-            rule_id="max_continuous_stint",
-            rule_text=(
-                f"{driver.category.value} maximum continuous stint: "
-                f"{format_duration(max_stint_cap)}"
+            "max_continuous_stint",
+            (
+                f"{driver.category.value} continuous stint limit: "
+                f"{format_duration(cap)}"
+                if cap > 0
+                else "No configured continuous stint limit"
             ),
-            passed=True,
-            detail="Validated per-stint in plan.",
+            not stint_failures,
+            (
+                stint_failures[0]
+                if stint_failures
+                else "Every assigned stint is within the configured limit."
+            ),
         )
-    )
+    ]
 
-    min_required = regulations.min_drive_for_category(driver.category)
-    if min_required > 0:
-        passed = driven_min >= min_required - 0.5
-        shortfall = max(0.0, min_required - driven_min)
+    minimum = regulations.min_drive_for_category(driver.category)
+    if minimum > 0:
+        passed = driven_min >= minimum - 0.5
         checks.append(
             RuleCheck(
-                rule_id="min_total_drive",
-                rule_text=(
-                    f"{driver.category.value} minimum total drive time: "
-                    f"{format_duration(min_required)}"
+                "min_total_drive",
+                (
+                    f"{driver.category.value} minimum total drive: "
+                    f"{format_duration(minimum)}"
                 ),
-                passed=passed,
-                detail=(
+                passed,
+                (
                     f"Driven {format_duration(driven_min)}."
                     if passed
                     else (
-                        f"Short by {format_duration(shortfall)} "
-                        f"(driven {format_duration(driven_min)})."
+                        f"Short by {format_duration(minimum - driven_min)}; "
+                        f"driven {format_duration(driven_min)}."
                     )
                 ),
             )
         )
 
-    if regulations.max_total_drive_min > 0:
-        passed = driven_min <= regulations.max_total_drive_min + 0.5
-        excess = max(0.0, driven_min - regulations.max_total_drive_min)
+    maximum = regulations.max_total_drive_min
+    if maximum > 0:
+        passed = driven_min <= maximum + 0.5
         checks.append(
             RuleCheck(
-                rule_id="max_total_drive",
-                rule_text=(
-                    f"Maximum total drive time per driver: "
-                    f"{format_duration(regulations.max_total_drive_min)}"
-                ),
-                passed=passed,
-                detail=(
+                "max_total_drive",
+                f"Maximum total drive: {format_duration(maximum)}",
+                passed,
+                (
                     f"Driven {format_duration(driven_min)}."
                     if passed
                     else (
-                        f"Over by {format_duration(excess)} "
-                        f"(driven {format_duration(driven_min)})."
+                        f"Over by {format_duration(driven_min - maximum)}; "
+                        f"driven {format_duration(driven_min)}."
                     )
                 ),
             )
         )
 
-    if regulations.min_total_drive_min > 0 and driver.category == DriverCategory.PRO:
-        passed = driven_min >= regulations.min_total_drive_min - 0.5
-        checks.append(
-            RuleCheck(
-                rule_id="pro_min_drive",
-                rule_text=(
-                    f"Pro minimum total drive: "
-                    f"{format_duration(regulations.min_total_drive_min)}"
-                ),
-                passed=passed,
-                detail=f"Driven {format_duration(driven_min)}.",
-            )
-        )
-
-    pct = 100.0 * driven_min / race_duration_min if race_duration_min > 0 else 0.0
+    share = 100.0 * driven_min / race_duration_min if race_duration_min > 0 else 0.0
     checks.append(
         RuleCheck(
-            rule_id="drive_share",
-            rule_text=f"Drive share of {format_duration_from_hours(race_duration_min / 60):}",
-            passed=True,
-            detail=f"{format_duration(driven_min)} ({pct:.1f}% of race).",
+            "drive_share",
+            "Allocated race-clock share",
+            True,
+            f"{format_duration(driven_min)} ({share:.1f}% of scheduled race time).",
         )
     )
-
     return checks
 
 
 def check_compliance(plan: PlanResult) -> ComplianceReport:
-    """Return structured pass/fail compliance for each driver and rule."""
+    """Evaluate each configured driver independently, including duplicate names."""
     config = plan.config
-    regulations = config.regulations
-    totals = plan.driver_totals()
-    race_min = config.race_duration_min
-    stint_violations = _max_stint_violations(plan.stints, regulations)
-
+    totals = plan.driver_totals_by_id()
     driver_results: list[DriverCompliance] = []
+    all_stint_failures: list[str] = []
+
     for driver in config.drivers:
-        driven = totals.get(driver.name, 0.0)
-        checks = _build_driver_checks(driver, driven, regulations, race_min)
-        driver_stint_fails = [
-            v for v in stint_violations if driver.name in v
-        ]
-        for check in checks:
-            if check.rule_id == "max_continuous_stint" and driver_stint_fails:
-                check.passed = False
-                check.detail = driver_stint_fails[0]
+        failures = _driver_stint_violations(plan.stints, driver, config.regulations)
+        all_stint_failures.extend(failures)
+        driven = totals.get(driver.id, 0.0)
         driver_results.append(
-            DriverCompliance(driver=driver, total_drive_min=driven, checks=checks)
+            DriverCompliance(
+                driver=driver,
+                total_drive_min=driven,
+                checks=_build_driver_checks(
+                    driver,
+                    driven,
+                    config.regulations,
+                    config.race_duration_min,
+                    failures,
+                ),
+            )
         )
-    return ComplianceReport(
-        driver_results=driver_results,
-        stint_violations=stint_violations,
-    )
+    return ComplianceReport(driver_results, all_stint_failures)
+
+
+def _estimate_for_driver(
+    estimates: dict[str, float],
+    driver: Driver,
+) -> float:
+    """Accept stable IDs and retain name fallback for older API callers."""
+    if driver.id in estimates:
+        return estimates[driver.id]
+    return estimates.get(driver.name, 0.0)
 
 
 def preflight_infeasibility_checks(
     config: RaceConfig,
     driver_totals_estimate: dict[str, float] | None = None,
 ) -> list[str]:
-    """
-    Quick feasibility messages before or after planning.
-    Returns human-readable reason strings (not Infeasibility objects).
-    """
+    """Return rule conflicts that can be established from configured evidence."""
     reasons: list[str] = []
-    regs = config.regulations
+    drivers = config.drivers
+    regulations = config.regulations
     race_min = config.race_duration_min
-    n_drivers = len(config.drivers)
 
-    if n_drivers < 1:
-        reasons.append("At least one driver is required.")
-        return reasons
+    if not drivers:
+        return ["At least one driver is required."]
 
-    bronze_drivers = [d for d in config.drivers if d.category == DriverCategory.BRONZE]
-    if bronze_drivers and regs.bronze_min_drive_min > 0:
-        bronze_required = regs.bronze_min_drive_min * len(bronze_drivers)
-        if bronze_required > race_min + 0.5:
+    required_total = sum(
+        max(regulations.min_drive_for_category(driver.category), 0.0)
+        for driver in drivers
+    )
+    if required_total > race_min + 0.5:
+        reasons.append(
+            f"Configured per-driver minimums total "
+            f"{format_duration(required_total)}, longer than the "
+            f"{format_duration(race_min)} race."
+        )
+
+    if regulations.max_total_drive_min > 0:
+        available_total = regulations.max_total_drive_min * len(drivers)
+        if available_total < race_min - 1.0:
             reasons.append(
-                f"Bronze minimum of {format_duration(regs.bronze_min_drive_min)} "
-                f"per driver cannot be satisfied: race is only "
-                f"{format_duration(race_min)}."
+                f"Configured maximum drive capacity is "
+                f"{format_duration(available_total)}, shorter than the "
+                f"{format_duration(race_min)} race clock."
             )
 
-        if driver_totals_estimate:
-            for driver in bronze_drivers:
-                driven = driver_totals_estimate.get(driver.name, 0.0)
-                if driven < regs.bronze_min_drive_min - 0.5:
-                    shortfall = regs.bronze_min_drive_min - driven
-                    reasons.append(
-                        f"Bronze driver {driver.name} minimum of "
-                        f"{format_duration(regs.bronze_min_drive_min)} cannot be "
-                        f"satisfied: only {format_duration(driven)} allocated "
-                        f"(short {format_duration(shortfall)})."
-                    )
-
-    if regs.max_total_drive_min > 0 and n_drivers > 0:
-        min_needed = race_min / n_drivers
-        if regs.max_total_drive_min < min_needed - 1.0:
-            reasons.append(
-                f"Max drive cap {format_duration(regs.max_total_drive_min)} per "
-                f"driver is too low for a {format_duration(race_min)} race with "
-                f"{n_drivers} drivers (need ~{format_duration(min_needed)} each)."
-            )
-
+    if driver_totals_estimate is not None:
+        for driver in drivers:
+            driven = _estimate_for_driver(driver_totals_estimate, driver)
+            minimum = regulations.min_drive_for_category(driver.category)
+            if minimum > 0 and driven < minimum - 0.5:
+                reasons.append(
+                    f"{driver.category.value} driver {driver.name} "
+                    f"[{driver.id}] is short of the "
+                    f"{format_duration(minimum)} minimum by "
+                    f"{format_duration(minimum - driven)}."
+                )
+            maximum = regulations.max_total_drive_min
+            if maximum > 0 and driven > maximum + 0.5:
+                reasons.append(
+                    f"Driver {driver.name} [{driver.id}] exceeds the "
+                    f"{format_duration(maximum)} total-drive maximum by "
+                    f"{format_duration(driven - maximum)}."
+                )
     return reasons
