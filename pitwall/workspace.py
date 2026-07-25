@@ -159,6 +159,32 @@ class PitwallWorkspace:
             raise WorkspaceError("Report path escapes the Pitwall workspace")
         return target
 
+    def new_report_file(self, name: str, *, suffix: str = ".md") -> Path:
+        """Resolve a report path that must not already exist.
+
+        Non-overwrite protection belongs to the workspace layer so that every
+        caller - CLI, agent tool, or library user - gets the same guarantee.
+        """
+        target = self.report_file(name, suffix=suffix)
+        if target.exists():
+            raise WorkspaceError(
+                f"{target.name} already exists; choose a new report name"
+            )
+        return target
+
+    def new_validation_file(self, name: str, *, suffix: str = ".md") -> Path:
+        """Resolve a not-yet-existing validation report inside the workspace root."""
+        self.initialise()
+        safe_name = _safe_filename(name, suffix=suffix)
+        target = (self.root / safe_name).resolve()
+        if target.parent != self.root.resolve():
+            raise WorkspaceError("Validation path escapes the Pitwall workspace")
+        if target.exists():
+            raise WorkspaceError(
+                f"{target.name} already exists; choose a new report name"
+            )
+        return target
+
 
 def _safe_filename(value: str, *, suffix: str) -> str:
     candidate = Path(value).name
