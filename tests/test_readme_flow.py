@@ -31,7 +31,7 @@ class TestReadmeQuickStart:
     def test_runtime_dependencies_are_small_and_bounded(self) -> None:
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         assert "typer>=" in pyproject and "<1" in pyproject
-        assert "rich>=" in pyproject and "<15" in pyproject
+        assert "rich>=" in pyproject and "<16" in pyproject
         assert "streamlit" not in pyproject
         assert "pandas" not in pyproject
 
