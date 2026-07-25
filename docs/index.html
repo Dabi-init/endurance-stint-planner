@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall Agent — Endurance Race Strategy Planner</title>
+<meta name="description" content="Local-first, terminal-based endurance race strategy tool for sim racers, team captains, and race-day operators. Deterministic fuel, tyre, and driver planning. Free &amp; open-source.">
+<meta name="keywords" content="endurance race strategy, fuel calculator, stint planner, sim racing, tyre strategy, pit sheet, race planning, local AI, telemetry">
+<meta name="author" content="Pitwall Agent contributors">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0d1117">
+<link rel="canonical" href="https://dabi-init.github.io/endurance-stint-planner/">
+
+<meta property="og:title" content="Pitwall Agent — Endurance Race Strategy Planner">
+<meta property="og:description" content="Build your endurance race plan, lap by lap — deterministically. Local-first, terminal-based, open-source. AI-explained, never AI-decided.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dabi-init.github.io/endurance-stint-planner/">
+<meta property="og:site_name" content="Pitwall Agent">
+<meta property="og:image" content="https://racelab.app/img/hero-image.jpg">
+<meta property="og:image:alt" content="Pitwall Agent — endurance race strategy planner">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pitwall Agent — Endurance Race Strategy Planner">
+<meta name="twitter:description" content="Build your endurance race plan, lap by lap — deterministically. Local-first, terminal-based, open-source.">
+<meta name="twitter:image" content="https://repository-images.githubusercontent.com/1187690049/7837d95d-89fa-43a7-9fac-cfb8e644b0b8">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1117'/%3E%3Cpath d='M8 24V8h7a5 5 0 0 1 0 10h-3v6z' fill='%232ea043'/%3E%3C/svg%3E">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Pitwall Agent",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Motorsport strategy planning",
+  "operatingSystem": "Windows, macOS, Linux",
+  "softwareVersion": "0.4.0-alpha.1",
+  "description": "Local-first, terminal-based endurance race strategy tool. Deterministic fuel, tyre, and driver rotation planning with auditable pit sheets and optional local AI explanation.",
+  "url": "https://dabi-init.github.io/endurance-stint-planner/",
+  "downloadUrl": "https://github.com/Dabi-init/endurance-stint-planner/releases",
+  "codeRepository": "https://github.com/Dabi-init/endurance-stint-planner",
+  "programmingLanguage": "Python",
+  "license": "https://github.com/Dabi-init/endurance-stint-planner/blob/main/LICENSE",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+:root{
+  --bg:#0d1117; --bg-2:#111823; --card:#161b22; --line:#26303d;
+  --text:#f0f6fc; --muted:#9fb0c3; --accent:#2ea043; --accent-2:#3fb950;
+  --warn:#f59e0b; --radius:12px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-2)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px}
+.wrap{width:100%;max-width:1080px;margin:0 auto;padding:0 20px}
+header.site{position:sticky;top:0;z-index:10;background:rgba(13,17,23,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+header.site .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+.brand .dot{width:12px;height:12px;border-radius:3px;background:var(--accent)}
+nav.site a{color:var(--muted);text-decoration:none;font-size:.92rem;margin-left:18px}
+nav.site a:hover{color:var(--text)}
+section{padding:64px 0;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:0}
+h1{font-size:clamp(2rem,6vw,3.3rem);line-height:1.12;margin:0 0 14px}
+h2{font-size:clamp(1.4rem,3.6vw,2rem);margin:0 0 8px}
+h3{font-size:1.06rem;margin:0 0 6px}
+p{margin:0 0 14px}
+.lead{font-size:clamp(1.05rem,2.4vw,1.35rem);color:var(--text);max-width:60ch}
+.sub{color:var(--muted);max-width:66ch}
+.eyebrow{display:inline-block;font-family:var(--mono);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2);border:1px solid var(--line);background:var(--bg-2);padding:5px 11px;border-radius:999px;margin-bottom:18px}
+.hero{padding:76px 0 68px;background:radial-gradient(900px 380px at 15% -10%,rgba(46,160,67,.16),transparent 60%)}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 10px}
+.btn{display:inline-block;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid var(--line);color:var(--text);background:var(--card)}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#04140a}
+.btn.primary:hover{background:var(--accent-2)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.card h3{color:var(--accent-2)}
+.card p{color:var(--muted);margin:0}
+.card .role{font-family:var(--mono);font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+ul.check{list-style:none;padding:0;margin:0}
+ul.check li{position:relative;padding-left:26px;margin-bottom:10px;color:var(--muted)}
+ul.check li::before{content:"▸";position:absolute;left:4px;color:var(--accent-2)}
+pre{background:#010409;border:1px solid var(--line);border-radius:var(--radius);padding:18px;overflow-x:auto;font-family:var(--mono);font-size:.86rem;line-height:1.55;color:#d7e3f0;margin:0 0 16px}
+code{font-family:var(--mono)}
+.note{border-left:3px solid var(--warn);background:rgba(245,158,11,.08);padding:14px 16px;border-radius:0 var(--radius) var(--radius) 0;color:var(--text)}
+.note strong{color:var(--warn)}
+.steps{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:22px 0}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.step span{display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;border-radius:50%;background:var(--accent);color:#04140a;font-weight:700;font-size:.85rem;margin-bottom:8px}
+.step code{color:var(--accent-2);font-size:.88rem}
+footer{padding:44px 0;color:var(--muted);font-size:.9rem}
+footer nav{margin:12px 0}
+footer nav a{margin-right:16px}
+.small{font-size:.86rem;color:var(--muted)}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:12px;top:12px;position:fixed;background:var(--accent);color:#04140a;padding:10px 14px;border-radius:8px;z-index:50}
+@media (max-width:640px){
+  section{padding:48px 0}
+  nav.site{display:none}
+  .btn{width:100%;text-align:center}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site">
+  <div class="wrap">
+    <div class="brand"><span class="dot" aria-hidden="true"></span> Pitwall Agent</div>
+    <nav class="site" aria-label="Section navigation">
+      <a href="#who">Who it's for</a>
+      <a href="#trust">Why trust it</a>
+      <a href="#features">Features</a>
+      <a href="#demo">Terminal</a>
+      <a href="#install">Install</a>
+      <a href="#alpha">Alpha status</a>
+      <a href="https://github.com/Dabi-init/endurance-stint-planner">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Alpha · Open source · Local-first</span>
+    <h1>Pitwall Agent</h1>
+    <p class="lead">Build your endurance race plan, lap by lap — deterministically.</p>
+    <p class="sub">A local-first, terminal-based strategy tool for sim racers, team captains, and race-day operators. Free, open-source, AI-explained — never AI-decided.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner">⭐ Star on GitHub</a>
+      <a class="btn" href="#install">📦 Install Now</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/issues/new/choose">💬 Share Feedback</a>
+    </div>
+    <p class="small">MIT licensed · Python 3.11+ · Works fully offline · No account, no API key, no data upload.</p>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="wrap">
+    <h2>What problem it solves</h2>
+    <p class="sub">Planning an endurance race is overwhelming — fuel reserves, tyre changes, driver rotations, Safety Car timing. Pitwall Agent turns those variables into a clear, auditable plan you can take to race day. Every number comes from a deterministic engine you can inspect and trust.</p>
+  </div>
+</section>
+
+<!-- PERSONAS -->
+<section id="who">
+  <div class="wrap">
+    <h2>Who it's for</h2>
+    <p class="sub">Four people stand around every pit wall. Pitwall Agent is built for all of them.</p>
+    <div class="grid g2" style="margin-top:24px">
+      <article class="card">
+        <p class="role">Complete beginner</p>
+        <h3>Never planned an endurance race?</h3>
+        <p>Start here. Pitwall Agent explains every term, guides you through setup, and builds your first strategy in under 20 minutes.</p>
+      </article>
+      <article class="card">
+        <p class="role">Sim-racing team captain</p>
+        <h3>Auditable strategy, not black-box advice</h3>
+        <p>CSV telemetry in, auditable strategy out. See every assumption, confidence level, and warning before your first stint begins.</p>
+      </article>
+      <article class="card">
+        <p class="role">Race-day operator</p>
+        <h3>Scan-ready pit sheets</h3>
+        <p>Fuel, tyres, drivers, timing, trigger cards, and uncertainty bounds — everything you need on the pit wall, in one Markdown page.</p>
+      </article>
+      <article class="card">
+        <p class="role">Technical contributor</p>
+        <h3>Fork it, extend it, prove it</h3>
+        <p>Typed Python, deterministic engine, 85%+ test coverage enforced in CI, JSON output, documented architecture.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section id="trust">
+  <div class="wrap">
+    <h2>Why you can trust the numbers</h2>
+    <div class="grid g2" style="margin-top:24px">
+      <article class="card">
+        <h3>Deterministic engine — never AI-guessed</h3>
+        <p>All fuel, tyre, and driver maths is deterministic Python code in <code>engine/</code>. You can read every line and re-run it for the same result.</p>
+      </article>
+      <article class="card">
+        <h3>AI is an explainer, not a decision-maker</h3>
+        <p>An optional local Ollama model can explain the plan in plain English. It cannot invent, change, or own the race mathematics.</p>
+      </article>
+      <article class="card">
+        <h3>Evidence Levels A / B / C</h3>
+        <p>Every input is labelled with its source and confidence, so you always know whether a number came from telemetry or from an assumption.</p>
+      </article>
+      <article class="card">
+        <h3>Local-first, no telemetry upload</h3>
+        <p>Your CSVs, race config, and reports stay in a visible <code>.pitwall/</code> folder on your own machine. Nothing is uploaded anywhere.</p>
+      </article>
+    </div>
+    <div class="note" style="margin-top:24px">
+      <p style="margin:0"><strong>Honest alpha statement.</strong> Pitwall Agent is alpha software. All current case studies use synthetic data (Evidence Level C). No real-session validation has been published. We are honest about what we know and what we don't.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <h2>What it does today</h2>
+    <div class="grid g3" style="margin-top:24px">
+      <article class="card"><h3>Fuel &amp; stint planning</h3><p>Stint lengths, fuel loads, and exact fuel additions per stop.</p></article>
+      <article class="card"><h3>Tyre life &amp; changes</h3><p>Tyre sets, age at stint end, and change planning per stop.</p></article>
+      <article class="card"><h3>Driver rotation</h3><p>Stable driver identities and configured drive-time rule checks.</p></article>
+      <article class="card"><h3>Strategy comparison</h3><p>Conservative / Balanced / Fuel Save ranked side by side.</p></article>
+      <article class="card"><h3>P10 / P90 uncertainty</h3><p>Pessimistic and optimistic bounds, not a single false-precision number.</p></article>
+      <article class="card"><h3>Telemetry CSV ingest</h3><p>Column mapping, outlier checks, and evidence calibration from your laps.</p></article>
+      <article class="card"><h3>Safety Car what-if</h3><p>One declared pre-race scenario with explicit multipliers. Pre-race only.</p></article>
+      <article class="card"><h3>Strategy trigger cards</h3><p>Pre-agreed HOLD / RECONSIDER thresholds to take to the pit wall.</p></article>
+      <article class="card"><h3>Markdown pit sheet</h3><p>One scannable page to print or keep open on race day.</p></article>
+      <article class="card"><h3>Machine-readable JSON</h3><p><code>--json</code> on the commands you script or pipe into your own tools.</p></article>
+      <article class="card"><h3>Optional local AI</h3><p>Ollama on loopback only, for explanation. Everything works without it.</p></article>
+      <article class="card"><h3>No live data, no lock-in</h3><p>No live timing, no proprietary APIs, no accounts, no tracking.</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- TERMINAL DEMO -->
+<section id="demo">
+  <div class="wrap">
+    <h2>What it looks like in the terminal</h2>
+    <p class="sub">Illustrative output from the bundled synthetic example — not a performance claim.</p>
+    <pre><code>$ pitwall doctor
+✓ workspace  .pitwall/
+✓ race.json  found
+⚠  ollama    not connected (deterministic fallback active)
+
+$ pitwall compare
+─── Strategy Comparison ─────────────────────────
+Strategy       Stops  Stints  Fuel (start)  Risk
+Conservative     3      4       58.0 L      Low
+Balanced         3      4       55.0 L      Medium   ★ Recommended
+Fuel Save        2      3       52.0 L      High
+
+Evidence: C (synthetic preset)  |  Input: Manual assumptions
+P10 (pessimistic): +4.2% lap time  |  P90 (optimistic): -2.1% lap time
+
+$ pitwall export --name race_day
+✓ Pit sheet written: .pitwall/reports/race_day.md</code></pre>
+  </div>
+</section>
+
+<!-- PIT SHEET -->
+<section id="pitsheet">
+  <div class="wrap">
+    <h2>The pit sheet you take to race day</h2>
+    <p class="sub">Excerpt of an exported Markdown pit sheet. Every figure is traceable to an input and an evidence level.</p>
+    <pre><code># Pitwall Agent — Pre-Race Pit Sheet
+⚠️ PRE-RACE PLAN ONLY — Not live race control
+
+Strategy: Balanced (★ Recommended)
+Evidence: C | Confidence: Medium | Source: Manual assumptions
+P10 pessimistic: +4.2% lap time | P90 optimistic: -2.1% lap time
+
+TRIGGER CARDS
+FUEL_BURN_HIGH  [HOLD]  Burn 3.2 L/lap is within range 3.0–3.5 L/lap
+PACE_SLOW       [HOLD]  Lap time 2:10 is within P10–P90 range
+
+STINT 1  Laps 1–18  |  Driver: A  |  Fuel: 58.0→0.5 L (+0 L added)
+STINT 2  Laps 19–36 |  Driver: B  |  Tyre: New set  |  Pit: 65s</code></pre>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <div class="note" style="margin-bottom:22px">
+      <p style="margin:0"><strong>Alpha packaging note.</strong> <code>pitwall-agent</code> may not be published on PyPI yet. If <code>pip install pitwall-agent</code> cannot find the package, download the wheel from the <a href="https://github.com/Dabi-init/endurance-stint-planner/releases">GitHub releases page</a> and run <code>pip install path\to\pitwall_agent-...whl</code>, or use the developer install below.</p>
+    </div>
+    <div class="grid g2">
+      <div>
+        <h3>Windows</h3>
+        <pre><code># 1. Download Python from python.org (3.11+)
+# 2. Open Command Prompt and run:
+pip install pitwall-agent
+pitwall doctor
+pitwall init
+pitwall compare</code></pre>
+      </div>
+      <div>
+        <h3>Linux / macOS</h3>
+        <pre><code>pip install pitwall-agent
+pitwall doctor
+pitwall init
+pitwall compare</code></pre>
+      </div>
+    </div>
+    <h3 style="margin-top:18px">Developer install (always works)</h3>
+    <pre><code>git clone https://github.com/Dabi-init/endurance-stint-planner
+cd endurance-stint-planner
+pip install -e .[dev]</code></pre>
+  </div>
+</section>
+
+<!-- 5 MIN DEMO -->
+<section id="demo5">
+  <div class="wrap">
+    <h2>Try the 5-minute demo</h2>
+    <div class="steps">
+      <div class="step"><span>1</span><br><code>pip install</code><br><span class="small">Install the package or the repo.</span></div>
+      <div class="step"><span>2</span><br><code>pitwall doctor</code><br><span class="small">Check your environment.</span></div>
+      <div class="step"><span>3</span><br><code>pitwall welcome</code><br><span class="small">Learn every term in plain English.</span></div>
+      <div class="step"><span>4</span><br><code>pitwall compare</code><br><span class="small">See three ranked strategies.</span></div>
+      <div class="step"><span>5</span><br><code>pitwall export</code><br><span class="small">Write your pit sheet.</span></div>
+    </div>
+    <p class="sub">No API key. No cloud account. No data upload. Just your race plan.</p>
+  </div>
+</section>
+
+<!-- ALPHA LIMITS -->
+<section id="alpha">
+  <div class="wrap">
+    <h2>Alpha status and limitations</h2>
+    <p class="sub">Read this before you rely on it for a real event.</p>
+    <ul class="check" style="margin-top:16px">
+      <li>Alpha software — not production-validated.</li>
+      <li>No real-session case studies yet. Every published example uses synthetic data.</li>
+      <li>Safety Car support is a pre-race what-if only — it is not live race control.</li>
+      <li>No live timing, no competitor prediction, no proprietary telemetry APIs.</li>
+      <li>Ollama is optional — every deterministic feature works with no AI at all.</li>
+      <li>Evidence Level C means the numbers came from preset or synthetic assumptions, not measured data.</li>
+      <li>Sporting regulations are your responsibility. Pitwall Agent checks the rules you configure, not any official rulebook.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- COMMUNITY -->
+<section id="community">
+  <div class="wrap">
+    <h2>Community and feedback</h2>
+    <p class="sub">This project gets better the moment real racers tell us what broke.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner">⭐ Star on GitHub</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/issues/new/choose">🐛 Report an issue</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/issues/new/choose">💡 Request a feature</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/blob/main/CONTRIBUTING.md">📊 Contribute anonymised session data</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/blob/main/CONTRIBUTING.md">🤝 Join the contributor community</a>
+    </div>
+    <h3 style="margin-top:22px">Feedback checklist</h3>
+    <ul class="check">
+      <li>Could you install it without help?</li>
+      <li>Did you understand the recommendation it gave you?</li>
+      <li>Did the pit sheet help you on race day?</li>
+      <li>What was confusing, missing, or wrong?</li>
+      <li>Would you share an anonymised session so we can validate against real data?</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Pitwall Agent is open-source software. MIT License.</p>
+    <nav aria-label="Footer links">
+      <a href="https://github.com/Dabi-init/endurance-stint-planner">GitHub</a>
+      <a href="https://github.com/Dabi-init/endurance-stint-planner/releases">Releases</a>
+      <a href="https://github.com/Dabi-init/endurance-stint-planner/tree/main/docs">Docs</a>
+      <a href="https://github.com/Dabi-init/endurance-stint-planner/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/Dabi-init/endurance-stint-planner/blob/main/SECURITY.md">Security</a>
+    </nav>
+    <p class="small">No tracking. No telemetry upload. Local-first.</p>
+  </div>
+</footer>
+</body>
+</html>
