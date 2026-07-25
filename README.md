@@ -175,10 +175,9 @@ working. Pitwall only accepts an Ollama endpoint on this computer.
 | Command | Purpose |
 |---|---|
 | `pitwall` | Open the interactive terminal strategist |
+| `pitwall welcome` | Plain-English introduction for people new to endurance strategy |
 | `pitwall doctor` | Verify the core, workspace, configuration, and optional Ollama |
-| `pitwall welcome` | Plain-English tour of stints, fuel, tyres, P10/P90, evidence levels, and trigger cards |
 | `pitwall init` | Create the current race; add `--guided` for validated question-by-question setup |
-| `pitwall validate` | Compare a plan against actual results and write a provenance-labelled report |
 | `pitwall race init` | Create the current editable race from a bundled preset |
 | `pitwall race set` | Update car, event, service, or driver inputs |
 | `pitwall race show` | Inspect the exact current inputs |
@@ -187,7 +186,8 @@ working. Pitwall only accepts an Ollama endpoint on this computer.
 | `pitwall ingest FILE.csv` | Copy and audit telemetry inside the workspace |
 | `pitwall scenario 120 20` | Simulate an SC at minute 120 for 20 minutes |
 | `pitwall ask "..."` | Use Ollama when configured, safe deterministic routing otherwise |
-| `pitwall export --name race-one` | Create a new Markdown pit sheet |
+| `pitwall export --name race-one` | New pit sheet for the recommended strategy; `--strategy` overrides |
+| `pitwall validate --actual-laps 210` | Compare a reported result with the plan (Evidence Level C) |
 | `pitwall tools` | Inspect the model’s complete tool allowlist |
 | `pitwall history` | Review locally saved agent turns |
 | `pitwall --json compare` | Produce machine-readable output for automation |
@@ -233,6 +233,41 @@ The detailed product reasoning and attack map live in
 [docs/AGENT_BRAIN.md](docs/AGENT_BRAIN.md). The deterministic race model is
 specified in [docs/STRATEGY_BRAIN.md](docs/STRATEGY_BRAIN.md), and module
 boundaries are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Glossary
+
+New to endurance strategy? Run `pitwall welcome` for the same explanations in
+your terminal.
+
+- **Stint** — the run between two pit stops. Its length is limited by whichever
+  runs out first: fuel, tyre life, or the maximum time a single driver may stay
+  in the car.
+- **Fuel reserve** — a deliberate safety buffer counted in whole laps that the
+  plan never spends. A larger reserve is safer but costs laps over the race.
+- **Tyre life** — how many laps you are willing to run one set of tyres. A stint
+  longer than the tyre life needs an extra tyre change, or a shorter stint.
+- **P10 / P90** — the pessimistic and optimistic ends of the simulated range.
+  `P10 (pessimistic/slower)` is the unlucky outcome, `P90 (optimistic/faster)`
+  the lucky one. Plan for P10; do not promise P90.
+- **Evidence Level A / B / C** — A means several audited real sessions, B means
+  one audited real session, C means assumed, preset, or synthetic values.
+  Anything at Level C is an estimate, not a measurement.
+- **Parallel vs sequential pit service** — parallel service overlaps refuelling,
+  tyres, and the driver change, so the stop costs roughly the longest single
+  job. Sequential service runs them one after another, so the stop costs the
+  sum. Your event regulations decide which applies.
+- **Safety Car scenario** — a what-if you declare yourself by giving a
+  deployment minute and a duration. Pitwall receives no live race control data
+  and cannot predict real Safety Car events.
+- **Trigger card** — one thing to watch during the race, the band it should stay
+  inside, and the action agreed in advance if it leaves that band: `HOLD` the
+  plan or `RECONSIDER` it with a fresh calculation.
+- **Deterministic engine** — the auditable calculator that produces every
+  number. The same inputs always give the same outputs; the optional local model
+  may explain those numbers but never changes them.
+- **Telemetry** — an optional one-row-per-completed-lap CSV of your own data.
+  Without it Pitwall labels the run `Manual assumptions` and stays at Evidence
+  Level C.
 
 ## Honest scope
 
