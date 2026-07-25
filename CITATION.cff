@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If this project supports your work, cite the software and its version."
+title: "Pitwall Agent"
+type: software
+authors:
+  - family-names: "R."
+    given-names: "Sreenath"
+repository-code: "https://github.com/Dabi-init/endurance-stint-planner"
+url: "https://github.com/Dabi-init/endurance-stint-planner"
+license: MIT
+version: "0.3.0-alpha.1"
+date-released: "2026-07-25"
+keywords:
+  - agent
+  - endurance racing
+  - race strategy
+  - Ollama
+  - telemetry
+  - motorsport

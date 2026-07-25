@@ -1,0 +1,39 @@
+name: Reproducible defect
+description: Report a calculation, import, export, or interface failure.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not attach confidential team data. A minimal synthetic fixture is ideal."
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision affected
+      description: What strategy decision became wrong, blocked, or misleading?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Exact inputs, source type, and steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected versus actual
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Non-confidential evidence
+      description: Sanitised JSON output, terminal capture, or minimal CSV.

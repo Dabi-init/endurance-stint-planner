@@ -29,9 +29,11 @@ desktop.ini
 
 # Project outputs
 outputs/
+.pitwall*/
 *.png
 *.csv
 !docs/*.png
+!examples/*.csv
 
 # Jupyter
 .ipynb_checkpoints/
@@ -43,6 +45,7 @@ htmlcov/
 
 # mypy
 .mypy_cache/
+.ruff_cache/
 
 # Setup scripts (local only)
 setup_github.ps1

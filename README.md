@@ -1,203 +1,261 @@
 <p align="center">
-  <img src="assets/endurance-stint-planner-logo.jpg" alt="Endurance Stint Planner" width="640">
+  <img src="assets/pitwall-mark.svg" width="92" alt="Pitwall Agent mark">
 </p>
 
-# Endurance Race Stint Planner
+<h1 align="center">Pitwall Agent</h1>
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+<p align="center">
+  A local-first endurance race strategist that lets AI explain the plan—but never invent the maths.
+</p>
 
-**Production race strategy tool** for endurance GT and sportscar racing — fuel-limited stints, tyre life, Pro/Silver/Bronze driver regulations, circuit profiles, Safety Car what-if, and pit-wall exports.
+<p align="center">
+  <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-e63946"></a>
+  <img alt="Python 3.11–3.13" src="https://img.shields.io/badge/python-3.11–3.13-3776ab">
+  <img alt="Ollama optional" src="https://img.shields.io/badge/Ollama-optional-black">
+  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-f59e0b">
+</p>
 
-Built for race engineers, team managers, and strategists briefing before green flag. Not live timing software.
+Most racing calculators stop at “how many laps fit in a tank?” Pitwall Agent
+compares complete, executable strategies: fuel loads and additions, driver
+rotation, tyre sets, parallel or sequential pit service, uncertainty, configured
+driver rules, and a scoped Safety Car what-if.
 
-**Repository:** [github.com/Dabi-init/endurance-stint-planner](https://github.com/Dabi-init/endurance-stint-planner)
+It is terminal software—not a website. It works without a language model. If
+you connect a local [Ollama](https://ollama.com/) model, the model can translate
+plain English into allowlisted race-tool calls and explain the result. The model
+never receives shell, browser, deletion, arbitrary-file, or arbitrary-network
+tools.
 
----
+```text
+> pitwall compare
 
-## Quick Start
+Recommendation: Conservative
 
-### First time (new users)
+Rank  Strategy      Projected laps  P10 laps  Pit stops  Reserve  Risk
+1     Conservative  174             174.0     6          2 laps   Low
+2     Balanced      174             174.0     6          1 lap    Low
+3     Fuel Save     174             173.0     6          1 lap    Low
+
+Evidence C · Low confidence · generic manual uncertainty
+```
+
+Numbers above are a bundled example, not a performance claim.
+
+## Why this is useful
+
+| Race question | Pitwall answer |
+|---|---|
+| Which plan should we start with? | A visible three-strategy ranking, not a hidden “AI score” |
+| Can we execute it? | Exact stint start/end, driver, laps, fuel start/add, tyre set, and pit time |
+| How fragile is it? | Seeded P10–P90 laps, extra-stop risk, source, confidence, and assumptions |
+| Is our telemetry credible? | Column mapping, row validity, duplicates, outliers, fuel support, and Evidence Level A/B/C |
+| Do driver rules pass? | Independent checks using stable driver IDs, including duplicate display names |
+| What if an SC arrives? | One declared pre-race scenario with explicit pace/fuel multipliers and limitations |
+
+The strategy engine is deterministic and independently testable. A small model
+can choose the wrong tool or produce weak prose; it cannot change the computed
+fuel requirement or regulation result.
+
+## Quick start
+
+Requires [Python 3.11 or newer](https://www.python.org/downloads/).
+
+### Windows — easiest
+
+1. Download and unzip this repository.
+2. Double-click `run.bat`.
+3. The installer runs a health check and opens the terminal pit wall.
+
+PowerShell users can paste:
+
+```powershell
+git clone https://github.com/Dabi-init/endurance-stint-planner.git
+Set-Location .\endurance-stint-planner
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+Already downloaded?
+
+```powershell
+Set-Location .\endurance-stint-planner
+git pull
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+### macOS or Linux
 
 ```bash
 git clone https://github.com/Dabi-init/endurance-stint-planner.git
 cd endurance-stint-planner
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+pitwall doctor
+pitwall
 ```
 
-### Already downloaded? (returning users — no `git clone`)
+No account, API key, cloud upload, or AI model is required.
 
-Open a terminal **inside the project folder** (skip `git clone` — it fails if the folder already exists):
+## Configure a real race
 
-```bash
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
+Start from the closest bundled example, then replace only the values you know:
+
+```powershell
+pitwall race init --preset "6h Endurance"
+pitwall race set --name "My 8 Hour" --duration 8 --lap-time 121.4
+pitwall race set --tank 105 --burn 2.72 --refuel-rate 2.4 --tyre-life 30
+pitwall race set --drivers "Ava:Pro:0, Bo:Silver:0.4, Cy:Bronze:1.1"
+pitwall race show
 ```
 
-Windows shortcut: open the project folder and double-click **`run.bat`**.
+The last driver field is pace delta in seconds; omit it if unknown. Use
+`pitwall race set --help` for every input. Pitwall preserves the remaining
+preset values so you can configure the race gradually.
 
-Opens at `http://localhost:8501` with a **complete 6h Endurance plan** (Spa-Francorchamps) — no input required. Requires **Python 3.10+**.
+## First analysis in five commands
 
----
+```powershell
+# 1. Check the installation
+pitwall doctor
 
-## Who This Is For
+# 2. Create the current editable race
+pitwall race init
 
-| User | What they get |
-|------|----------------|
-| **Race engineer** | Instant stint sheet, Gantt timeline, fuel/tyre geometry, exports |
-| **Team manager** | Driver compliance pass/fail, Bronze minimum checks, rotation summary |
-| **Strategist** | Tyre what-if slider, Safety Car replan comparison, circuit-aware defaults |
+# 3. Compare the current assumptions
+pitwall compare
 
-The calculation engine is separated from the UI. Invalid inputs return structured **Infeasibility** messages with suggested fixes — the app does not crash on bad data.
+# 4. Import one-row-per-lap telemetry
+pitwall ingest .\examples\spa_6h_synthetic.csv
 
----
+# 5. Compare again using supported telemetry fields
+pitwall compare
 
-## Features
-
-| Capability | Status |
-|------------|--------|
-| Fuel + tyre limited stint planning | ✅ |
-| Pro / Silver / Bronze regulations | ✅ |
-| Interactive Plotly Gantt timeline | ✅ |
-| Driver compliance pass/fail | ✅ |
-| Tyre strategy what-if slider | ✅ |
-| Safety Car replan + comparison | ✅ |
-| Circuit selection (6 GT venues) | ✅ |
-| CSV + pit-wall stint sheet export | ✅ |
-| Auto-recompute on input change | ✅ |
-| Championship presets (4h / 6h / 24h) | ✅ |
-
----
-
-## UI — Five Tabs
-
-1. **Stint Plan** — metrics, Plotly Gantt, stint table, strategy briefing, CSV/text export
-2. **Driver Compliance** — drive-time chart, regulatory bands, ✅/❌ rule table
-3. **Tyre Strategy** — live tyre-life slider with recomputed stints
-4. **What-If / Safety Car** — SC inputs, original vs re-planned timelines
-5. **Methodology** — assumptions, limitations, validation placeholders
-
-### Sidebar
-
-- Preset selector (default: **6h Endurance**)
-- Circuit selector (Spa, Le Mans, Portimão, Monza, Nürburgring GP, Fuji)
-- Grouped inputs: Race Parameters, Car & Fuel, Tyres, Pit Stops, Drivers, Regulations
-- Plan updates automatically when inputs change; **Recompute Plan** forces a refresh
-
----
-
-## Project Structure
-
-```
-endurance-stint-planner/
-├── app.py                      # Streamlit UI only
-├── engine/
-│   ├── models.py               # Driver, RaceConfig, Stint, PlanResult, Infeasibility
-│   ├── planner.py              # Pure stint planning logic
-│   ├── circuits.py             # Track profiles
-│   ├── recommendations.py      # Plan-based strategy briefing
-│   ├── regulations.py          # Driver compliance engine
-│   └── safety_car.py           # Safety Car re-planning
-├── circuits/circuits.json      # Extensible track data
-├── presets/                    # 4h, 6h, 24h JSON presets
-├── tests/                      # 30+ unit & smoke tests
-├── .github/workflows/ci.yml    # Automated test on push
-├── .streamlit/config.toml      # Dark theme
-├── assets/                     # Project logo
-└── requirements.txt
+# Then create a crew-readable Markdown sheet
+pitwall export --name first-race
 ```
 
----
+Files stay in the current folder’s `.pitwall` directory:
 
-## Strategy Logic
-
-```
-stint_laps = min(fuel_laps, tyre_life_laps, driver_cap_laps)
-pit_time   = pit_lane_loss + tyre_change (if enabled)
-```
-
-High tyre-wear circuits automatically shorten stint targets. Driver rotation prioritises minimum-drive quotas, then round-robins.
-
----
-
-## Tests
-
-```bash
-pip install -r requirements-dev.txt
-pytest tests/ -v
+```text
+.pitwall/
+├── config.toml       # model selection and privacy setting
+├── data/             # explicitly ingested CSV files
+├── reports/          # new, non-overwriting pit sheets
+├── history.jsonl     # local agent turns, if enabled
+├── race.json         # current car, race, drivers, and regulations
+└── state.json        # active preset and telemetry
 ```
 
-CI runs automatically on every push to `main` (Python 3.11 and 3.12).
+## Optional: add a local Ollama model
 
----
+Pitwall uses Ollama’s documented chat and tool-calling API directly. Install
+Ollama, pull any model that reliably supports tool calls, then select it:
 
-## Deploy (Streamlit Community Cloud)
-
-1. Go to [share.streamlit.io](https://share.streamlit.io) → sign in with GitHub
-2. **Create app** → Repository: `Dabi-init/endurance-stint-planner`, Branch: `main`, Main file: `app.py`
-3. Deploy — auto-redeploys on every push to `main`
-
----
-
-## Push Updates to GitHub
-
-Copy-paste from your project folder:
-
-```bash
-# Check what changed
-git status
-
-# Stage all project files
-git add app.py engine/ circuits/ presets/ tests/ .streamlit/ requirements.txt requirements-dev.txt README.md run.bat assets/
-
-# Commit with a clear message
-git commit -m "feat: polish Streamlit app v1.2 — five tabs, auto-recompute, circuit profiles"
-
-# Push to GitHub
-git push origin main
+```powershell
+ollama pull qwen3:8b
+pitwall model list
+pitwall model use qwen3:8b
+pitwall ask "Can we remove a stop, and what do we give up?"
 ```
 
-First-time setup (if cloning fresh):
+`qwen3:8b` is an example, not a guarantee for every computer or strategy
+question. Run `pitwall model off` at any time; every deterministic command keeps
+working. Pitwall only accepts an Ollama endpoint on this computer.
 
-```bash
-git clone https://github.com/Dabi-init/endurance-stint-planner.git
-cd endurance-stint-planner
-# ... make changes ...
-git add .
-git commit -m "your message"
-git push origin main
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `pitwall` | Open the interactive terminal strategist |
+| `pitwall doctor` | Verify the core, workspace, configuration, and optional Ollama |
+| `pitwall race init` | Create the current editable race from a bundled preset |
+| `pitwall race set` | Update car, event, service, or driver inputs |
+| `pitwall race show` | Inspect the exact current inputs |
+| `pitwall compare` | Rank Conservative, Balanced, and Fuel Save |
+| `pitwall plan` | Print one complete deterministic plan |
+| `pitwall ingest FILE.csv` | Copy and audit telemetry inside the workspace |
+| `pitwall scenario 120 20` | Simulate an SC at minute 120 for 20 minutes |
+| `pitwall ask "..."` | Use Ollama when configured, safe deterministic routing otherwise |
+| `pitwall export --name race-one` | Create a new Markdown pit sheet |
+| `pitwall tools` | Inspect the model’s complete tool allowlist |
+| `pitwall history` | Review locally saved agent turns |
+| `pitwall --json compare` | Produce machine-readable output for automation |
+
+Run `pitwall COMMAND --help` for every option.
+
+## Telemetry contract
+
+CSV grain is one row per completed car lap. Header aliases are accepted for:
+
+- lap number and lap time;
+- fuel remaining;
+- driver;
+- tyre age;
+- track status;
+- pit-lap flag.
+
+Unsupported columns are ignored. Sparse or invalid telemetry lowers the quality
+score; unsupported fuel estimates are withheld instead of guessed. The bundled
+sample is intentionally marked **synthetic** and remains **Evidence Level C**
+even when its rows are clean. See [examples/README.md](examples/README.md).
+
+## Trust model
+
+```mermaid
+flowchart LR
+    U["Driver / engineer"] --> CLI["Pitwall CLI"]
+    U --> LLM["Optional local Ollama"]
+    LLM -->|"typed tool request"| G["Allowlist + argument guard"]
+    CLI --> G
+    G --> E["Deterministic strategy engine"]
+    E --> R["Auditable result + evidence"]
+    R --> CLI
+    R --> LLM
+    LLM -->|"explanation only"| U
 ```
 
-### Set the repository logo / social preview image
+The detailed product reasoning and attack map live in
+[docs/AGENT_BRAIN.md](docs/AGENT_BRAIN.md). The deterministic race model is
+specified in [docs/STRATEGY_BRAIN.md](docs/STRATEGY_BRAIN.md), and module
+boundaries are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-GitHub shows the **first image in README.md** on the repo home page (already set to `assets/endurance-stint-planner-logo.jpg`).
+## Honest scope
 
-For the **social preview** (link cards on Twitter/LinkedIn/Slack):
+Pitwall Agent is pre-race decision support in alpha. It does not currently
+provide live timing, weather, traffic, competitors, wave-by, pit-closure, class
+split, championship-specific rule packs, or validated real-session accuracy.
+Always verify the official event regulations and live fuel data.
 
-1. Open `https://github.com/Dabi-init/endurance-stint-planner/settings`
-2. Under **General** → **Social preview** → **Edit**
-3. Upload `assets/endurance-stint-planner-logo.jpg` (recommended 1280×640 px)
-4. Save
+The engine is credible when its assumptions match your race—not because an AI
+described it confidently. Real-session predicted-versus-actual validation is
+the largest remaining product gap.
 
----
+## Development
 
-## Limitations
+```powershell
+python -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+& .\.venv\Scripts\python.exe -m ruff check .
+& .\.venv\Scripts\python.exe -m ruff format --check .
+& .\.venv\Scripts\python.exe -m pytest --cov
+& .\.venv\Scripts\python.exe -m build
+```
 
-- No live timing or real-time race-day feeds
-- No traffic, weather, or competitor gap modelling
-- Constant fuel consumption; linear tyre life cap
-- Safety Car model is strategic what-if, not procedure-accurate
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), the
+[ROADMAP.md](ROADMAP.md), or an issue template. Security and model-boundary
+reports belong in [SECURITY.md](SECURITY.md).
 
----
+## Design influences
 
-## Author
+The local-first, tool-using software direction is informed by
+[Odysseus](https://github.com/odysseus-dev/odysseus),
+[Hermes Agent](https://github.com/NousResearch/hermes-agent), and
+[Ollama tool calling](https://docs.ollama.com/capabilities/tool-calling).
+Pitwall deliberately takes a narrower domain approach: a race strategist with
+audited motorsport tools, not a general-purpose computer agent.
 
-**Sreenath R.** — ESSEC MIM 2026 · [github.com/Dabi-init](https://github.com/Dabi-init)
+## License
 
----
-
-## Licence
-
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
