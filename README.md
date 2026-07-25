@@ -11,8 +11,7 @@
 <p align="center">
   <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/Dabi-init/endurance-stint-planner/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Dabi-init/endurance-stint-planner?include_prereleases&label=release&color=2ea043"></a>
-  <a href="https://dabi-init.github.io/endurance-stint-planner/"><img alt="Docs" src="https://img.shields.io/badge/docs-GitHub%20Pages-2ea043"></a>
-  <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/pages.yml"><img alt="Pages deploy" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/pages.yml/badge.svg"></a>
+  <a href="https://htmlpreview.github.io/?https://github.com/Dabi-init/endurance-stint-planner/blob/main/docs/index.html"><img alt="Landing page" src="https://img.shields.io/badge/landing%20page-view-2ea043"></a>
   <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-e63946"></a>
   <img alt="Python 3.11–3.13" src="https://img.shields.io/badge/python-3.11–3.13-3776ab">
@@ -20,7 +19,8 @@
   <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-f59e0b">
 </p>
 
-📄 **Docs and install guide:** <https://dabi-init.github.io/endurance-stint-planner/> ·
+📄 **Landing page:** [view the Pitwall Agent landing page](https://htmlpreview.github.io/?https://github.com/Dabi-init/endurance-stint-planner/blob/main/docs/index.html)
+*(Once the repository owner enables GitHub Pages — see [docs/SETUP_PAGES.md](docs/SETUP_PAGES.md) — this moves to <https://dabi-init.github.io/endurance-stint-planner/>)* ·
 🚀 **Latest release:** <https://github.com/Dabi-init/endurance-stint-planner/releases>
 
 Most racing calculators stop at “how many laps fit in a tank?” Pitwall Agent

@@ -2,11 +2,49 @@
 
 This guide explains how to publish the landing page in `docs/` to GitHub Pages.
 
-The deployment workflow lives at `.github/workflows/pages.yml`. It builds and
-deploys the contents of `docs/` whenever `main` changes, and can also be run
-manually from the Actions tab.
+---
+
+## ⚡ Fastest route (recommended — 20 seconds, no workflow file needed)
+
+The landing page at `docs/index.html` is a **single self-contained HTML file**
+with no build step, so Pages can serve it straight from the branch:
+
+1. Open **<https://github.com/Dabi-init/endurance-stint-planner/settings/pages>**
+   (you must be signed in as the repository owner).
+2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+3. Set **Branch** to `main` and the folder to **`/docs`**.
+4. Click **Save**.
+
+Within about a minute the site is live at:
+
+<https://dabi-init.github.io/endurance-stint-planner/>
+
+That is all that is required. No workflow file, no Actions permission, no build.
+
+### Until Pages is enabled
+
+The same page can be viewed right now, with no setup, through GitHub's raw HTML
+renderer:
+
+<https://htmlpreview.github.io/?https://github.com/Dabi-init/endurance-stint-planner/blob/main/docs/index.html>
+
+### After Pages is enabled
+
+Set the repository homepage so the link appears on the repo sidebar:
+**Code tab → About (gear icon) → Website →**
+`https://dabi-init.github.io/endurance-stint-planner/`
+
+While you are there, add these **Topics** for discoverability:
+`endurance-racing`, `race-strategy`, `sim-racing`, `fuel-calculator`,
+`stint-planner`, `pit-stop-strategy`, `tyre-strategy`, `local-first`, `cli`,
+`python`
 
 ---
+
+## Alternative: GitHub Actions source
+
+Use this only if you later add a build step to the site. It requires the
+deployment workflow at `.github/workflows/pages.yml`.
 
 ## 1. Enable Pages with the GitHub Actions source
 
