@@ -1,0 +1,45 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy docs/
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+      - name: Upload docs/ artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+# NOTE
+# This file is a staged copy of .github/workflows/pages.yml.
+# It lives here because the automation token used to open this PR does not hold
+# the GitHub App "workflows" permission, so it could not push a file inside
+# .github/workflows/. To activate GitHub Pages deployment:
+#   1. Copy this file to .github/workflows/pages.yml (remove this NOTE block).
+#   2. Repository Settings -> Pages -> Source: "GitHub Actions".
+#   3. Actions -> "Deploy GitHub Pages" -> Run workflow.

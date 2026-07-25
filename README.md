@@ -10,12 +10,18 @@
 
 <p align="center">
   <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Dabi-init/endurance-stint-planner/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Dabi-init/endurance-stint-planner?include_prereleases&label=release&color=2ea043"></a>
+  <a href="https://dabi-init.github.io/endurance-stint-planner/"><img alt="Docs" src="https://img.shields.io/badge/docs-GitHub%20Pages-2ea043"></a>
+  <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/pages.yml"><img alt="Pages deploy" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/pages.yml/badge.svg"></a>
   <a href="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/Dabi-init/endurance-stint-planner/actions/workflows/codeql.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-e63946"></a>
   <img alt="Python 3.11–3.13" src="https://img.shields.io/badge/python-3.11–3.13-3776ab">
   <img alt="Ollama optional" src="https://img.shields.io/badge/Ollama-optional-black">
   <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-f59e0b">
 </p>
+
+📄 **Docs and install guide:** <https://dabi-init.github.io/endurance-stint-planner/> ·
+🚀 **Latest release:** <https://github.com/Dabi-init/endurance-stint-planner/releases>
 
 Most racing calculators stop at “how many laps fit in a tank?” Pitwall Agent
 compares complete, executable strategies: fuel loads and additions, driver
@@ -171,7 +177,7 @@ working. Pitwall only accepts an Ollama endpoint on this computer.
 | `pitwall` | Open the interactive terminal strategist |
 | `pitwall welcome` | Plain-English introduction for people new to endurance strategy |
 | `pitwall doctor` | Verify the core, workspace, configuration, and optional Ollama |
-| `pitwall init --guided` | Step-by-step race setup with units, safe ranges, and a confirmation |
+| `pitwall init` | Create the current race; add `--guided` for validated question-by-question setup |
 | `pitwall race init` | Create the current editable race from a bundled preset |
 | `pitwall race set` | Update car, event, service, or driver inputs |
 | `pitwall race show` | Inspect the exact current inputs |
@@ -185,6 +191,10 @@ working. Pitwall only accepts an Ollama endpoint on this computer.
 | `pitwall tools` | Inspect the model’s complete tool allowlist |
 | `pitwall history` | Review locally saved agent turns |
 | `pitwall --json compare` | Produce machine-readable output for automation |
+
+`pitwall export` writes the recommended strategy unless you pass `--strategy`.
+New in 0.4.0-alpha.1: `pitwall welcome`, `pitwall init --guided`, and
+`pitwall validate`.
 
 Run `pitwall COMMAND --help` for every option.
 

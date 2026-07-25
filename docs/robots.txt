@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dabi-init.github.io/endurance-stint-planner/sitemap.xml
