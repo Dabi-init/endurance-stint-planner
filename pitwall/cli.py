@@ -14,7 +14,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from engine.models import Driver, DriverCategory, RaceConfig
@@ -22,8 +22,41 @@ from engine.planner import DEFAULT_PRESET, list_presets, load_preset, validate_c
 from engine.strategy import compare_strategies
 from pitwall import __version__
 from pitwall.agent import AgentReply, PitwallAgent
+from pitwall.guided import (
+    GUIDED_FIELDS,
+    PRESET_ORIGIN,
+    REGULATION_NOTICE,
+    GuidedValueError,
+    build_race_config,
+    cross_check,
+    parse_field,
+    preset_defaults,
+    summary_rows,
+)
 from pitwall.providers import ProviderError, list_local_models
-from pitwall.tools import CURRENT_RACE, ToolResult, build_registry
+from pitwall.tools import (
+    CURRENT_RACE,
+    PRE_RACE_ONLY_HEADER,
+    SAFETY_CAR_DISCLAIMER,
+    ToolResult,
+    build_registry,
+)
+from pitwall.validation_report import (
+    PROVENANCE_DISCLAIMERS,
+    ValidationInputError,
+    build_comparison,
+    parse_stint_lengths,
+    render_report,
+    report_filename,
+)
+from pitwall.welcome import (
+    GUIDED_OFFER,
+    WELCOME_INTRO,
+    WELCOME_NEXT_STEPS,
+    WELCOME_SECTIONS,
+    WELCOME_TITLE,
+    welcome_payload,
+)
 from pitwall.workspace import PitwallWorkspace, WorkspaceError
 
 app = typer.Typer(
@@ -87,10 +120,30 @@ def main(
 
 
 @app.command()
-def init(ctx: typer.Context) -> None:
-    """Create a local Pitwall race workspace."""
+def init(
+    ctx: typer.Context,
+    guided: Annotated[
+        bool,
+        typer.Option(
+            "--guided",
+            help="Answer step-by-step prompts to build race.json with safe ranges.",
+        ),
+    ] = False,
+    preset: Annotated[
+        str,
+        typer.Option("--preset", "-p", help="Preset used for guided fallbacks."),
+    ] = DEFAULT_PRESET,
+    replace_existing: Annotated[
+        bool,
+        typer.Option("--replace", help="Replace an existing current race."),
+    ] = False,
+) -> None:
+    """Create a local Pitwall race workspace, optionally with guided setup."""
     state: State = ctx.obj
     created = state.workspace.initialise()
+    if guided:
+        _guided_init(state, preset=preset, replace_existing=replace_existing)
+        return
     payload = {
         "created": created,
         "workspace": str(state.workspace.root),
@@ -101,9 +154,41 @@ def init(ctx: typer.Context) -> None:
         payload,
         (
             f"[green]Ready:[/green] {state.workspace.root}\n"
-            "The deterministic race tools work now. Ollama remains optional."
+            "The deterministic race tools work now. Ollama remains optional.\n"
+            "New to endurance strategy? Run `pitwall welcome`."
         ),
     )
+
+
+@app.command()
+def welcome(ctx: typer.Context) -> None:
+    """Explain the core ideas in plain English before you plan anything."""
+    state: State = ctx.obj
+    if state.json_output:
+        _print_json(welcome_payload())
+        return
+    console.print(
+        Panel.fit(
+            f"[bold red]{WELCOME_TITLE}[/bold red]\n{WELCOME_INTRO}", border_style="red"
+        )
+    )
+    for heading, body in WELCOME_SECTIONS:
+        console.print(f"\n[bold]{heading}[/bold]")
+        console.print(f"  {body}")
+    console.print("\n[bold]Next steps[/bold]")
+    for step in WELCOME_NEXT_STEPS:
+        console.print(f"  {step}")
+    console.print(f"\n[dim]{GUIDED_OFFER}[/dim]")
+    if not sys.stdin.isatty():
+        return
+    try:
+        wants_setup = Confirm.ask("Start guided setup now?", default=False)
+    except (EOFError, KeyboardInterrupt):  # pragma: no cover - interactive only
+        console.print("\nNo changes made.")
+        return
+    if wants_setup:
+        state.workspace.initialise()
+        _guided_init(state, preset=DEFAULT_PRESET, replace_existing=False)
 
 
 @app.command()
@@ -284,19 +369,22 @@ def scenario(
         _print_json(result.to_dict())
         return
     _require_ok(result)
+    console.print(f"[yellow]{SAFETY_CAR_DISCLAIMER}[/yellow]")
     console.print(
         Panel.fit(
             (
                 f"Baseline: [bold]{result.data['baseline_laps']} laps[/bold]\n"
                 f"Scenario: [bold]{result.data['scenario_laps']} laps[/bold]\n"
                 f"Fuel change: [bold]{result.data['fuel_saved_liters']} L[/bold]\n"
-                f"Confidence: {result.data['confidence']}"
+                f"Confidence: {result.data['confidence']}\n"
+                f"Input source: {result.data['input_source']}"
             ),
             title="Safety Car scenario — not live race control",
         )
     )
     for note in result.data["notes"]:
         console.print(f"  • {note}")
+    _print_trigger_cards(result.data)
 
 
 @app.command()
@@ -323,24 +411,150 @@ def export(
     ] = CURRENT_RACE,
     strategy: Annotated[
         str,
-        typer.Option("--strategy", "-s", help="Strategy to export."),
-    ] = "Balanced",
+        typer.Option(
+            "--strategy",
+            "-s",
+            help=(
+                "Strategy to export. Default: the recommended strategy from "
+                "`pitwall compare`. Pass a name to override it."
+            ),
+        ),
+    ] = "",
 ) -> None:
-    """Create a new Markdown pit sheet; never overwrite an existing report."""
+    """Export the recommended strategy (or --strategy) as a new pit sheet.
+
+    The pit sheet is always written to a new file; existing reports are never
+    overwritten.
+    """
     state: State = ctx.obj
     result = build_registry(state.workspace).execute(
         "export_pit_sheet",
         {"name": name, "preset": preset, "strategy": strategy},
     )
-    _emit(
-        state,
-        result.to_dict(),
-        (
-            f"[green]Created[/green] {result.data.get('created', result.error)}"
-            if result.ok
-            else f"[red]Not created:[/red] {result.error}"
+    if result.ok:
+        chosen = result.data.get("strategy", strategy)
+        origin = (
+            "recommended strategy"
+            if result.data.get("recommended")
+            else "strategy you requested"
+        )
+        message = (
+            f"[green]Created[/green] {result.data.get('created')}\n"
+            f"Exported the {origin}: [bold]{chosen}[/bold] · "
+            f"{result.data.get('input_source', '')}"
+        )
+    else:
+        message = f"[red]Not created:[/red] {result.error}"
+    _emit(state, result.to_dict(), message)
+
+
+@app.command()
+def validate(
+    ctx: typer.Context,
+    actual_laps: Annotated[
+        int | None,
+        typer.Option("--actual-laps", help="Laps you actually completed.", min=0),
+    ] = None,
+    actual_stops: Annotated[
+        int | None,
+        typer.Option("--actual-stops", help="Pit stops you actually made.", min=0),
+    ] = None,
+    actual_fuel_burn: Annotated[
+        float | None,
+        typer.Option(
+            "--actual-fuel-burn",
+            help="Measured fuel burn in litres per lap.",
+            min=0.0,
         ),
+    ] = None,
+    actual_stint_lengths: Annotated[
+        str | None,
+        typer.Option(
+            "--actual-stint-lengths",
+            help='Comma-separated actual stint laps, e.g. "18,19,17".',
+        ),
+    ] = None,
+    preset: Annotated[
+        str,
+        typer.Option("--preset", "-p", help="Race preset name."),
+    ] = CURRENT_RACE,
+    strategy: Annotated[
+        str,
+        typer.Option("--strategy", "-s", help="Planned strategy to compare against."),
+    ] = "Balanced",
+) -> None:
+    """Compare a finished race you report against the pre-race plan.
+
+    The actual values are typed in by you, are not independently verified, and
+    the report stays at Evidence Level C. This is not a validation claim.
+    """
+    state: State = ctx.obj
+    state.workspace.initialise()
+    try:
+        stints = parse_stint_lengths(actual_stint_lengths)
+    except ValidationInputError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if (
+        actual_laps is None
+        and actual_stops is None
+        and actual_fuel_burn is None
+        and not stints
+    ):
+        raise typer.BadParameter(
+            "Supply at least one actual result: --actual-laps, --actual-stops, "
+            "--actual-fuel-burn, or --actual-stint-lengths."
+        )
+    planned = _planned_reference(state, preset, strategy)
+    actual = {
+        "laps": None if actual_laps is None else float(actual_laps),
+        "stops": None if actual_stops is None else float(actual_stops),
+        "fuel_burn_per_lap": actual_fuel_burn,
+        "stint_lengths": stints,
+    }
+    rows = build_comparison(planned, actual)
+    generated_at = datetime.now(UTC)
+    markdown = render_report(
+        planned["race_name"],
+        planned["strategy"],
+        planned,
+        actual,
+        rows,
+        generated_at=generated_at,
     )
+    try:
+        target = state.workspace.new_validation_file(report_filename(generated_at))
+    except WorkspaceError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    target.write_text(markdown, encoding="utf-8")
+    payload = {
+        "created": str(target),
+        "race_name": planned["race_name"],
+        "strategy": planned["strategy"],
+        "evidence_level": "C",
+        "planned": planned,
+        "actual": actual,
+        "comparison": [row.to_dict() for row in rows],
+        "disclaimers": list(PROVENANCE_DISCLAIMERS),
+    }
+    if state.json_output:
+        _print_json(payload)
+        return
+    table = Table(title=f"Planned versus reported: {planned['race_name']}")
+    for column in ("Metric", "Unit", "Planned", "Actual", "Difference", "Deviation"):
+        table.add_column(column)
+    for row in rows:
+        table.add_row(
+            row.metric,
+            row.unit,
+            "-" if row.planned is None else f"{row.planned:g}",
+            f"{row.actual:g}",
+            "-" if row.difference is None else f"{row.difference:+g}",
+            "-" if row.deviation_pct is None else f"{row.deviation_pct:+.2f}%",
+        )
+    console.print(table)
+    for disclaimer in PROVENANCE_DISCLAIMERS:
+        console.print(f"[yellow]•[/yellow] {disclaimer}")
+    console.print(f"[green]Saved[/green] {target}")
 
 
 @app.command()
@@ -680,13 +894,124 @@ def model_off(ctx: typer.Context) -> None:
     )
 
 
+def _guided_init(state: State, *, preset: str, replace_existing: bool) -> None:
+    """Walk a beginner through the values Pitwall needs, one question at a time."""
+    if preset not in list_presets():
+        raise typer.BadParameter(
+            f"Unknown preset. Choose from: {', '.join(list_presets())}"
+        )
+    defaults = preset_defaults(preset)
+    console.print(
+        Panel.fit(
+            "Guided race setup\n"
+            "Press Enter to accept the preset default for any question.\n"
+            "Nothing is written until you confirm the summary.",
+            border_style="cyan",
+        )
+    )
+    console.print(f"[yellow]{REGULATION_NOTICE}[/yellow]\n")
+
+    values: dict[str, Any] = {}
+    origins: dict[str, str] = {}
+    for field in GUIDED_FIELDS:
+        preset_value = defaults[field.key]
+        console.print(f"[bold]{field.label}[/bold] ({field.unit})")
+        if field.help_text:
+            console.print(f"  [dim]{field.help_text}[/dim]")
+        console.print(
+            f"  [dim]Safe range {field.minimum:g}-{field.maximum:g} {field.unit}. "
+            f"{field.unknown_hint(preset_value)}[/dim]"
+        )
+        while True:
+            try:
+                raw = Prompt.ask(f"  {field.label}", default="")
+            except (EOFError, KeyboardInterrupt):  # pragma: no cover - interactive
+                console.print("\nGuided setup cancelled; nothing was written.")
+                return
+            try:
+                value, origin = parse_field(field.key, raw, preset_value)
+            except GuidedValueError as exc:
+                console.print(f"  [red]{exc}[/red] Please try again.")
+                continue
+            values[field.key] = value
+            origins[field.key] = origin
+            break
+
+    problems = cross_check(values)
+    if problems:
+        console.print("\n[red]These values cannot be planned together:[/red]")
+        for problem in problems:
+            console.print(f"  • {problem}")
+        console.print("Re-run `pitwall init --guided` with corrected values.")
+        raise typer.Exit(code=1)
+
+    table = Table(title="Review before writing race.json")
+    for column in ("Input", "Value", "Unit", "Where it came from"):
+        table.add_column(column)
+    for row in summary_rows(values, origins):
+        table.add_row(*row)
+    console.print(table)
+    console.print(
+        f"[dim]Values marked '{PRESET_ORIGIN}' are bundled assumptions, "
+        "not measurements from your car.[/dim]"
+    )
+    try:
+        confirmed = Confirm.ask("Write this race configuration?", default=True)
+    except (EOFError, KeyboardInterrupt):  # pragma: no cover - interactive only
+        confirmed = False
+    if not confirmed:
+        console.print("Nothing was written.")
+        return
+
+    try:
+        config = build_race_config(values, preset=preset)
+        path = state.workspace.save_race(config.to_dict(), overwrite=replace_existing)
+    except GuidedValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    except WorkspaceError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _emit(
+        state,
+        {
+            "created": str(path),
+            "race": config.to_dict(),
+            "origins": origins,
+            "regulation_notice": REGULATION_NOTICE,
+        },
+        (
+            f"[green]Current race created:[/green] {config.race_name}\n"
+            f"Saved to {path}\nRun `pitwall compare` to rank strategies."
+        ),
+    )
+
+
+def _planned_reference(state: State, preset: str, strategy: str) -> dict[str, Any]:
+    """Read the deterministic plan that the reported result is compared against."""
+    result = build_registry(state.workspace).execute(
+        "plan_race", {"preset": preset, "strategy": strategy}
+    )
+    _require_ok(result)
+    plan = result.data["plan"]
+    return {
+        "race_name": plan["race_name"],
+        "strategy": result.data["strategy"],
+        "laps": float(plan["predicted_laps"]),
+        "stops": float(plan["pit_stops"]),
+        "fuel_burn_per_lap": round(plan["fuel_used_liters"] / plan["predicted_laps"], 4)
+        if plan["predicted_laps"]
+        else None,
+        "stint_lengths": [int(stint["Laps"]) for stint in plan["stints"]],
+    }
+
+
 def _interactive(state: State) -> None:
     state.workspace.initialise()
     console.print(
         Panel.fit(
             "[bold red]PITWALL AGENT[/bold red]\n"
             "Deterministic race tools · optional local Ollama · no cloud telemetry\n"
-            "[dim]Ask a question, or type exit.[/dim]",
+            f"[yellow]{PRE_RACE_ONLY_HEADER}[/yellow]\n"
+            "[dim]Ask a question, or type exit. New here? Run `pitwall welcome`.[/dim]",
             border_style="red",
         )
     )
@@ -730,25 +1055,83 @@ def _print_plan_result(state: State, result: ToolResult) -> None:
         return
     _require_ok(result)
     plan = result.data["plan"]
+    simulation = result.data["simulation"]
+    evidence = result.data["evidence"]
+    console.print(f"[yellow]{result.data['pre_race_only']}[/yellow]")
     console.print(
         Panel.fit(
             (
                 f"[bold]{result.data['strategy']}[/bold] · "
                 f"{plan['predicted_laps']} laps · {plan['pit_stops']} stops · "
                 f"{plan['fuel_used_liters']} L\n"
-                f"Evidence {result.data['evidence']['evidence_level']} · "
-                f"{result.data['evidence']['confidence']} confidence"
+                f"{simulation['laps_p10_label']}: {simulation['laps_p10']} · "
+                f"median {simulation['laps_median']} · "
+                f"{simulation['laps_p90_label']}: {simulation['laps_p90']}\n"
+                f"Input source: {result.data['input_source']}\n"
+                f"Evidence {evidence['evidence_level']} · "
+                f"{evidence['confidence']} confidence · "
+                f"{evidence['evidence_meaning']}\n"
+                f"Uncertainty source: {simulation['uncertainty_source']}"
             ),
             title=result.data["preset"],
         )
     )
-    columns = ("Stint", "Driver", "Start", "End", "Laps", "Fuel start (L)", "Tyre set")
+    columns = (
+        "Stint",
+        "Driver",
+        "Start",
+        "End",
+        "Laps",
+        "Fuel start (L)",
+        "Tyre set",
+        "Tyre age end",
+        "Pit after (s)",
+    )
     table = Table(show_header=True)
     for column in columns:
         table.add_column(column)
     for stint in plan["stints"]:
         table.add_row(*(str(stint[column]) for column in columns))
     console.print(table)
+    _print_trigger_cards(result.data)
+    _print_bullets("Warnings", plan["warnings"], "yellow")
+    _print_bullets(
+        "Infeasibilities",
+        [item["message"] for item in plan["infeasibilities"]],
+        "red",
+    )
+    _print_bullets("Assumptions", plan["assumptions"], "dim")
+
+
+def _print_bullets(title: str, items: list[str], colour: str) -> None:
+    if not items:
+        return
+    console.print(f"[{colour}]{title}:[/{colour}]")
+    for item in items:
+        console.print(f"  • {item}")
+
+
+def _print_trigger_cards(data: dict[str, Any]) -> None:
+    cards = data.get("trigger_cards") or []
+    if not cards:
+        return
+    table = Table(title="Trigger cards — what to watch")
+    for column in ("Trigger", "Metric", "Band", "Current", "Status", "If it moves"):
+        table.add_column(column)
+    for card in cards:
+        low = "-" if card["threshold_low"] is None else f"{card['threshold_low']:g}"
+        high = "-" if card["threshold_high"] is None else f"{card['threshold_high']:g}"
+        current = "-" if card["current_value"] is None else f"{card['current_value']:g}"
+        table.add_row(
+            card["name"],
+            f"{card['metric']} ({card['unit']})",
+            f"{low} – {high}",
+            current,
+            card["status"],
+            card["action_reconsider"],
+        )
+    console.print(table)
+    console.print(f"[dim]{data.get('trigger_card_notice', '')}[/dim]")
 
 
 def _print_comparison(state: State, result: ToolResult) -> None:
@@ -756,9 +1139,11 @@ def _print_comparison(state: State, result: ToolResult) -> None:
         _print_json(result.to_dict())
         return
     _require_ok(result)
+    console.print(f"[yellow]{result.data['pre_race_only']}[/yellow]")
     console.print(
         f"\nRecommendation: [bold green]{result.data['recommendation']}[/bold green]"
     )
+    console.print(f"Input source: [bold]{result.data['input_source']}[/bold]")
     table = Table(title=result.data["preset"])
     columns = [
         "Rank",
@@ -775,11 +1160,18 @@ def _print_comparison(state: State, result: ToolResult) -> None:
     for row in result.data["strategies"]:
         table.add_row(*(str(row[column]) for column in columns))
     console.print(table)
+    labels = result.data["percentile_labels"]
+    console.print(
+        f"[dim]{labels['P10 laps']} · {labels['P90 laps']}: "
+        "plan for P10, do not promise P90.[/dim]"
+    )
     evidence = result.data["evidence"]
     console.print(
         f"[dim]Evidence {evidence['evidence_level']} · "
-        f"{evidence['confidence']} confidence · {evidence['source']}[/dim]"
+        f"{evidence['confidence']} confidence · {evidence['source']}\n"
+        f"{evidence['evidence_meaning']}[/dim]"
     )
+    _print_trigger_cards(result.data)
 
 
 def _emit(state: State, payload: dict[str, Any], text: str) -> None:

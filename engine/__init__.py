@@ -20,6 +20,12 @@ from engine.safety_car import SafetyCarConfig, replan_with_safety_car
 from engine.simulation import SimulationSummary, simulate_plan
 from engine.strategy import StrategyComparison, compare_strategies
 from engine.telemetry import TelemetryCalibration, calibrate_telemetry
+from engine.trigger_cards import (
+    TriggerCard,
+    TriggerObservation,
+    build_trigger_cards,
+    trigger_cards_payload,
+)
 
 __all__ = [
     "Driver",
@@ -34,6 +40,9 @@ __all__ = [
     "Stint",
     "StrategyComparison",
     "TelemetryCalibration",
+    "TriggerCard",
+    "TriggerObservation",
+    "build_trigger_cards",
     "calibrate_telemetry",
     "check_compliance",
     "compare_strategies",
@@ -42,4 +51,5 @@ __all__ = [
     "load_preset",
     "replan_with_safety_car",
     "simulate_plan",
+    "trigger_cards_payload",
 ]
