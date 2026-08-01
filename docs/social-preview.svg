@@ -24,7 +24,7 @@
     <path d="M7 53c13-7 19-18 29-14 10 3 17-9 25-19" fill="none" stroke="#f04444" stroke-width="5" stroke-linecap="round"/>
     <text x="85" y="17" fill="#ffb000" font-family="Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="2.2">LOCAL-FIRST · ENDURANCE STRATEGY · OPEN SOURCE</text>
     <text x="85" y="63" fill="#f5f7fa" font-family="Arial, sans-serif" font-size="50" font-weight="800">Pitwall Agent</text>
-    <text x="0" y="122" fill="#aab2bf" font-family="Arial, sans-serif" font-size="24">AI explains the plan. Deterministic race tools decide.</text>
+    <text x="0" y="122" fill="#aab2bf" font-family="Arial, sans-serif" font-size="24">Ollama routes the question. Deterministic race tools decide.</text>
   </g>
 
   <g transform="translate(70 236)" filter="url(#shadow)">

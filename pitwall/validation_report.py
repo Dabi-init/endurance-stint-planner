@@ -7,6 +7,7 @@ carries its provenance disclaimers and stays at Evidence Level C.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -62,6 +63,10 @@ def parse_stint_lengths(raw: str | None) -> list[int]:
             raise ValidationInputError(
                 f"Stint {index} length must be a number of laps; got {text!r}."
             ) from exc
+        if not math.isfinite(number):
+            raise ValidationInputError(
+                f"Stint {index} length must be finite; got {text!r}."
+            )
         if number < 0 or abs(number - round(number)) > 1e-9:
             raise ValidationInputError(
                 f"Stint {index} length must be a whole, non-negative lap count; "

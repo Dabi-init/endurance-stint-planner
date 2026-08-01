@@ -36,10 +36,9 @@ jobs:
         uses: actions/deploy-pages@v4
 
 # NOTE
-# This file is a staged copy of .github/workflows/pages.yml.
-# It lives here because the automation token used to open this PR does not hold
-# the GitHub App "workflows" permission, so it could not push a file inside
-# .github/workflows/. To activate GitHub Pages deployment:
+# This is an optional template, not the repository's active Pages configuration.
+# Pages currently serves main:/docs directly. Use this only if a future site
+# build requires switching Settings -> Pages -> Source to "GitHub Actions":
 #   1. Copy this file to .github/workflows/pages.yml (remove this NOTE block).
 #   2. Repository Settings -> Pages -> Source: "GitHub Actions".
 #   3. Actions -> "Deploy GitHub Pages" -> Run workflow.

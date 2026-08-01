@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -97,6 +98,8 @@ class ToolRegistry:
         definition = self._definitions.get(name)
         if definition is None:
             return ToolResult(False, {}, f"Unknown tool: {name}")
+        if arguments is not None and not isinstance(arguments, dict):
+            return ToolResult(False, {}, "Tool arguments must be one JSON object")
         args = arguments or {}
         validation_error = _validate_arguments(definition.parameters, args)
         if validation_error:
@@ -124,6 +127,7 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
             ),
             comparison.preferred,
         )
+        _require_feasible_plan(matching.plan)
         return {
             "preset": _race_label(workspace, preset),
             "strategy": matching.name,
@@ -153,6 +157,7 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
     def compare_race_strategies(preset: str = CURRENT_RACE) -> dict:
         config, calibration = _configured_race(workspace, preset)
         comparison = compare_strategies(config, calibration, iterations=160)
+        _require_feasible_plan(comparison.preferred.plan)
         return _comparison_payload(
             comparison,
             calibration,
@@ -161,7 +166,7 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
 
     def inspect_telemetry(file: str = "") -> dict:
         path = workspace.data_file(file or None)
-        calibration = _calibrate(path)
+        calibration = _calibrate(workspace, path)
         return calibration.to_report()
 
     def check_driver_rules(
@@ -178,6 +183,7 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
             ),
             comparison.preferred,
         )
+        _require_feasible_plan(outcome.plan)
         report = check_compliance(outcome.plan)
         return {
             "all_passed": report.all_passed,
@@ -212,6 +218,7 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
         config, calibration = _configured_race(workspace, preset)
         comparison = compare_strategies(config, calibration, iterations=80)
         original = comparison.preferred.plan
+        _require_feasible_plan(original)
         result = replan_with_safety_car(
             original,
             SafetyCarConfig(
@@ -252,7 +259,6 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
         strategy: str = "",
         name: str = "pit-sheet",
     ) -> dict:
-        target = workspace.new_report_file(name, suffix=".md")
         config, calibration = _configured_race(workspace, preset)
         comparison = compare_strategies(config, calibration, iterations=120)
         outcome = (
@@ -267,9 +273,11 @@ def build_registry(workspace: PitwallWorkspace) -> ToolRegistry:
                 comparison.preferred,
             )
         )
-        target.write_text(
+        _require_feasible_plan(outcome.plan)
+        target = workspace.write_new_report(
+            name,
             _pit_sheet_markdown(outcome, comparison, calibration),
-            encoding="utf-8",
+            suffix=".md",
         )
         return {
             "created": str(target),
@@ -447,9 +455,11 @@ def _validate_arguments(schema: dict[str, Any], arguments: dict[str, Any]) -> st
         if expected == "string" and not isinstance(value, str):
             return f"{name} must be a string"
         if expected == "number" and (
-            isinstance(value, bool) or not isinstance(value, (int, float))
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
         ):
-            return f"{name} must be a number"
+            return f"{name} must be a finite number"
         if "enum" in rule and value not in rule["enum"]:
             return f"{name} must be one of: {', '.join(rule['enum'])}"
         if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -483,12 +493,16 @@ def _race_label(workspace: PitwallWorkspace, value: str) -> str:
     return selected
 
 
-def _calibrate(path: Path) -> TelemetryCalibration:
-    return calibrate_telemetry(
-        path.read_text(encoding="utf-8-sig"),
-        source_name=path.name,
-        is_synthetic="synthetic" in path.name.lower(),
-    )
+def _calibrate(
+    workspace: PitwallWorkspace,
+    path: Path,
+) -> TelemetryCalibration:
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return calibrate_telemetry(
+            handle,
+            source_name=path.name,
+            is_synthetic=workspace.telemetry_is_synthetic(path.name),
+        )
 
 
 def _configured_race(
@@ -497,10 +511,15 @@ def _configured_race(
 ) -> tuple[RaceConfig, TelemetryCalibration | None]:
     selected = _preset_name(preset)
     if selected == CURRENT_RACE:
-        try:
-            config = RaceConfig.from_dict(workspace.race_data())
-        except WorkspaceError:
+        if not workspace.race_path.exists():
             config = load_preset(DEFAULT_PRESET)
+        else:
+            try:
+                config = RaceConfig.from_dict(workspace.race_data())
+            except (TypeError, ValueError) as exc:
+                raise WorkspaceError(
+                    f"race.json contains an invalid race configuration: {exc}"
+                ) from exc
     else:
         config = load_preset(selected)
     calibration: TelemetryCalibration | None = None
@@ -508,13 +527,23 @@ def _configured_race(
         path = workspace.data_file()
     except WorkspaceError:
         return config, None
-    calibration = _calibrate(path)
+    calibration = _calibrate(workspace, path)
     if calibration.usable_for_strategy:
         patched = config.to_dict()
         patched.update(calibration.config_patch())
         patched["data_source"] = calibration.source_label
         config = RaceConfig.from_dict(patched)
     return config, calibration
+
+
+def _require_feasible_plan(plan: PlanResult) -> None:
+    if plan.is_feasible:
+        return
+    reasons = "; ".join(item.message for item in plan.infeasibilities if item.message)
+    raise ValueError(
+        "Race configuration cannot produce a feasible plan: "
+        + (reasons or "no complete stint can be planned")
+    )
 
 
 def _strategy_options(config: RaceConfig, strategy: str) -> PlanOptions:

@@ -4,8 +4,7 @@ Durable context for any future agent or contributor who picks up this repository
 with no memory of previous conversations. Read this file first, then
 `AGENTS.md`, then `docs/ARCHITECTURE.md`.
 
-Last updated: 2026-07-26, for the `feat/launch-and-docs` branch targeting
-`v0.4.0-alpha.1`.
+Last updated: 2026-08-02, for the `v0.4.0-alpha.2` hardening release.
 
 ---
 
@@ -22,7 +21,7 @@ count and driver rules — or a telemetry CSV — and it produces:
 - three ranked strategies (Conservative, Balanced, Fuel Save);
 - an exact stint plan (laps, driver, fuel start/added, tyre set, pit time);
 - P10/P90 uncertainty bounds;
-- Evidence Level A/B/C labelling on every input;
+- result-level Evidence A/B/C, source, confidence, assumptions, and warnings;
 - strategy trigger cards (HOLD / RECONSIDER thresholds);
 - a Markdown pit sheet and machine-readable JSON.
 
@@ -31,8 +30,8 @@ proprietary telemetry integration, or production-validated software.
 
 ### The safety principle (non-negotiable)
 
-> **AI may explain the plan, but it must never invent, change, or own the race
-> mathematics.**
+> **Ollama may route a plain-language request, but it must never invent, change,
+> or own the race mathematics.**
 
 Every violation of that sentence is a bug, regardless of how useful the feature
 looks.
@@ -56,23 +55,25 @@ pitwall/           terminal application layer
   cli.py           Typer CLI: doctor, init, welcome, plan, compare, ingest,
                    scenario, export, validate, chat
   tools.py         the allowlisted tool surface the model may call
-  agent.py         optional Ollama loop; enforces SYSTEM_POLICY and redaction
+  agent.py         optional Ollama router; displayed answers are rendered locally
   redaction.py     replaces driver names with Driver_1..N before the model sees data
   guided.py        `init --guided` interactive setup with validated ranges
   welcome.py       plain-English concept explanations
   validation_report.py  planned-vs-actual comparison report
   workspace.py     .pitwall/ workspace, non-overwriting report writes
-  config.py        race.json load/save
+  config.py        bounded settings TOML parsing and validation
   memory.py        local session history
   presets/         bundled synthetic presets (Evidence Level C)
 
 tests/             pytest suite; CI enforces ruff + 85% coverage
 docs/              architecture, strategy/agent brains, landing page, launch material
-.github/workflows/ ci.yml, codeql.yml, pages.yml
+.github/workflows/ ci.yml and codeql.yml
 ```
 
-Data flow: `race.json` (+ optional telemetry CSV) → `engine/` → `pitwall/tools.py`
-→ CLI rendering or JSON → optional model *explanation only*.
+Data flow: a direct command or optional Ollama-routed question → typed
+`pitwall/tools.py` call → deterministic `engine/` → local CLI/JSON rendering.
+GitHub Pages is hosted separately through the repository's legacy `main:/docs`
+branch source; there is no active Pages workflow file.
 
 ---
 
@@ -82,7 +83,7 @@ Every change should be checked against all four.
 
 | Persona | Who | What they need |
 |---|---|---|
-| **Arjun** | Complete beginner. Windows. No Python, Git, or racing background. | Install and first plan in 10–20 minutes. Every term explained. No jargon without a definition. `pitwall welcome`, `init --guided`. |
+| **Arjun** | Complete beginner. Windows. No Git or racing background. | A source-ZIP launcher, automatic health check, clear setup path, and no jargon without a definition. `pitwall welcome`, `init --guided`. |
 | **Maya** | Sim-racing team captain. | Auditable pit sheets, not black-box advice. Every assumption, confidence level and warning visible before stint 1. |
 | **Leo** | Technical contributor. | Typed code, JSON output, tests, CI, documented architecture. Wants to fork and prove the maths. |
 | **Race-day operator** | Person on the pit wall during the event. | One scannable page: fuel, tyres, drivers, timing, trigger cards, uncertainty bounds. No scrolling, no ambiguity. |
@@ -91,13 +92,14 @@ Every change should be checked against all four.
 
 ## 4. Safety boundaries
 
-**The model may:** call allowlisted deterministic tools, summarise their output,
-explain terminology, and say it does not know.
+**The model may:** propose allowlisted deterministic tool calls using bounded
+local context. Pitwall, not model prose, renders every displayed answer.
 
-**The model may never:** compute or alter race numbers, access a shell, browser,
-arbitrary files, arbitrary network endpoints, or deletion; see real driver names
-(they are anonymised by `pitwall/redaction.py`); claim live-race knowledge;
-override a regulation result.
+**The model may never:** compute or alter displayed race numbers, access a shell,
+browser, arbitrary files, arbitrary network endpoints, or deletion; claim
+live-race knowledge; or override a regulation result. Configured driver names in
+tool payloads are anonymised by `pitwall/redaction.py`; users should not put
+private identifiers in free-form prompts.
 
 ### Seven product anti-patterns — do not ship these
 
@@ -124,27 +126,27 @@ override a regulation result.
 4. **Audit (2026-07)** — a full repository audit produced a 15-gap analysis
    covering pit-sheet completeness, honesty labelling, onboarding, and missing
    launch/handoff documentation.
-5. **PR #16 `agent/audit-usability-hardening`** — Phase B+C audit remediation:
+5. **Merged PR #16 `agent/audit-usability-hardening`** — Phase B+C audit remediation:
    trigger cards, guided init, `validate`, `welcome`, driver redaction,
    workspace overwrite protection, richer pit sheets, README glossary.
-   **Open, not merged at the time of writing.**
-6. **This branch `feat/launch-and-docs`** — landing page, Pages workflow, launch
+6. **Merged PR #17 `feat/launch-and-docs`** — landing page and staged Pages
    material, this handoff, `AGENTS.md`, version bump, changelog, README badges.
+7. **Alpha.2 hardening (PR #19)** — fail-closed configuration
+   and race loading, atomic/exclusive writes, bounded storage and provider
+   responses, JSON exit-code parity, router-only Ollama grounding, Python 3.14
+   CI, and corrected install/onboarding copy.
 
 ---
 
 ## 6. Current release state
 
-- Last tagged release: **v0.3.0-alpha.1**.
-- In progress: **v0.4.0-alpha.1** (`pyproject.toml` version `0.4.0a1`).
-- `main` HEAD when this branch was cut: `e3300c3`.
-- Two branches in flight: `agent/audit-usability-hardening` (PR #16) and
-  `feat/launch-and-docs` (this one). **They were cut independently from `main`.**
-  Whichever merges second may need a small merge resolution — most likely in
-  `CHANGELOG.md` and `README.md`.
-- GitHub Pages: workflow added in this branch. Pages must also be enabled in
-  repository settings with source = **GitHub Actions** before the first deploy
-  can succeed.
+- Current published release: **v0.4.0-alpha.2** (`pyproject.toml` version
+  `0.4.0a2`), shipped through GitHub Releases with wheel, source archive, and
+  SHA-256 checksums.
+- PRs #16, #17, and #19 are merged into `main`.
+- GitHub Pages is live at
+  <https://dabi-init.github.io/endurance-stint-planner/> and is served from
+  legacy source `main:/docs`.
 
 ---
 
@@ -154,17 +156,27 @@ override a regulation result.
 |---|---|---|
 | #11 | Publish the first real-session validation case | Open. **Highest-value item in the project.** Blocks the Evidence C → A/B story and the 1.0 gate. |
 | #12 | Add one documented simulator telemetry adapter | Open. 0.4 roadmap item. |
-| #13 | Generate evidence-backed strategy trigger cards | Open on the tracker, but **implemented in PR #16** (`engine/trigger_cards.py`). Close it when #16 merges. |
+| #13 | Generate evidence-backed strategy trigger cards | Open on the tracker although implemented in merged PR #16 (`engine/trigger_cards.py`); tracker cleanup remains. |
 
 ---
 
 ## 8. Roadmap
 
 **0.4 — real race projects:** guided prompts for event-specific regulations and
-service rules; adapters for common simulator CSV formats; measured
-predicted-vs-actual validation reports; trigger cards. *(Guided prompts,
-validation reports and trigger cards land with PR #16; simulator adapters
-remain open as #12.)*
+service rules; adapters for common simulator CSV formats; a
+planned-versus-user-reported comparison generator; trigger cards. *(Guided
+prompts, the report generator and trigger cards landed with PR #16; no real
+validation result has been published, and simulator adapters remain open as
+#12.)*
+
+**Model-discovery UX:** `pitwall model recommend` is an informational,
+Ollama-only command that performs an in-memory deterministic core self-check but
+never contacts Ollama, downloads a model, creates a workspace, or changes
+configuration. It presents core-only/no model as the verified operational path,
+`qwen3:8b` (about 5.2 GB) as a provisional first model to try, and `qwen3:4b`
+(about 2.5 GB) as a smaller unverified candidate. Every deterministic function
+remains available without AI. Keep both model candidates explicitly unverified
+until Pitwall publishes a real-model tool-calling conformance benchmark.
 
 **0.5 — interoperability:** read-only MCP server for the deterministic tools;
 optional local HTTP API; versioned import/export schema; scheduled post-session
@@ -204,16 +216,15 @@ pip install --force-reinstall dist/pitwall_agent-*.whl
 cd "$(mktemp -d)"
 pitwall doctor
 pitwall welcome
-pitwall init
+pitwall race init
 pitwall compare
 pitwall plan
-pitwall scenario
+pitwall scenario 120 20
 pitwall export --name handoff_check
 ```
 
-Reference results from the last full audit run on `main`: ruff clean, 35 files
-formatted, 56 tests passing, 86.80% coverage. Note that `pitwall/cli.py` and
-`pitwall/__main__.py` are omitted from coverage in `pyproject.toml`.
+Record the current test count, coverage, wheel size, and clean-install smoke
+results in the pull request; do not carry older audit numbers forward.
 
 Landing page check (no build step — it is a single static file):
 
@@ -225,19 +236,23 @@ python -m http.server 8080 --directory docs   # then open http://localhost:8080/
 
 ## 10. Release and deployment process
 
-1. Merge the feature PR into `main` after CI is green. **Never force-push
-   `main`. Never merge without a human review.**
-2. Bump `version` in `pyproject.toml` (PEP 440 form: `0.4.0a1`).
-3. Add a dated section to `CHANGELOG.md` under the new version heading.
-4. Tag and push: `git tag v0.4.0-alpha.1 && git push origin v0.4.0-alpha.1`.
-5. Build artefacts: `python -m build`; attach `dist/*.whl` and `dist/*.tar.gz`
-   to the GitHub release.
-6. Draft the release notes from `docs/LAUNCH.md` section 4.
-7. GitHub Pages deploys automatically from `.github/workflows/pages.yml` on any
-   push to `main` that touches `docs/**`. It can also be triggered manually via
-   *Actions → Deploy GitHub Pages → Run workflow*.
-8. Verify the live site at <https://dabi-init.github.io/endurance-stint-planner/>
-   and confirm `/sitemap.xml` and `/robots.txt` resolve.
+1. Choose `<next-pep440-version>` and `<next-public-tag>`; alpha.2 used
+   `0.4.0a2` and `v0.4.0-alpha.2`.
+2. Update every runtime/package version reference, then merge the feature PR
+   into `main` only after CI and human review. **Never force-push `main`.**
+3. Move the `CHANGELOG.md` Unreleased entries under a dated version heading.
+4. Build and inspect artefacts with `python -m build`; record their checksums.
+5. Tag and push only the reviewed merge commit:
+   `git tag <next-public-tag> && git push origin <next-public-tag>`.
+6. Create the GitHub release and attach `dist/*.whl`, `dist/*.tar.gz`, and the
+   checksum file. Add the versioned asset URL to public install copy only after
+   the upload succeeds.
+7. Finalise release notes from `docs/LAUNCH.md` section 4.
+8. GitHub Pages currently rebuilds from legacy source `main:/docs`; there is no
+   active Pages Actions workflow. After merging docs, verify repository Pages
+   settings still point there.
+9. Verify <https://dabi-init.github.io/endurance-stint-planner/>,
+   `/sitemap.xml`, and `/robots.txt` resolve.
 
 ---
 
@@ -247,15 +262,8 @@ python -m http.server 8080 --directory docs   # then open http://localhost:8080/
   Level C). This is the single biggest credibility gap. See issue #11.
 - **No sourced regulation packs.** The tool checks only user-configured rules;
   championship rule packs need current, citable public sources before shipping.
-- **GitHub Pages must be enabled manually.** Settings → Pages → Source: GitHub
-  Actions. The workflow cannot enable it for you, and the first run fails
-  without it.
-- **PyPI publication is not set up.** Until it is, the landing page and README
-  must keep pointing users at the GitHub releases wheel as a fallback.
-- **PR #16 is unmerged**, so `main` does not yet contain trigger cards,
-  `welcome`, `init --guided`, or `validate`, even though this branch's
-  documentation describes them as part of `0.4.0-alpha.1`. Merge #16 before
-  tagging the release.
+- **PyPI publication is not set up.** The landing page and README point to the
+  versioned GitHub release assets and source ZIP instead.
 
 ---
 
@@ -265,7 +273,8 @@ Do these ten things at the start of any new conversation on this repository:
 
 1. Read this file, then `AGENTS.md`, then `docs/ARCHITECTURE.md`.
 2. `git fetch --all && git status && git log --oneline -10` — know the real HEAD.
-3. List open PRs and issues; check whether PR #16 has merged and adjust.
+3. List open PRs and issues; verify that the handoff still matches repository
+   state.
 4. Never work directly on `main`; cut a feature branch from up-to-date `main`.
 5. Create a virtualenv and `pip install -e ".[dev]"` before touching code.
 6. Run the section 9 verification commands **before** editing, to get a baseline.

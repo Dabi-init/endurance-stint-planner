@@ -1,6 +1,8 @@
 # Enabling GitHub Pages for Pitwall Agent
 
-This guide explains how to publish the landing page in `docs/` to GitHub Pages.
+**Current status:** GitHub Pages is live at
+<https://dabi-init.github.io/endurance-stint-planner/>. This guide is retained
+for recovery or a future repository transfer.
 
 ---
 
@@ -21,14 +23,14 @@ Within about a minute the site is live at:
 
 That is all that is required. No workflow file, no Actions permission, no build.
 
-### Until Pages is enabled
+### Fallback preview
 
 The same page can be viewed right now, with no setup, through GitHub's raw HTML
 renderer:
 
 <https://htmlpreview.github.io/?https://github.com/Dabi-init/endurance-stint-planner/blob/main/docs/index.html>
 
-### After Pages is enabled
+### Repository homepage
 
 Set the repository homepage so the link appears on the repo sidebar:
 **Code tab → About (gear icon) → Website →**

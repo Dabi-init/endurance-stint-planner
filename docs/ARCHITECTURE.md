@@ -69,14 +69,18 @@ The comparison is lexicographic and visible:
 
 There is no weighted language-model score.
 
-## Ollama message loop
+## Ollama routing loop
 
 1. The agent sends a fixed safety policy, the user question, and the six JSON
-   tool schemas to `/api/chat`.
-2. A tool call is matched against the allowlist and its arguments are validated.
-3. The deterministic result is added as a `tool` message.
-4. The model explains that result or requests another allowed tool.
-5. The loop stops after at most six rounds.
+   tool schemas to `/api/chat`. The provider accepts only a loopback endpoint,
+   ignores environment proxy settings, and rejects every HTTP redirect.
+2. Each requested call is checked for known name, relevance, argument schema,
+   range limits, total-call caps, and explicit consent for report export.
+3. Failed or irrelevant calls may be returned to Ollama for one bounded retry.
+4. The first successful relevant deterministic result is rendered locally and
+   returned immediately. Unchecked model prose is never the final race answer.
+5. A response can request at most three calls, a question at most eight calls,
+   and the loop at most six rounds by default.
 
 If Ollama is disabled, unreachable, malformed, or slow, deterministic commands
 and the keyword fallback remain available.
@@ -84,7 +88,9 @@ and the keyword fallback remain available.
 ## Persistence and writes
 
 All runtime state stays under the selected `.pitwall` root. Ingestion copies a
-CSV into `data/`. Model-readable file arguments are reduced to a safe base name.
+bounded CSV into `data/`; file arguments are reduced to a safe base name.
+Workspace mutations use atomic/exclusive writes and a cross-process lock.
+Telemetry, history, reports, and validations have explicit size/count quotas.
 Export creates a new file under `reports/` and refuses to overwrite. The agent
 has no deletion path.
 
