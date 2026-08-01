@@ -57,8 +57,9 @@ class FakeHttpResponse:
     def __exit__(self, exc_type, exc, traceback) -> None:
         return None
 
-    def read(self) -> bytes:
-        return json.dumps(self.payload).encode()
+    def read(self, size: int = -1) -> bytes:
+        encoded = json.dumps(self.payload).encode()
+        return encoded if size < 0 else encoded[:size]
 
 
 @pytest.fixture
@@ -208,9 +209,8 @@ def test_model_must_receive_deterministic_tool_result(
     assert reply.mode == "ollama"
     assert reply.used_tools == ("compare_race_strategies",)
     assert "Balanced" in reply.answer
-    tool_message = provider.messages[-1][-2]
-    assert tool_message["role"] == "tool"
-    assert json.loads(tool_message["content"])["ok"] is True
+    assert len(provider.messages) == 1
+    assert reply.trace[-1]["result"]["ok"] is True
 
 
 def test_strategy_question_without_tool_is_replaced_by_audited_result(
@@ -225,7 +225,7 @@ def test_strategy_question_without_tool_is_replaced_by_audited_result(
     assert any("replaced" in warning for warning in reply.warnings)
 
 
-def test_agent_stops_repeating_tools_at_safety_limit(
+def test_agent_returns_after_first_successful_authoritative_tool(
     workspace: PitwallWorkspace,
 ) -> None:
     response = ModelMessage(
@@ -235,9 +235,9 @@ def test_agent_stops_repeating_tools_at_safety_limit(
     provider = FakeProvider([response, response])
     reply = PitwallAgent(workspace, provider=provider, max_steps=2).ask("Compare")
 
-    assert reply.mode == "ollama-bounded"
-    assert len(reply.used_tools) == 2
-    assert "safety limit" in reply.warnings[0]
+    assert reply.mode == "ollama"
+    assert reply.used_tools == ("compare_race_strategies",)
+    assert len(provider.messages) == 1
 
 
 def test_no_model_mode_still_answers_with_real_tools(

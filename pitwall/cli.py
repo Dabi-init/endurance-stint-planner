@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import platform
 import sys
 from dataclasses import replace
@@ -22,6 +23,7 @@ from engine.planner import DEFAULT_PRESET, list_presets, load_preset, validate_c
 from engine.strategy import compare_strategies
 from pitwall import __version__
 from pitwall.agent import AgentReply, PitwallAgent
+from pitwall.config import Settings
 from pitwall.guided import (
     GUIDED_FIELDS,
     PRESET_ORIGIN,
@@ -167,18 +169,7 @@ def welcome(ctx: typer.Context) -> None:
     if state.json_output:
         _print_json(welcome_payload())
         return
-    console.print(
-        Panel.fit(
-            f"[bold red]{WELCOME_TITLE}[/bold red]\n{WELCOME_INTRO}", border_style="red"
-        )
-    )
-    for heading, body in WELCOME_SECTIONS:
-        console.print(f"\n[bold]{heading}[/bold]")
-        console.print(f"  {body}")
-    console.print("\n[bold]Next steps[/bold]")
-    for step in WELCOME_NEXT_STEPS:
-        console.print(f"  {step}")
-    console.print(f"\n[dim]{GUIDED_OFFER}[/dim]")
+    _print_welcome_content()
     if not sys.stdin.isatty():
         return
     try:
@@ -191,13 +182,44 @@ def welcome(ctx: typer.Context) -> None:
         _guided_init(state, preset=DEFAULT_PRESET, replace_existing=False)
 
 
+def _print_welcome_content() -> None:
+    console.print(
+        Panel.fit(
+            f"[bold red]{WELCOME_TITLE}[/bold red]\n{WELCOME_INTRO}", border_style="red"
+        )
+    )
+    for heading, body in WELCOME_SECTIONS:
+        console.print(f"\n[bold]{heading}[/bold]")
+        console.print(f"  {body}")
+    console.print("\n[bold]Next steps[/bold]")
+    for step in WELCOME_NEXT_STEPS:
+        console.print(f"  {step}")
+    console.print(f"\n[dim]{GUIDED_OFFER}[/dim]")
+
+
 @app.command()
-def doctor(ctx: typer.Context) -> None:
+def doctor(
+    ctx: typer.Context,
+    core_only: Annotated[
+        bool,
+        typer.Option(
+            "--core-only",
+            help="Check local planning and workspace readiness without contacting Ollama.",
+        ),
+    ] = False,
+) -> None:
     """Check the strategy core, workspace, and optional Ollama connection."""
     state: State = ctx.obj
     state.workspace.initialise()
-    settings = state.workspace.settings()
     checks: list[dict[str, Any]] = []
+
+    settings: Settings | None
+    try:
+        settings = state.workspace.settings()
+        settings_error = ""
+    except (WorkspaceError, ValueError) as exc:
+        settings = None
+        settings_error = str(exc)
 
     try:
         plan = compare_strategies(load_preset(DEFAULT_PRESET), iterations=20)
@@ -220,7 +242,7 @@ def doctor(ctx: typer.Context) -> None:
             "detail": str(state.workspace.root),
         }
     )
-    settings_issues = settings.validate()
+    settings_issues = settings.validate() if settings is not None else [settings_error]
     checks.append(
         {
             "check": "configuration",
@@ -229,28 +251,63 @@ def doctor(ctx: typer.Context) -> None:
         }
     )
 
-    try:
-        models = list_local_models(settings)
-        selected = (
-            f"selected: {settings.model}"
-            if settings.model
-            else "no model selected (optional)"
-        )
-        checks.append(
-            {
-                "check": "Ollama",
-                "status": "pass",
-                "detail": f"{len(models)} local model(s); {selected}",
-            }
-        )
-    except ProviderError:
+    if settings is None:
         checks.append(
             {
                 "check": "Ollama",
                 "status": "optional",
-                "detail": "not running; deterministic mode is available",
+                "detail": "not checked until config.toml is repaired",
             }
         )
+    elif core_only:
+        checks.append(
+            {
+                "check": "Ollama",
+                "status": "optional",
+                "detail": "not contacted during the core-only check",
+            }
+        )
+    elif not settings.model_enabled:
+        checks.append(
+            {
+                "check": "Ollama",
+                "status": "optional",
+                "detail": "disabled; no local service contacted",
+            }
+        )
+    else:
+        try:
+            models = list_local_models(settings)
+            if settings.model and settings.model not in models:
+                ollama_status = "fail"
+                selected = f"selected model is not installed: {settings.model}"
+            elif settings.model:
+                ollama_status = "pass"
+                selected = f"selected: {settings.model}"
+            else:
+                ollama_status = "optional"
+                selected = "no model selected (optional)"
+            checks.append(
+                {
+                    "check": "Ollama",
+                    "status": ollama_status,
+                    "detail": f"{len(models)} local model(s); {selected}",
+                }
+            )
+        except ProviderError as exc:
+            selected_model_required = settings.model_enabled
+            checks.append(
+                {
+                    "check": "Ollama",
+                    "status": "fail" if selected_model_required else "optional",
+                    "detail": (
+                        f"selected model unavailable ({settings.model}): {exc}; "
+                        "deterministic mode is still available"
+                        if selected_model_required
+                        else "not running; deterministic mode is available"
+                    ),
+                }
+            )
 
     payload = {
         "version": __version__,
@@ -260,17 +317,23 @@ def doctor(ctx: typer.Context) -> None:
     }
     if state.json_output:
         _print_json(payload)
-        return
-    table = Table(title="Pitwall doctor", show_header=True)
-    table.add_column("Check")
-    table.add_column("Status")
-    table.add_column("Detail")
-    for item in checks:
-        colour = {"pass": "green", "fail": "red", "optional": "yellow"}[item["status"]]
-        table.add_row(
-            item["check"], f"[{colour}]{item['status']}[/{colour}]", item["detail"]
-        )
-    console.print(table)
+    else:
+        table = Table(title="Pitwall doctor", show_header=True)
+        table.add_column("Check")
+        table.add_column("Status")
+        table.add_column("Detail")
+        for item in checks:
+            colour = {"pass": "green", "fail": "red", "optional": "yellow"}[
+                item["status"]
+            ]
+            table.add_row(
+                item["check"],
+                f"[{colour}]{item['status']}[/{colour}]",
+                item["detail"],
+            )
+        console.print(table)
+    if not payload["ready"]:
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -284,14 +347,38 @@ def ingest(
 ) -> None:
     """Copy telemetry into the workspace and immediately audit its quality."""
     state: State = ctx.obj
+    previous_state = state.workspace.state()
     try:
         target = state.workspace.ingest(file, name=name)
         result = build_registry(state.workspace).execute(
             "inspect_telemetry", {"file": target.name}
         )
     except WorkspaceError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+        _command_error(state, str(exc))
     payload = {"imported": str(target), **result.to_dict()}
+    if not result.ok:
+        cleanup_errors: list[str] = []
+        try:
+            target.unlink(missing_ok=True)
+        except OSError as exc:
+            cleanup_errors.append(f"could not remove {target.name}: {exc}")
+        try:
+            state.workspace.write_state(previous_state)
+        except (OSError, WorkspaceError) as exc:
+            cleanup_errors.append(f"could not restore prior selection: {exc}")
+        payload["imported"] = None
+        payload["cleanup_errors"] = cleanup_errors
+        cleanup_note = (
+            "\nCleanup warning: " + "; ".join(cleanup_errors)
+            if cleanup_errors
+            else "\nThe rejected copy was removed and the prior telemetry restored."
+        )
+        _emit(
+            state,
+            payload,
+            (f"[red]Telemetry import was rejected:[/red] {result.error}{cleanup_note}"),
+        )
+        raise typer.Exit(code=1)
     quality = result.data.get("quality", {})
     _emit(
         state,
@@ -366,7 +453,7 @@ def scenario(
         },
     )
     if state.json_output:
-        _print_json(result.to_dict())
+        _print_tool_json(result)
         return
     _require_ok(result)
     console.print(f"[yellow]{SAFETY_CAR_DISCLAIMER}[/yellow]")
@@ -446,6 +533,8 @@ def export(
     else:
         message = f"[red]Not created:[/red] {result.error}"
     _emit(state, result.to_dict(), message)
+    if not result.ok:
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -493,17 +582,20 @@ def validate(
     try:
         stints = parse_stint_lengths(actual_stint_lengths)
     except ValidationInputError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+        _command_error(state, str(exc))
     if (
         actual_laps is None
         and actual_stops is None
         and actual_fuel_burn is None
         and not stints
     ):
-        raise typer.BadParameter(
+        _command_error(
+            state,
             "Supply at least one actual result: --actual-laps, --actual-stops, "
-            "--actual-fuel-burn, or --actual-stint-lengths."
+            "--actual-fuel-burn, or --actual-stint-lengths.",
         )
+    if actual_fuel_burn is not None and not math.isfinite(actual_fuel_burn):
+        _command_error(state, "--actual-fuel-burn must be a finite number")
     planned = _planned_reference(state, preset, strategy)
     actual = {
         "laps": None if actual_laps is None else float(actual_laps),
@@ -522,10 +614,12 @@ def validate(
         generated_at=generated_at,
     )
     try:
-        target = state.workspace.new_validation_file(report_filename(generated_at))
+        target = state.workspace.write_new_validation(
+            report_filename(generated_at),
+            markdown,
+        )
     except WorkspaceError as exc:
-        raise typer.BadParameter(str(exc)) from exc
-    target.write_text(markdown, encoding="utf-8")
+        _command_error(state, str(exc))
     payload = {
         "created": str(target),
         "race_name": planned["race_name"],
@@ -617,8 +711,8 @@ def race_init(
     """Create an editable race.json from a known-good bundled preset."""
     state: State = ctx.obj
     if preset not in list_presets():
-        raise typer.BadParameter(
-            f"Unknown preset. Choose from: {', '.join(list_presets())}"
+        _command_error(
+            state, f"Unknown preset. Choose from: {', '.join(list_presets())}"
         )
     config = load_preset(preset)
     try:
@@ -627,7 +721,7 @@ def race_init(
             overwrite=replace_existing,
         )
     except WorkspaceError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+        _command_error(state, str(exc))
     _emit(
         state,
         {"created": str(path), "race": config.to_dict()},
@@ -647,23 +741,37 @@ def race_set(
     ] = None,
     duration: Annotated[
         float | None,
-        typer.Option("--duration", help="Scheduled duration in hours.", min=0.01),
+        typer.Option(
+            "--duration", help="Scheduled duration in hours.", min=0.01, max=48
+        ),
     ] = None,
     lap_time: Annotated[
         float | None,
-        typer.Option("--lap-time", help="Representative green lap in seconds.", min=1),
+        typer.Option(
+            "--lap-time",
+            help="Representative green lap in seconds.",
+            min=20,
+            max=900,
+        ),
     ] = None,
     tank: Annotated[
         float | None,
-        typer.Option("--tank", help="Usable fuel tank in litres.", min=0.1),
+        typer.Option("--tank", help="Usable fuel tank in litres.", min=0.1, max=250),
     ] = None,
     burn: Annotated[
         float | None,
-        typer.Option("--burn", help="Fuel consumption in litres per lap.", min=0.001),
+        typer.Option(
+            "--burn",
+            help="Fuel consumption in litres per lap.",
+            min=0.001,
+            max=60,
+        ),
     ] = None,
     pit_loss: Annotated[
         float | None,
-        typer.Option("--pit-loss", help="Pit-lane transit loss in seconds.", min=0),
+        typer.Option(
+            "--pit-loss", help="Pit-lane transit loss in seconds.", min=0, max=3600
+        ),
     ] = None,
     refuel_rate: Annotated[
         float | None,
@@ -671,19 +779,24 @@ def race_set(
             "--refuel-rate",
             help="Refuelling speed in litres/second.",
             min=0.01,
+            max=100,
         ),
     ] = None,
     tyre_life: Annotated[
         int | None,
-        typer.Option("--tyre-life", help="Intended tyre life in laps.", min=1),
+        typer.Option("--tyre-life", help="Intended tyre life in laps.", min=1, max=200),
     ] = None,
     tyre_change_time: Annotated[
         float | None,
-        typer.Option("--tyre-change-time", help="Tyre service seconds.", min=0),
+        typer.Option(
+            "--tyre-change-time", help="Tyre service seconds.", min=0, max=3600
+        ),
     ] = None,
     driver_change_time: Annotated[
         float | None,
-        typer.Option("--driver-change-time", help="Driver change seconds.", min=0),
+        typer.Option(
+            "--driver-change-time", help="Driver change seconds.", min=0, max=3600
+        ),
     ] = None,
     service_mode: Annotated[
         str | None,
@@ -698,27 +811,51 @@ def race_set(
     ] = None,
     reserve_laps: Annotated[
         int | None,
-        typer.Option("--reserve-laps", help="Fuel reserve in whole laps.", min=0),
+        typer.Option(
+            "--reserve-laps", help="Fuel reserve in whole laps.", min=0, max=100
+        ),
     ] = None,
     pro_max_stint: Annotated[
         float | None,
-        typer.Option("--pro-max-stint", help="Pro continuous minutes.", min=1),
+        typer.Option(
+            "--pro-max-stint", help="Pro continuous minutes.", min=1, max=1440
+        ),
     ] = None,
     silver_max_stint: Annotated[
         float | None,
-        typer.Option("--silver-max-stint", help="Silver continuous minutes.", min=1),
+        typer.Option(
+            "--silver-max-stint",
+            help="Silver continuous minutes.",
+            min=1,
+            max=1440,
+        ),
     ] = None,
     bronze_max_stint: Annotated[
         float | None,
-        typer.Option("--bronze-max-stint", help="Bronze continuous minutes.", min=1),
+        typer.Option(
+            "--bronze-max-stint",
+            help="Bronze continuous minutes.",
+            min=1,
+            max=1440,
+        ),
     ] = None,
     silver_min_drive: Annotated[
         float | None,
-        typer.Option("--silver-min-drive", help="Silver minimum total minutes.", min=0),
+        typer.Option(
+            "--silver-min-drive",
+            help="Silver minimum total minutes.",
+            min=0,
+            max=2880,
+        ),
     ] = None,
     bronze_min_drive: Annotated[
         float | None,
-        typer.Option("--bronze-min-drive", help="Bronze minimum total minutes.", min=0),
+        typer.Option(
+            "--bronze-min-drive",
+            help="Bronze minimum total minutes.",
+            min=0,
+            max=2880,
+        ),
     ] = None,
     driver_max_total: Annotated[
         float | None,
@@ -726,6 +863,7 @@ def race_set(
             "--driver-max-total",
             help="Maximum total minutes per driver; zero disables.",
             min=0,
+            max=2880,
         ),
     ] = None,
 ) -> None:
@@ -733,8 +871,8 @@ def race_set(
     state: State = ctx.obj
     try:
         config = RaceConfig.from_dict(state.workspace.race_data())
-    except WorkspaceError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+    except (WorkspaceError, ValueError, TypeError) as exc:
+        _command_error(state, str(exc))
 
     updates = {
         "race_name": name,
@@ -755,14 +893,14 @@ def race_set(
     if service_mode is not None:
         normalised_mode = service_mode.strip().lower()
         if normalised_mode not in {"parallel", "sequential"}:
-            raise typer.BadParameter("--service-mode must be parallel or sequential")
+            _command_error(state, "--service-mode must be parallel or sequential")
         config.services_parallel = normalised_mode == "parallel"
     if drivers is not None:
         try:
             config.drivers = _parse_drivers(drivers)
             config.ensure_unique_driver_ids()
         except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
+            _command_error(state, str(exc))
 
     regulation_updates = {
         "fuel_safety_laps": reserve_laps,
@@ -777,7 +915,10 @@ def race_set(
         if value is not None:
             setattr(config.regulations, attribute, value)
 
-    state.workspace.save_race(config.to_dict(), overwrite=True)
+    try:
+        state.workspace.save_race(config.to_dict(), overwrite=True)
+    except (WorkspaceError, OSError) as exc:
+        _command_error(state, str(exc))
     issues = validate_config(config)
     payload = {
         "updated": str(state.workspace.race_path),
@@ -798,8 +939,8 @@ def race_show(ctx: typer.Context) -> None:
     state: State = ctx.obj
     try:
         config = RaceConfig.from_dict(state.workspace.race_data())
-    except WorkspaceError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+    except (WorkspaceError, ValueError, TypeError) as exc:
+        _command_error(state, str(exc))
     payload = config.to_dict()
     if state.json_output:
         _print_json(payload)
@@ -835,9 +976,8 @@ def model_list(ctx: typer.Context) -> None:
     state.workspace.initialise()
     try:
         models = list_local_models(state.workspace.settings())
-    except ProviderError as exc:
-        console.print(f"[yellow]Ollama is not reachable:[/yellow] {exc}")
-        raise typer.Exit(code=1) from exc
+    except (ProviderError, WorkspaceError, ValueError) as exc:
+        _command_error(state, f"Model configuration is not ready: {exc}")
     if state.json_output:
         _print_json({"models": models})
         return
@@ -859,17 +999,19 @@ def model_use(
     """Select a local Ollama model without changing application code."""
     state: State = ctx.obj
     state.workspace.initialise()
-    settings = state.workspace.settings()
+    try:
+        settings = state.workspace.settings()
+    except (WorkspaceError, ValueError) as exc:
+        _command_error(state, str(exc))
     if not force:
         try:
             models = list_local_models(settings)
-        except ProviderError as exc:
-            raise typer.BadParameter(
-                "Ollama is not running. Start it, or use --force."
-            ) from exc
+        except ProviderError:
+            _command_error(state, "Ollama is not running. Start it, or use --force.")
         if name not in models:
-            raise typer.BadParameter(
-                f"{name!r} is not installed. Available: {', '.join(models) or 'none'}"
+            _command_error(
+                state,
+                f"{name!r} is not installed. Available: {', '.join(models) or 'none'}",
             )
     updated = replace(settings, provider="ollama", model=name)
     state.workspace.save_settings(updated)
@@ -885,7 +1027,10 @@ def model_off(ctx: typer.Context) -> None:
     """Disable the model layer; deterministic commands remain available."""
     state: State = ctx.obj
     state.workspace.initialise()
-    settings = state.workspace.settings()
+    try:
+        settings = state.workspace.settings()
+    except (WorkspaceError, ValueError) as exc:
+        _command_error(state, str(exc))
     state.workspace.save_settings(replace(settings, provider="none", model=""))
     _emit(
         state,
@@ -990,7 +1135,8 @@ def _planned_reference(state: State, preset: str, strategy: str) -> dict[str, An
     result = build_registry(state.workspace).execute(
         "plan_race", {"preset": preset, "strategy": strategy}
     )
-    _require_ok(result)
+    if not result.ok:
+        _command_error(state, result.error or "Could not build the planned reference")
     plan = result.data["plan"]
     return {
         "race_name": plan["race_name"],
@@ -1011,10 +1157,15 @@ def _interactive(state: State) -> None:
             "[bold red]PITWALL AGENT[/bold red]\n"
             "Deterministic race tools · optional local Ollama · no cloud telemetry\n"
             f"[yellow]{PRE_RACE_ONLY_HEADER}[/yellow]\n"
-            "[dim]Ask a question, or type exit. New here? Run `pitwall welcome`.[/dim]",
+            "[dim]Ask a question, or use /help. Type /exit when finished.[/dim]",
             border_style="red",
         )
     )
+    if not state.workspace.race_path.exists():
+        console.print(
+            "[yellow]No current race is configured.[/yellow] Free-form answers will "
+            "clearly use the bundled demo until you run [bold]/setup[/bold]."
+        )
     session_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     agent = PitwallAgent(state.workspace)
     while True:
@@ -1026,7 +1177,80 @@ def _interactive(state: State) -> None:
         if question.lower() in {"exit", "quit", "/exit", "/quit"}:
             console.print("Session closed.")
             return
+        command = question
+        if command.lower().startswith("pitwall "):
+            command = "/" + command[8:].strip()
+        command_name, _, command_argument = command.partition(" ")
+        command_name = command_name.lower()
+        if command_name in {"help", "/help"}:
+            _print_interactive_help()
+            continue
+        if command_name in {"welcome", "/welcome"}:
+            _print_welcome_content()
+            console.print(
+                "[dim]Type /setup when you are ready to enter your race.[/dim]"
+            )
+            continue
+        if command_name in {"setup", "/setup"}:
+            _guided_init(
+                state,
+                preset=DEFAULT_PRESET,
+                replace_existing=state.workspace.race_path.exists(),
+            )
+            continue
+        if command_name in {"compare", "/compare"}:
+            result = build_registry(state.workspace).execute(
+                "compare_race_strategies", {"preset": CURRENT_RACE}
+            )
+            if result.ok:
+                _print_comparison(state, result)
+            else:
+                console.print(f"[red]Could not compare:[/red] {result.error}")
+            continue
+        if command_name in {"plan", "/plan"}:
+            strategy = command_argument.strip() or "Balanced"
+            result = build_registry(state.workspace).execute(
+                "plan_race",
+                {"preset": CURRENT_RACE, "strategy": strategy},
+            )
+            if result.ok:
+                _print_plan_result(state, result)
+            else:
+                console.print(f"[red]Could not plan:[/red] {result.error}")
+            continue
+        if command_name in {"export", "/export"}:
+            name = command_argument.strip() or "pit-sheet"
+            result = build_registry(state.workspace).execute(
+                "export_pit_sheet", {"name": name, "preset": CURRENT_RACE}
+            )
+            if result.ok:
+                console.print(
+                    f"[green]Created[/green] {result.data['created']} · "
+                    f"{result.data['strategy']}"
+                )
+            else:
+                console.print(f"[red]Not created:[/red] {result.error}")
+            continue
+        if command_name.startswith("/"):
+            console.print(f"Unknown command {command_name!r}. Type /help.")
+            continue
         _print_agent_reply(state, agent.ask(question, session_id=session_id))
+
+
+def _print_interactive_help() -> None:
+    table = Table(title="Interactive commands")
+    table.add_column("Command")
+    table.add_column("What it does")
+    for command, purpose in (
+        ("/welcome", "Explain the strategy terms"),
+        ("/setup", "Create or replace the current race with guided prompts"),
+        ("/compare", "Rank the three deterministic strategies"),
+        ("/plan [strategy]", "Show a complete plan; default is Balanced"),
+        ("/export [name]", "Write a new pit sheet"),
+        ("/exit", "Close the session"),
+    ):
+        table.add_row(command, purpose)
+    console.print(table)
 
 
 def _print_agent_reply(state: State, reply: AgentReply) -> None:
@@ -1051,7 +1275,7 @@ def _print_agent_reply(state: State, reply: AgentReply) -> None:
 
 def _print_plan_result(state: State, result: ToolResult) -> None:
     if state.json_output:
-        _print_json(result.to_dict())
+        _print_tool_json(result)
         return
     _require_ok(result)
     plan = result.data["plan"]
@@ -1116,33 +1340,55 @@ def _print_trigger_cards(data: dict[str, Any]) -> None:
     if not cards:
         return
     table = Table(title="Trigger cards — what to watch")
-    for column in ("Trigger", "Metric", "Band", "Current", "Status", "If it moves"):
+    for column in ("Trigger", "Watch", "Reconsider when", "Now", "Status"):
         table.add_column(column)
     for card in cards:
-        low = "-" if card["threshold_low"] is None else f"{card['threshold_low']:g}"
-        high = "-" if card["threshold_high"] is None else f"{card['threshold_high']:g}"
-        current = "-" if card["current_value"] is None else f"{card['current_value']:g}"
+        current = (
+            "not measured"
+            if card["current_value"] is None
+            else f"{card['current_value']:g} {card['unit']}"
+        )
         table.add_row(
-            card["name"],
-            f"{card['metric']} ({card['unit']})",
-            f"{low} – {high}",
+            card["id"],
+            card["metric"],
+            _trigger_condition(card),
             current,
             card["status"],
-            card["action_reconsider"],
         )
     console.print(table)
+    reconsider = [card for card in cards if card["status"] == "RECONSIDER"]
+    for card in reconsider:
+        console.print(
+            f"[yellow]{card['id']}:[/yellow] {card['action_reconsider']} "
+            f"Affects: {card['affected_decision']}."
+        )
     console.print(f"[dim]{data.get('trigger_card_notice', '')}[/dim]")
+
+
+def _trigger_condition(card: dict[str, Any]) -> str:
+    low = card.get("threshold_low")
+    high = card.get("threshold_high")
+    unit = str(card.get("unit", "")).strip()
+    if low is not None and high is not None:
+        return f"outside {low:g}–{high:g} {unit}".strip()
+    if high is not None:
+        return f"> {high:g} {unit}".strip()
+    if low is not None:
+        return f"< {low:g} {unit}".strip()
+    return "declared window changes"
 
 
 def _print_comparison(state: State, result: ToolResult) -> None:
     if state.json_output:
-        _print_json(result.to_dict())
+        _print_tool_json(result)
         return
     _require_ok(result)
     console.print(f"[yellow]{result.data['pre_race_only']}[/yellow]")
     console.print(
         f"\nRecommendation: [bold green]{result.data['recommendation']}[/bold green]"
     )
+    if result.data.get("reason"):
+        console.print(f"Why: {result.data['reason']}")
     console.print(f"Input source: [bold]{result.data['input_source']}[/bold]")
     table = Table(title=result.data["preset"])
     columns = [
@@ -1189,7 +1435,38 @@ def _require_ok(result: ToolResult) -> None:
 
 def _print_json(payload: dict[str, Any]) -> None:
     """Keep machine output valid even in legacy Windows PowerShell code pages."""
-    typer.echo(json.dumps(payload, ensure_ascii=True, indent=2))
+    try:
+        rendered = json.dumps(
+            payload,
+            ensure_ascii=True,
+            indent=2,
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        typer.echo(
+            json.dumps(
+                {"ok": False, "error": f"JSON output contains an invalid value: {exc}"},
+                ensure_ascii=True,
+            )
+        )
+        raise typer.Exit(code=1) from exc
+    typer.echo(rendered)
+
+
+def _command_error(state: State, message: str) -> None:
+    """Report a runtime input/state failure without a traceback."""
+    if state.json_output:
+        _print_json({"ok": False, "error": message})
+    else:
+        console.print(f"[red]Could not complete the command:[/red] {message}")
+    raise typer.Exit(code=1)
+
+
+def _print_tool_json(result: ToolResult) -> None:
+    """Emit a ToolResult while keeping JSON and text process semantics equal."""
+    _print_json(result.to_dict())
+    if not result.ok:
+        raise typer.Exit(code=1)
 
 
 def _parse_drivers(value: str) -> list[Driver]:
@@ -1208,6 +1485,8 @@ def _parse_drivers(value: str) -> list[Driver]:
             pace_delta = float(fields[2]) if len(fields) == 3 else 0.0
         except ValueError as exc:
             raise ValueError(f"Driver {index} pace delta must be a number") from exc
+        if not math.isfinite(pace_delta):
+            raise ValueError(f"Driver {index} pace delta must be a finite number")
         drivers.append(Driver(fields[0], category, pace_delta))
     if not drivers:
         raise ValueError("At least one driver is required")

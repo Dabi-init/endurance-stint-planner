@@ -11,7 +11,7 @@ the race decision?
 
 The product is not “chat with a stint calculator.” It is a terminal pit-wall
 workspace in which deterministic tools own every material race number and the
-optional model acts as interpreter, tool router, and explainer.
+optional model acts only as a plain-language intent and tool router.
 
 ## Endurance-strategist map
 
@@ -44,9 +44,7 @@ flowchart LR
     V --> T["Race tools"]
     T --> P["Planner + simulation + rule checks"]
     P --> J["Structured JSON result"]
-    J --> M
-    J --> C["CLI / report"]
-    M -->|"explanation"| C
+    J --> C["Audited local renderer / CLI / report"]
 ```
 
 The model cannot:
@@ -97,7 +95,8 @@ Pitwall makes those failures visible and recoverable:
 3. repeated calls stop at a fixed step limit;
 4. an unavailable Ollama model falls back to deterministic intent routing;
 5. direct commands remain the recommended operational path;
-6. tool results include evidence, assumptions, and warnings for the model to cite.
+6. the first successful relevant tool result is rendered locally immediately;
+7. raw model prose never becomes the displayed material race answer.
 
 The language model is optional because reliability should not depend on prompt
 quality, GPU memory, model release, or an internet service.

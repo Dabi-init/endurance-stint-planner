@@ -3,6 +3,42 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and
 semantic versioning.
 
+## [Unreleased]
+
+Target: `v0.4.0-alpha.2` (not yet tagged or published).
+
+### Added
+
+- a self-healing Windows launcher with a private environment, Python 3.11–3.14
+  checks, cache-free installation, dependency/version validation, core-only
+  health checks, and first-run interactive onboarding;
+- explicit telemetry file, row, and workspace quotas plus bounded local history
+  and Ollama responses;
+- hostile-input, concurrent-write, JSON error-contract, packaging, and local-AI
+  boundary regression coverage;
+- a Windows CI launcher smoke and a complete pip source-distribution manifest.
+
+### Changed
+
+- all displayed material race facts now come from deterministic tool results;
+  Ollama is an optional local router and is never an arithmetic authority;
+- corrupt current-race data fails closed instead of silently switching to demo
+  assumptions;
+- persistence uses atomic or exclusive writes so interrupted and concurrent
+  commands cannot silently overwrite reports or control files;
+- install instructions now use working GitHub source/release routes and disclose
+  the measured core and optional Ollama disk footprints;
+- `doctor` no longer probes Ollama while AI is disabled, and the double-click
+  launcher remains usable in deterministic mode when an opted-in model is down.
+
+### Fixed
+
+- machine-readable failures now return nonzero status with valid JSON;
+- malformed, non-finite, deeply nested, oversized, or replaced local inputs fail
+  safely without a traceback;
+- synthetic telemetry remains Evidence Level C after renaming or line-ending
+  conversion, while one real imported session can claim Level B at most.
+
 ## [0.4.0-alpha.1] - 2026-07-26
 
 Usability, honesty, and launch release. Feature work lands via
@@ -27,7 +63,7 @@ Usability, honesty, and launch release. Feature work lands via
 - workspace non-overwrite protection for report and validation files (PR #16);
 - README glossary of core endurance and Pitwall terms (PR #16);
 - public GitHub Pages landing page in `docs/` with full SEO metadata,
-  `sitemap.xml`, `robots.txt`, and a Pages deployment workflow;
+  `sitemap.xml`, `robots.txt`, and branch-based setup guidance;
 - `docs/LAUNCH.md` launch material and `docs/PROJECT_HANDOFF.md` handoff;
 - root `AGENTS.md` guidance for future agents and contributors.
 

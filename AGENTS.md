@@ -29,7 +29,7 @@ python -m http.server 8080 --directory docs                                     
 
 ## Product safety boundaries
 
-- **AI may explain the plan; it must never invent, change, or own the race mathematics.** All numbers come from `engine/`.
+- **Ollama may route plain-language questions; it must never invent, change, or own the race mathematics or final race answer.** All facts come from `engine/` and audited local renderers.
 - The model gets only allowlisted deterministic tools — never shell, browser, deletion, arbitrary files, or arbitrary network access.
 - Driver names are anonymised to `Driver_1..N` (`pitwall/redaction.py`) before any tool payload reaches the model.
 - Everything is local: no telemetry upload, no analytics, no tracking scripts anywhere — including the landing page.
@@ -41,7 +41,8 @@ python -m http.server 8080 --directory docs                                     
 - Every user-visible change needs a `CHANGELOG.md` entry in the same PR.
 - CI (ruff, pytest, coverage, wheel build) must be green before merge.
 - Releases attach `dist/*.whl` and `dist/*.tar.gz`; release notes come from `docs/LAUNCH.md`.
-- GitHub Pages deploys from `docs/` on pushes to `main` via `.github/workflows/pages.yml`.
+- GitHub Pages currently deploys `main:/docs` directly through the repository's
+  branch-based Pages setting; no Pages workflow is active.
 
 ## Where to find details
 

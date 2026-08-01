@@ -1,6 +1,8 @@
 # Pitwall Agent — Launch Material
 
-Ready-to-use copy for the `v0.4.0-alpha.1` public launch.
+Draft public copy for the unreleased `v0.4.0-alpha.2` hardening release. Replace
+the source-only wording with versioned release-asset links only after the tag and
+assets exist.
 
 **Ground rule for every word in this file:** it must be true today. No invented
 testimonials, download counts, star counts, team names, benchmarks, or
@@ -18,7 +20,8 @@ CI logs, or a reproducible command, it does not ship.
 
 > Pitwall Agent: build your endurance race plan, lap by lap — deterministically.
 > Local-first, terminal-based fuel/tyre/driver strategy with auditable pit
-> sheets. AI may explain the plan; it never owns the maths. Alpha, MIT, free.
+> sheets. Optional local Ollama routes plain-language questions; deterministic
+> tools own the facts. Alpha, MIT, free.
 > https://dabi-init.github.io/endurance-stint-planner/
 
 ---
@@ -32,16 +35,17 @@ CI logs, or a reproducible command, it does not ship.
 > stint-by-stint fuel and tyre plans, driver rotation checks, P10/P90
 > uncertainty bounds, pre-agreed trigger cards, and a printable Markdown pit
 > sheet. Every number comes from a deterministic Python engine you can read and
-> re-run. An optional local Ollama model can explain the plan in plain English,
-> but it cannot invent or change a single figure. Nothing is uploaded anywhere.
-> It is alpha software: all published examples use synthetic data, and no
+> re-run. An optional local Ollama model can route a plain-English question into
+> a typed race-tool call, but it cannot invent or change a single figure.
+> Nothing is uploaded anywhere. It is alpha software: all bundled examples use
+> synthetic data, and no
 > real-session validation exists yet.
 
 ---
 
 ## 3. LinkedIn announcement
 
-> **Pitwall Agent v0.4.0-alpha.1 — an open-source endurance race strategy tool
+> **Pitwall Agent v0.4.0-alpha.2 — an open-source endurance race strategy tool
 > that refuses to let AI do the maths.**
 >
 > Planning an endurance race means juggling fuel reserves, tyre life, driver
@@ -50,17 +54,17 @@ CI logs, or a reproducible command, it does not ship.
 >
 > Pitwall Agent takes the opposite position. Every fuel, tyre, and driver
 > calculation happens in a deterministic Python engine you can read line by
-> line. An optional local language model may explain the plan — it can never
-> invent, change, or own the race mathematics. Your telemetry never leaves your
-> machine.
+> line. An optional local Ollama model may route a question into an allowlisted
+> tool; Pitwall renders the displayed answer locally from the successful result.
+> Your telemetry never leaves your machine.
 >
 > What it does today:
 > • Ranks Conservative / Balanced / Fuel Save strategies side by side
 > • Plans exact stint fuel loads, additions, tyre sets, and driver rotation
 > • Reports P10/P90 uncertainty instead of false precision
-> • Ingests telemetry CSVs and labels every input Evidence Level A/B/C
+> • Audits telemetry CSVs and states the result's source, confidence, and Evidence Level A/B/C
 > • Exports a scannable Markdown pit sheet with pre-agreed trigger cards
-> • Runs fully offline, with JSON output for anyone who wants to script it
+> • Core planning works offline after installation, with JSON output for scripting
 >
 > Being honest about the stage: this is alpha. Every published example uses
 > synthetic data (Evidence Level C). There is no real-session validation yet,
@@ -78,38 +82,41 @@ CI logs, or a reproducible command, it does not ship.
 
 ---
 
-## 4. GitHub release announcement (`v0.4.0-alpha.1`)
+## 4. GitHub release announcement (draft `v0.4.0-alpha.2`)
 
-> ## Pitwall Agent v0.4.0-alpha.1
+> ## Pitwall Agent v0.4.0-alpha.2
 >
-> Alpha release focused on comprehension, auditability, and onboarding.
+> Hardening release focused on safe failure, bounded storage, trustworthy local
+> AI routing, and reproducible installation.
 >
-> ### Added
-> - `pitwall welcome` — plain-English explanation of every concept the tool uses
-> - `pitwall init --guided` — interactive setup with validated ranges and input provenance
-> - `pitwall validate` — compare a plan against actual results and write a Markdown report
-> - Strategy trigger cards (HOLD / RECONSIDER) in plan, comparison, and pit sheet output
-> - Public documentation site and launch material
+> ### Hardened
+> - Corrupt race or configuration files fail closed with recovery guidance
+> - JSON failures return valid error payloads and nonzero exit status
+> - Telemetry, history, model responses, and generated reports have explicit size limits
+> - App-owned control files use atomic writes; reports remain exclusive-create
+> - Unknown or failed model tool calls cannot ground a displayed race answer
+> - Python 3.14 joins the tested CI matrix
 >
 > ### Changed
-> - `pitwall export` now defaults to the recommended strategy
-> - Pit sheets label P10 as pessimistic and P90 as optimistic, and spell out what each evidence level means
-> - Driver names are anonymised (`Driver_1`, `Driver_2`, …) before any model sees a tool result
-> - Safety Car output carries an explicit pre-race-only disclaimer
+> - Ollama is a bounded local intent router; final race facts are rendered locally
+> - Windows one-click startup caches installation and exposes `/setup`, `/compare`, `/plan`, and `/export`
+> - Synthetic telemetry stays at Evidence Level C after renaming or line-ending conversion
+> - Narrow terminal output is more compact and actionable
 >
 > ### Known limitations
 > - Alpha software, not production-validated
 > - All bundled examples are synthetic (Evidence Level C)
 > - No live timing, no competitor data, no official regulation database
-> - Ollama is optional; every deterministic feature works without it
+> - No published real-model conformance benchmark; direct commands remain the operational path
 >
-> ### Install
+> ### Install the current candidate
 > ```
-> pip install pitwall-agent   # if unavailable, install the wheel from this release
-> pitwall doctor
-> pitwall welcome
-> pitwall compare
+> # Windows: download the source ZIP, extract it, then double-click run.bat
+> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip
 > ```
+>
+> Alpha.2 is not on PyPI and has no release asset yet. Add the versioned wheel
+> URL here only after the tag and asset have been published.
 
 ---
 
@@ -130,13 +137,13 @@ in your terminal — and deliberately keeps AI away from the maths
 > - three ranked strategies — Conservative, Balanced, Fuel Save
 > - exact stint plan: laps, driver, fuel start/add, tyre set, pit time
 > - P10/P90 uncertainty bounds instead of one fake-precise answer
-> - Evidence Level A/B/C on every input, so you know what is measured vs assumed
+> - result-level Evidence A/B/C, source, confidence, assumptions, and warnings
 > - trigger cards: pre-agreed "hold the plan" / "reconsider" thresholds
 > - a Markdown pit sheet you can print or keep open on the second monitor
 >
-> There is an *optional* local Ollama integration, but it only explains the plan.
-> It cannot change a number. All the arithmetic is plain deterministic Python
-> with tests and CI.
+> There is an *optional* local Ollama integration for routing plain-language
+> questions into typed tools. It cannot change a number. All arithmetic and
+> final race facts come from deterministic Python with tests and CI.
 >
 > **Honesty section, because this sub deserves it:** it is alpha. Every example
 > shipped with it is synthetic data. I have not validated it against a real
@@ -157,12 +164,13 @@ in your terminal — and deliberately keeps AI away from the maths
 > **Pitwall Agent — free open-source endurance strategy planner (alpha)** 🏁
 >
 > Terminal tool that turns fuel burn, tyre life, and driver rules into three
-> ranked strategies plus a printable pit sheet. Deterministic engine — AI can
-> only explain the plan, never change the numbers. Runs offline, MIT licensed.
+> ranked strategies plus a printable pit sheet. Deterministic engine; optional
+> local Ollama routes questions but never changes the numbers. Core planning
+> works offline after installation. MIT licensed.
 >
 > ```
-> pip install pitwall-agent
-> pitwall doctor && pitwall welcome && pitwall compare
+> Download the source ZIP, extract it, and double-click run.bat:
+> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip
 > ```
 >
 > ⚠️ Alpha, synthetic examples only, no real-session validation yet, pre-race
@@ -183,14 +191,22 @@ A free, open-source command-line tool that builds a pre-race endurance strategy:
 stints, fuel, tyres, driver rotation, uncertainty bounds, and a pit sheet.
 
 **2. Do I need to know Python?**
-No. You need Python 3.11+ installed, then `pip install pitwall-agent`. After
-that you only type `pitwall` commands. `pitwall welcome` explains every term,
-and `pitwall init --guided` walks you through setup question by question.
+No. On Windows, install Python 3.11–3.14, download and extract the source ZIP, then
+double-click `run.bat`. The launcher creates a private environment and opens an
+interactive prompt. `/welcome` explains every term, and `/setup` walks
+you through setup question by question.
 
 **3. Do I need AI or an API key?**
 No. Every deterministic feature works with no model at all. If you install
-[Ollama](https://ollama.com/) locally, the model can explain results in plain
-English over loopback only. There is no cloud AI and no API key anywhere.
+[Ollama](https://ollama.com/) locally, the model can route plain-English
+questions into typed local tools over loopback only. There is no cloud AI and
+no API key anywhere.
+
+Pitwall never downloads a model automatically. The example `qwen3:8b` model is
+about 5.2 GB and Ollama's Windows installation requires at least 4 GB, so budget
+roughly 9.2 GB or more before caches and other models. Disable and remove it with
+`python -m pitwall model off` followed by `ollama rm qwen3:8b`. By comparison,
+the measured current source plus its private core environment uses about 28 MB.
 
 **4. Can I use it for real (non-sim) racing?**
 You can, but treat it as a planning aid, not an authority. It is alpha software
@@ -223,9 +239,10 @@ there are no real-session case studies, and some planned features (simulator
 adapters, real validation) are still open issues.
 
 **10. When will there be a 1.0?**
-When there is at least one published real-session validation case study, a
-stable CLI and JSON contract, and the roadmap gates in `ROADMAP.md` are met. No
-date is promised — a fake date would break the honesty rule this project runs on.
+When there are at least three published anonymised real-session case studies, a
+stable CLI and JSON contract, and every remaining gate in `ROADMAP.md` is met.
+No date is promised — a fake date would break the honesty rule this project runs
+on.
 
 ---
 
@@ -239,7 +256,7 @@ pitwall welcome       # plain-English concept tour
 pitwall init --guided # guided setup with validated ranges
 pitwall compare       # three ranked strategies
 pitwall plan          # full stint table for one strategy
-pitwall scenario      # pre-race Safety Car what-if (note the disclaimer)
+pitwall scenario 120 20 # pre-race Safety Car what-if (note the disclaimer)
 pitwall export        # writes the Markdown pit sheet
 ```
 
@@ -275,9 +292,10 @@ Level C) — not a performance claim."*
 > - the car/track combination and race duration
 >
 > Please strip anything you do not want public: driver names, team names, and
-> account identifiers. Pitwall Agent already anonymises driver names before any
-> model sees them, and `pitwall validate` produces a comparison report you can
-> read before sharing anything.
+> account identifiers. Pitwall Agent anonymises configured driver names in tool
+> payloads before returning them to the model, but free-form prompts are not a
+> place for private identifiers. `pitwall validate` produces a comparison report
+> you can read before sharing anything.
 >
 > Send it as a pull request or attach it to an issue — see `CONTRIBUTING.md`.
 > Contributed sessions will be credited (or kept anonymous, your choice) and
@@ -294,5 +312,6 @@ Level C) — not a performance claim."*
 > Safety Car support is a declared pre-race what-if scenario, not a live
 > reaction. It checks only the driver and stint rules you configure — it is not
 > a substitute for your series' sporting regulations. An optional local model
-> may explain results; it never computes or alters them. Use it as a planning
-> aid, and verify anything that matters.
+> may route a question into an allowlisted tool; Pitwall renders the displayed
+> answer locally from deterministic output. Use it as a planning aid, and verify
+> anything that matters.

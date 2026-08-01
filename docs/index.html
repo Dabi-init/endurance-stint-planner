@@ -12,11 +12,11 @@
 <link rel="canonical" href="https://dabi-init.github.io/endurance-stint-planner/">
 
 <meta property="og:title" content="Pitwall Agent — Endurance Race Strategy Planner">
-<meta property="og:description" content="Build your endurance race plan, lap by lap — deterministically. Local-first, terminal-based, open-source. AI-explained, never AI-decided.">
+<meta property="og:description" content="Open-source endurance stint planner with deterministic fuel, tyre, driver-rotation and pit-stop strategy. Optional local AI routing; no cloud upload.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dabi-init.github.io/endurance-stint-planner/">
 <meta property="og:site_name" content="Pitwall Agent">
-<meta property="og:image" content="https://racelab.app/img/hero-image.jpg">
+<meta property="og:image" content="https://repository-images.githubusercontent.com/1187690049/7837d95d-89fa-43a7-9fac-cfb8e644b0b8">
 <meta property="og:image:alt" content="Pitwall Agent — endurance race strategy planner">
 
 <meta name="twitter:card" content="summary_large_image">
@@ -31,13 +31,13 @@
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Pitwall Agent",
-  "applicationCategory": "DeveloperApplication",
+  "applicationCategory": "SportsApplication",
   "applicationSubCategory": "Motorsport strategy planning",
   "operatingSystem": "Windows, macOS, Linux",
-  "softwareVersion": "0.4.0-alpha.1",
-  "description": "Local-first, terminal-based endurance race strategy tool. Deterministic fuel, tyre, and driver rotation planning with auditable pit sheets and optional local AI explanation.",
+  "softwareVersion": "0.4.0-alpha.2",
+  "description": "Open-source endurance stint planner with deterministic fuel, tyre, driver-rotation and pit-stop strategy. Optional local Ollama routing; no cloud upload.",
   "url": "https://dabi-init.github.io/endurance-stint-planner/",
-  "downloadUrl": "https://github.com/Dabi-init/endurance-stint-planner/releases",
+  "downloadUrl": "https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip",
   "codeRepository": "https://github.com/Dabi-init/endurance-stint-planner",
   "programmingLanguage": "Python",
   "license": "https://github.com/Dabi-init/endurance-stint-planner/blob/main/LICENSE",
@@ -66,7 +66,7 @@ header.site .wrap{display:flex;align-items:center;justify-content:space-between;
 .brand .dot{width:12px;height:12px;border-radius:3px;background:var(--accent)}
 nav.site a{color:var(--muted);text-decoration:none;font-size:.92rem;margin-left:18px}
 nav.site a:hover{color:var(--text)}
-section{padding:64px 0;border-bottom:1px solid var(--line)}
+section{padding:64px 0;border-bottom:1px solid var(--line);scroll-margin-top:76px}
 section:last-of-type{border-bottom:0}
 h1{font-size:clamp(2rem,6vw,3.3rem);line-height:1.12;margin:0 0 14px}
 h2{font-size:clamp(1.4rem,3.6vw,2rem);margin:0 0 8px}
@@ -136,15 +136,15 @@ footer nav a{margin-right:16px}
 <section class="hero">
   <div class="wrap">
     <span class="eyebrow">Alpha · Open source · Local-first</span>
-    <h1>Pitwall Agent</h1>
-    <p class="lead">Build your endurance race plan, lap by lap — deterministically.</p>
-    <p class="sub">A local-first, terminal-based strategy tool for sim racers, team captains, and race-day operators. Free, open-source, AI-explained — never AI-decided.</p>
+    <h1>Pitwall Agent — endurance stint planner</h1>
+    <p class="lead">Compare fuel, tyre, driver-rotation and pit-stop strategies before your endurance race.</p>
+    <p class="sub">A local-first, terminal-based strategy tool for sim racers, team captains, and race-day operators. Free and open-source. Optional local AI routes plain language; deterministic tools own the race facts.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner">⭐ Star on GitHub</a>
-      <a class="btn" href="#install">📦 Install Now</a>
-      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner/issues/new/choose">💬 Share Feedback</a>
+      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip">Download for Windows</a>
+      <a class="btn" href="#demo">See example output</a>
+      <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner">View source</a>
     </div>
-    <p class="small">MIT licensed · Python 3.11+ · Works fully offline · No account, no API key, no data upload.</p>
+    <p class="small">MIT licensed · Python 3.11–3.14 · Core planning works offline after installation · No account, API key, or data upload.</p>
   </div>
 </section>
 
@@ -152,7 +152,7 @@ footer nav a{margin-right:16px}
 <section id="problem">
   <div class="wrap">
     <h2>What problem it solves</h2>
-    <p class="sub">Planning an endurance race is overwhelming — fuel reserves, tyre changes, driver rotations, Safety Car timing. Pitwall Agent turns those variables into a clear, auditable plan you can take to race day. Every number comes from a deterministic engine you can inspect and trust.</p>
+    <p class="sub">Planning an endurance race is overwhelming — fuel reserves, tyre changes, driver rotations, Safety Car timing. Pitwall Agent turns those variables into a clear, auditable plan you can take to race day. Every number comes from a deterministic engine you can inspect, trace, and rerun.</p>
   </div>
 </section>
 
@@ -165,7 +165,7 @@ footer nav a{margin-right:16px}
       <article class="card">
         <p class="role">Complete beginner</p>
         <h3>Never planned an endurance race?</h3>
-        <p>Start here. Pitwall Agent explains every term, guides you through setup, and builds your first strategy in under 20 minutes.</p>
+        <p>Plain-English onboarding and guided setup help you build a race configuration without knowing the terminology up front.</p>
       </article>
       <article class="card">
         <p class="role">Sim-racing team captain</p>
@@ -175,7 +175,7 @@ footer nav a{margin-right:16px}
       <article class="card">
         <p class="role">Race-day operator</p>
         <h3>Scan-ready pit sheets</h3>
-        <p>Fuel, tyres, drivers, timing, trigger cards, and uncertainty bounds — everything you need on the pit wall, in one Markdown page.</p>
+        <p>Fuel, tyres, drivers, timing, trigger cards, and uncertainty bounds in one scannable pre-race reference.</p>
       </article>
       <article class="card">
         <p class="role">Technical contributor</p>
@@ -189,19 +189,19 @@ footer nav a{margin-right:16px}
 <!-- TRUST -->
 <section id="trust">
   <div class="wrap">
-    <h2>Why you can trust the numbers</h2>
+    <h2>How the numbers stay auditable</h2>
     <div class="grid g2" style="margin-top:24px">
       <article class="card">
         <h3>Deterministic engine — never AI-guessed</h3>
         <p>All fuel, tyre, and driver maths is deterministic Python code in <code>engine/</code>. You can read every line and re-run it for the same result.</p>
       </article>
       <article class="card">
-        <h3>AI is an explainer, not a decision-maker</h3>
-        <p>An optional local Ollama model can explain the plan in plain English. It cannot invent, change, or own the race mathematics.</p>
+        <h3>AI routes; local tools answer</h3>
+        <p>An optional local Ollama model can route plain language into an allowlisted tool. Final race facts are rendered locally from a successful deterministic result; failed or unknown calls cannot ground an answer.</p>
       </article>
       <article class="card">
         <h3>Evidence Levels A / B / C</h3>
-        <p>Every input is labelled with its source and confidence, so you always know whether a number came from telemetry or from an assumption.</p>
+        <p>Each result states its input source, evidence level, confidence, assumptions, and warnings.</p>
       </article>
       <article class="card">
         <h3>Local-first, no telemetry upload</h3>
@@ -209,7 +209,7 @@ footer nav a{margin-right:16px}
       </article>
     </div>
     <div class="note" style="margin-top:24px">
-      <p style="margin:0"><strong>Honest alpha statement.</strong> Pitwall Agent is alpha software. All current case studies use synthetic data (Evidence Level C). No real-session validation has been published. We are honest about what we know and what we don't.</p>
+      <p style="margin:0"><strong>Honest alpha statement.</strong> Pitwall Agent is alpha software. All bundled examples are synthetic (Evidence Level C), and no real-session case study has been published. The Ollama integration is real, but there is no published real-model conformance benchmark; direct deterministic commands remain the recommended operational path.</p>
     </div>
   </div>
 </section>
@@ -223,13 +223,13 @@ footer nav a{margin-right:16px}
       <article class="card"><h3>Tyre life &amp; changes</h3><p>Tyre sets, age at stint end, and change planning per stop.</p></article>
       <article class="card"><h3>Driver rotation</h3><p>Stable driver identities and configured drive-time rule checks.</p></article>
       <article class="card"><h3>Strategy comparison</h3><p>Conservative / Balanced / Fuel Save ranked side by side.</p></article>
-      <article class="card"><h3>P10 / P90 uncertainty</h3><p>Pessimistic and optimistic bounds, not a single false-precision number.</p></article>
+      <article class="card"><h3>P10 / P90 uncertainty</h3><p>For projected laps, P10 is the fewer-laps case and P90 the more-laps case. Raw lap-time percentiles reverse because fewer seconds is faster.</p></article>
       <article class="card"><h3>Telemetry CSV ingest</h3><p>Column mapping, outlier checks, and evidence calibration from your laps.</p></article>
       <article class="card"><h3>Safety Car what-if</h3><p>One declared pre-race scenario with explicit multipliers. Pre-race only.</p></article>
       <article class="card"><h3>Strategy trigger cards</h3><p>Pre-agreed HOLD / RECONSIDER thresholds to take to the pit wall.</p></article>
       <article class="card"><h3>Markdown pit sheet</h3><p>One scannable page to print or keep open on race day.</p></article>
       <article class="card"><h3>Machine-readable JSON</h3><p><code>--json</code> on the commands you script or pipe into your own tools.</p></article>
-      <article class="card"><h3>Optional local AI</h3><p>Ollama on loopback only, for explanation. Everything works without it.</p></article>
+      <article class="card"><h3>Optional local AI</h3><p>Ollama on loopback only, for plain-language routing. Final race facts remain deterministic, and everything works without AI.</p></article>
       <article class="card"><h3>No live data, no lock-in</h3><p>No live timing, no proprietary APIs, no accounts, no tracking.</p></article>
     </div>
   </div>
@@ -241,22 +241,22 @@ footer nav a{margin-right:16px}
     <h2>What it looks like in the terminal</h2>
     <p class="sub">Illustrative output from the bundled synthetic example — not a performance claim.</p>
     <pre><code>$ pitwall doctor
-✓ workspace  .pitwall/
-✓ race.json  found
-⚠  ollama    not connected (deterministic fallback active)
+strategy core   pass      Conservative, 174 laps
+workspace       pass      .pitwall
+configuration   pass      valid
+Ollama           optional  deterministic mode is available
 
 $ pitwall compare
-─── Strategy Comparison ─────────────────────────
-Strategy       Stops  Stints  Fuel (start)  Risk
-Conservative     3      4       58.0 L      Low
-Balanced         3      4       55.0 L      Medium   ★ Recommended
-Fuel Save        2      3       52.0 L      High
+Recommendation: Conservative
+Strategy       Projected laps  P10 laps  Stops  Reserve  Risk
+Conservative   174             174.0     6      2 laps   Low
+Balanced       174             174.0     6      1 lap    Low
+Fuel Save      174             173.0     6      1 lap    Low
 
-Evidence: C (synthetic preset)  |  Input: Manual assumptions
-P10 (pessimistic): +4.2% lap time  |  P90 (optimistic): -2.1% lap time
+Evidence C · Low confidence · Manual assumptions
 
 $ pitwall export --name race_day
-✓ Pit sheet written: .pitwall/reports/race_day.md</code></pre>
+Created .pitwall/reports/race_day.md · Conservative</code></pre>
   </div>
 </section>
 
@@ -265,19 +265,20 @@ $ pitwall export --name race_day
   <div class="wrap">
     <h2>The pit sheet you take to race day</h2>
     <p class="sub">Excerpt of an exported Markdown pit sheet. Every figure is traceable to an input and an evidence level.</p>
-    <pre><code># Pitwall Agent — Pre-Race Pit Sheet
+    <pre><code># Pit sheet: 6h Endurance — GT3
 ⚠️ PRE-RACE PLAN ONLY — Not live race control
 
-Strategy: Balanced (★ Recommended)
-Evidence: C | Confidence: Medium | Source: Manual assumptions
-P10 pessimistic: +4.2% lap time | P90 optimistic: -2.1% lap time
+Strategy: Conservative (recommended)
+Evidence: C | Confidence: Low | Source: Manual assumptions
+Predicted laps: 174 | Pit stops: 6 | Fuel used: 504.6 L
+P10: 174.0 laps | Median: 174.0 | P90: 175.0 laps
 
 TRIGGER CARDS
-FUEL_BURN_HIGH  [HOLD]  Burn 3.2 L/lap is within range 3.0–3.5 L/lap
-PACE_SLOW       [HOLD]  Lap time 2:10 is within P10–P90 range
+FUEL_BURN_HIGH  [HOLD]  Reconsider above 2.987 L/lap
+PACE_SLOW       [HOLD]  Reconsider above 120.96 seconds/lap
 
-STINT 1  Laps 1–18  |  Driver: A  |  Fuel: 58.0→0.5 L (+0 L added)
-STINT 2  Laps 19–36 |  Driver: B  |  Tyre: New set  |  Pit: 65s</code></pre>
+STINT 1  Laps 1–28  | Alex Pro     | Fuel start 87.0 L | Tyre set 1
+STINT 2  Laps 29–56 | Marco Bronze | Fuel add 81.2 L   | Pit 87.5 s</code></pre>
   </div>
 </section>
 
@@ -286,30 +287,43 @@ STINT 2  Laps 19–36 |  Driver: B  |  Tyre: New set  |  Pit: 65s</code></pre>
   <div class="wrap">
     <h2>Install</h2>
     <div class="note" style="margin-bottom:22px">
-      <p style="margin:0"><strong>Alpha packaging note.</strong> <code>pitwall-agent</code> may not be published on PyPI yet. If <code>pip install pitwall-agent</code> cannot find the package, download the wheel from the <a href="https://github.com/Dabi-init/endurance-stint-planner/releases">GitHub releases page</a> and run <code>pip install path\to\pitwall_agent-...whl</code>, or use the developer install below.</p>
+      <p style="margin:0"><strong>GitHub-only alpha.</strong> Pitwall Agent is not published on PyPI. The main-branch source ZIP contains the current unreleased alpha.2 hardening; no alpha.2 wheel exists yet. The published alpha.1 wheel predates these fixes. The core install never downloads Ollama or an AI model.</p>
     </div>
     <div class="grid g2">
       <div>
-        <h3>Windows</h3>
-        <pre><code># 1. Download Python from python.org (3.11+)
-# 2. Open Command Prompt and run:
-pip install pitwall-agent
-pitwall doctor
-pitwall init
-pitwall compare</code></pre>
+        <h3>Windows — easiest</h3>
+        <pre><code># 1. Install Python 3.11–3.14 from python.org
+# 2. Download the source ZIP linked below
+# 3. Choose Extract all
+# 4. Double-click run.bat</code></pre>
+        <p class="small"><a href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip">Download the source ZIP</a>. The launcher creates a private environment, runs a health check, and opens Pitwall.</p>
       </div>
       <div>
         <h3>Linux / macOS</h3>
-        <pre><code>pip install pitwall-agent
+        <pre><code>git clone https://github.com/Dabi-init/endurance-stint-planner.git
+cd endurance-stint-planner
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
 pitwall doctor
-pitwall init
+pitwall init --guided
 pitwall compare</code></pre>
       </div>
     </div>
-    <h3 style="margin-top:18px">Developer install (always works)</h3>
+    <h3 style="margin-top:18px">Package size and releases</h3>
+    <p class="sub">A wheel built from the current alpha.2 source is approximately 89 KB. It is not published yet; do not treat the older alpha.1 wheel on the <a href="https://github.com/Dabi-init/endurance-stint-planner/releases">GitHub releases page</a> as equivalent. The release process will attach a versioned alpha.2 wheel after this hardening is merged and tagged.</p>
+    <h3 style="margin-top:18px">Measured disk footprint</h3>
+    <p class="sub">In a clean Windows/Python 3.14 audit, Pitwall's installed files used about 830 KB, the complete private virtual environment used about 27.4 MB, and an extracted source copy plus its launcher-created environment used about 28.0 MB. The launcher's isolated two-run test retained 0 bytes in its pip-cache directory. A Git clone also retains Git history; totals vary by Python and operating system. App imports are capped at 10 MiB and 50,000 rows per CSV, with 100 MiB total telemetry storage. Reports and validations are capped at 2 MiB each, 25 MiB combined, and 500 files.</p>
+    <h3 style="margin-top:18px">Developer install</h3>
     <pre><code>git clone https://github.com/Dabi-init/endurance-stint-planner
 cd endurance-stint-planner
-pip install -e .[dev]</code></pre>
+# Windows PowerShell
+py -3.14 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+
+# macOS / Linux (use instead)
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"</code></pre>
   </div>
 </section>
 
@@ -318,13 +332,17 @@ pip install -e .[dev]</code></pre>
   <div class="wrap">
     <h2>Try the 5-minute demo</h2>
     <div class="steps">
-      <div class="step"><span>1</span><br><code>pip install</code><br><span class="small">Install the package or the repo.</span></div>
-      <div class="step"><span>2</span><br><code>pitwall doctor</code><br><span class="small">Check your environment.</span></div>
-      <div class="step"><span>3</span><br><code>pitwall welcome</code><br><span class="small">Learn every term in plain English.</span></div>
-      <div class="step"><span>4</span><br><code>pitwall compare</code><br><span class="small">See three ranked strategies.</span></div>
-      <div class="step"><span>5</span><br><code>pitwall export</code><br><span class="small">Write your pit sheet.</span></div>
+      <div class="step"><span>1</span><br><code>Source ZIP → run.bat</code><br><span class="small">Download, extract, and launch on Windows.</span></div>
+      <div class="step"><span>2</span><br><code>automatic checks</code><br><span class="small">The launcher runs doctor and first-run onboarding.</span></div>
+      <div class="step"><span>3</span><br><code>/compare</code><br><span class="small">See three ranked demo strategies.</span></div>
+      <div class="step"><span>4</span><br><code>/plan Conservative</code><br><span class="small">Inspect every stint.</span></div>
+      <div class="step"><span>5</span><br><code>/export demo</code><br><span class="small">Write a new pit sheet.</span></div>
+      <div class="step"><span>6</span><br><code>/setup</code><br><span class="small">Then replace the demo with your race.</span></div>
     </div>
-    <p class="sub">No API key. No cloud account. No data upload. Just your race plan.</p>
+    <p class="sub">The first comparison uses the bundled Evidence C demo. Run <code>/setup</code> before relying on your own race inputs. No API key, cloud account, or data upload.</p>
+    <div class="note" style="margin-top:22px">
+      <p style="margin:0"><strong>Optional AI storage.</strong> Pitwall never downloads a model automatically. The example <code>qwen3:8b</code> model is about 5.2 GB, while Ollama's Windows installation requires at least 4 GB, so budget roughly 9.2 GB or more before caches and other models. From the extracted Windows folder, disable it with <code>.\.venv\Scripts\python.exe -m pitwall model off</code>, then remove the model with <code>ollama rm qwen3:8b</code>; uninstall Ollama separately if you no longer need it.</p>
+    </div>
   </div>
 </section>
 
@@ -335,10 +353,10 @@ pip install -e .[dev]</code></pre>
     <p class="sub">Read this before you rely on it for a real event.</p>
     <ul class="check" style="margin-top:16px">
       <li>Alpha software — not production-validated.</li>
-      <li>No real-session case studies yet. Every published example uses synthetic data.</li>
+      <li>No real-session case studies yet. Every bundled example uses synthetic data.</li>
       <li>Safety Car support is a pre-race what-if only — it is not live race control.</li>
       <li>No live timing, no competitor prediction, no proprietary telemetry APIs.</li>
-      <li>Ollama is optional — every deterministic feature works with no AI at all.</li>
+      <li>Ollama is optional and never auto-downloaded — every deterministic feature works with no AI at all.</li>
       <li>Evidence Level C means the numbers came from preset or synthetic assumptions, not measured data.</li>
       <li>Sporting regulations are your responsibility. Pitwall Agent checks the rules you configure, not any official rulebook.</li>
     </ul>

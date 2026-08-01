@@ -5,7 +5,10 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+from pitwall import __version__
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -32,6 +35,7 @@ class TestReadmeQuickStart:
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         assert "typer>=" in pyproject and "<1" in pyproject
         assert "rich>=" in pyproject and "<16" in pyproject
+        assert 'requires-python = ">=3.11,<3.15"' in pyproject
         assert "streamlit" not in pyproject
         assert "pandas" not in pyproject
 
@@ -51,10 +55,29 @@ class TestReadmeQuickStart:
         batch = (ROOT / "run.bat").read_text(encoding="utf-8")
         powershell = (ROOT / "run.ps1").read_text(encoding="utf-8")
         assert "run.ps1" in batch
-        assert "python -m venv .venv" in powershell
-        assert "-m pip install -e ." in powershell
-        assert "-m pitwall doctor" in powershell
+        assert "Get-Command py" in powershell
+        assert "Get-Command python" in powershell
+        assert "-m venv .venv" in powershell
+        assert "-m pip install" in powershell
+        assert "--no-cache-dir" in powershell
+        assert "PIP_NO_CACHE_DIR" in powershell
+        assert "PIP_DISABLE_PIP_VERSION_CHECK" in powershell
+        assert "-e ." in powershell
+        assert ".pitwall-project-hash" in powershell
+        assert "-m pip check" in powershell
+        assert "-m pitwall doctor --core-only" in powershell
+        assert "m.version('pitwall-agent')" in powershell
+        assert "$DoctorOnly" in powershell
         assert "-m pitwall" in powershell
+
+    def test_source_version_metadata_agrees(self) -> None:
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+
+        assert project["project"]["version"] == __version__
+        major, minor, patch_alpha = __version__.split(".")
+        patch, alpha = patch_alpha.split("a")
+        assert f'version: "{major}.{minor}.{patch}-alpha.{alpha}"' in citation
 
     def test_fresh_clone_core_smoke(self, tmp_path: Path) -> None:
         destination = tmp_path / "fresh-clone"
