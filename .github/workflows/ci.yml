@@ -93,7 +93,7 @@ jobs:
       - name: Cached second run
         shell: pwsh
         run: |
-          $output = .\run.ps1 -DoctorOnly | Out-String
+          $output = .\run.ps1 -DoctorOnly *>&1 | Out-String
           $output
           if ($output -notmatch "skipping dependency download") {
             throw "The second launcher run unexpectedly reinstalled dependencies."
