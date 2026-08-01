@@ -1,8 +1,7 @@
 # Pitwall Agent — Launch Material
 
-Draft public copy for the unreleased `v0.4.0-alpha.2` hardening release. Replace
-the source-only wording with versioned release-asset links only after the tag and
-assets exist.
+Public copy for the `v0.4.0-alpha.2` hardening release. The versioned links below
+point to its GitHub tag and release assets; Pitwall is not published on PyPI.
 
 **Ground rule for every word in this file:** it must be true today. No invented
 testimonials, download counts, star counts, team names, benchmarks, or
@@ -82,7 +81,7 @@ CI logs, or a reproducible command, it does not ship.
 
 ---
 
-## 4. GitHub release announcement (draft `v0.4.0-alpha.2`)
+## 4. GitHub release announcement (`v0.4.0-alpha.2`)
 
 > ## Pitwall Agent v0.4.0-alpha.2
 >
@@ -95,13 +94,23 @@ CI logs, or a reproducible command, it does not ship.
 > - Telemetry, history, model responses, and generated reports have explicit size limits
 > - App-owned control files use atomic writes; reports remain exclusive-create
 > - Unknown or failed model tool calls cannot ground a displayed race answer
+> - The Ollama client ignores environment proxies and rejects redirects away
+>   from its validated loopback endpoint
 > - Python 3.14 joins the tested CI matrix
 >
 > ### Changed
 > - Ollama is a bounded local intent router; final race facts are rendered locally
+> - `pitwall model recommend` performs a read-only core self-check and presents
+>   core-only plus explicit provisional 8B and 4B Ollama choices
 > - Windows one-click startup caches installation and exposes `/setup`, `/compare`, `/plan`, and `/export`
 > - Synthetic telemetry stays at Evidence Level C after renaming or line-ending conversion
 > - Narrow terminal output is more compact and actionable
+>
+> ### Verified
+> - 226 automated tests pass with the 85% coverage gate
+> - Python 3.11–3.14, wheel installation, Ruff/compile, Windows launcher, and
+>   CodeQL checks pass
+> - Clean installed-wheel and repeat-launcher smoke tests pass
 >
 > ### Known limitations
 > - Alpha software, not production-validated
@@ -110,14 +119,14 @@ CI logs, or a reproducible command, it does not ship.
 > - No published real-model conformance benchmark; direct commands remain the operational path
 > - `pitwall model recommend` is advisory only; it never contacts Ollama, downloads a model, creates a workspace, or changes configuration
 >
-> ### Install the current candidate
+> ### Install alpha.2
 > ```
 > # Windows: download the source ZIP, extract it, then double-click run.bat
-> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip
+> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip
 > ```
 >
-> Alpha.2 is not on PyPI and has no release asset yet. Add the versioned wheel
-> URL here only after the tag and asset have been published.
+> Alpha.2 is not on PyPI. Its wheel and SHA-256 checksums are attached to:
+> https://github.com/Dabi-init/endurance-stint-planner/releases/tag/v0.4.0-alpha.2
 
 ---
 
@@ -171,7 +180,7 @@ in your terminal — and deliberately keeps AI away from the maths
 >
 > ```
 > Download the source ZIP, extract it, and double-click run.bat:
-> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip
+> https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip
 > ```
 >
 > ⚠️ Alpha, synthetic examples only, no real-session validation yet, pre-race

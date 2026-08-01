@@ -20,11 +20,11 @@
 </p>
 
 📄 **Website:** <https://dabi-init.github.io/endurance-stint-planner/> ·
-🛠 **Current source:** `v0.4.0-alpha.2` hardening candidate (not yet published) ·
-📦 **Published release:** <https://github.com/Dabi-init/endurance-stint-planner/releases/tag/v0.4.0-alpha.1>
+📦 **Latest release:** [v0.4.0-alpha.2](https://github.com/Dabi-init/endurance-stint-planner/releases/tag/v0.4.0-alpha.2) ·
+⬇️ **Assets:** [wheel](https://github.com/Dabi-init/endurance-stint-planner/releases/download/v0.4.0-alpha.2/pitwall_agent-0.4.0a2-py3-none-any.whl) · [source archive](https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip)
 
-The published alpha.1 wheel predates the hardening described below. Until an
-alpha.2 asset is published, use the main-branch source ZIP for the current code.
+Alpha.2 is distributed through GitHub Releases, not PyPI. Every bundled example
+is synthetic (Evidence Level C), and no real-session validation is claimed.
 
 Most racing calculators stop at “how many laps fit in a tank?” Pitwall Agent
 compares complete, executable strategies: fuel loads and additions, driver
@@ -78,7 +78,7 @@ Requires a tested [Python 3.11–3.14](https://www.python.org/downloads/) releas
 
 ### Windows — easiest
 
-1. [Download the source ZIP](https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip) and choose **Extract all**.
+1. [Download the alpha.2 source ZIP](https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip) and choose **Extract all**.
 2. Double-click `run.bat`.
 3. The installer runs a health check and opens the terminal pit wall.
 
@@ -141,10 +141,9 @@ real-model tool-calling conformance benchmark.
 ### Download and disk size
 
 The project is not published on PyPI. Do not use `pip install pitwall-agent`.
-The current recommended install is the main-branch source ZIP above or a Git
-clone. No alpha.2 wheel exists yet; the published alpha.1 wheel is older and
-does not contain this hardening pass. To install the current source without the
-launcher:
+Use the versioned alpha.2 source ZIP above, a Git clone, or the wheel attached to
+the [GitHub release](https://github.com/Dabi-init/endurance-stint-planner/releases/tag/v0.4.0-alpha.2).
+To install extracted source without the launcher:
 
 ```powershell
 py -3.14 -m venv .venv
@@ -277,7 +276,7 @@ operational path.
 
 `pitwall export` writes the recommended strategy unless you pass `--strategy`.
 Alpha.1 introduced `pitwall welcome`, `pitwall init --guided`, and
-`pitwall validate`. The unreleased alpha.2 source hardens failure handling,
+`pitwall validate`. Alpha.2 hardens failure handling,
 storage bounds, installation, and local-AI grounding.
 
 Run `pitwall COMMAND --help` for every option.

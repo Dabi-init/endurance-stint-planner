@@ -81,6 +81,27 @@ class TestReadmeQuickStart:
         patch, alpha = patch_alpha.split("a")
         assert f'version: "{major}.{minor}.{patch}-alpha.{alpha}"' in citation
 
+    def test_alpha2_release_copy_uses_versioned_links(self) -> None:
+        public_files = [
+            (ROOT / "README.md").read_text(encoding="utf-8"),
+            (ROOT / "docs/index.html").read_text(encoding="utf-8"),
+            (ROOT / "docs/LAUNCH.md").read_text(encoding="utf-8"),
+        ]
+        release_tag = "v0.4.0-alpha.2"
+
+        assert all(
+            f"archive/refs/tags/{release_tag}.zip" in text for text in public_files
+        )
+        assert "releases/download/v0.4.0-alpha.2/" in public_files[0]
+        assert "releases/download/v0.4.0-alpha.2/" in public_files[1]
+        assert "## [0.4.0-alpha.2] - 2026-08-02" in (ROOT / "CHANGELOG.md").read_text(
+            encoding="utf-8"
+        )
+        for text in public_files:
+            lowered = text.lower()
+            assert "not yet published" not in lowered
+            assert "no alpha.2 wheel exists" not in lowered
+
     def test_fresh_clone_core_smoke(self, tmp_path: Path) -> None:
         destination = tmp_path / "fresh-clone"
         _copy_fresh_project(destination)

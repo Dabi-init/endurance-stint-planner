@@ -5,7 +5,7 @@ semantic versioning.
 
 ## [Unreleased]
 
-Target: `v0.4.0-alpha.2` (not yet tagged or published).
+## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added
 

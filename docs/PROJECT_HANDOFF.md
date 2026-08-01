@@ -4,8 +4,7 @@ Durable context for any future agent or contributor who picks up this repository
 with no memory of previous conversations. Read this file first, then
 `AGENTS.md`, then `docs/ARCHITECTURE.md`.
 
-Last updated: 2026-08-01, for the unreleased `v0.4.0-alpha.2` hardening
-candidate on `agent/end-to-end-hardening`.
+Last updated: 2026-08-02, for the `v0.4.0-alpha.2` hardening release.
 
 ---
 
@@ -132,7 +131,7 @@ private identifiers in free-form prompts.
    workspace overwrite protection, richer pit sheets, README glossary.
 6. **Merged PR #17 `feat/launch-and-docs`** — landing page and staged Pages
    material, this handoff, `AGENTS.md`, version bump, changelog, README badges.
-7. **Unreleased `agent/end-to-end-hardening` work** — fail-closed configuration
+7. **Alpha.2 hardening (PR #19)** — fail-closed configuration
    and race loading, atomic/exclusive writes, bounded storage and provider
    responses, JSON exit-code parity, router-only Ollama grounding, Python 3.14
    CI, and corrected install/onboarding copy.
@@ -141,12 +140,10 @@ private identifiers in free-form prompts.
 
 ## 6. Current release state
 
-- Current source version: **v0.4.0-alpha.2 candidate** (`pyproject.toml`
-  version `0.4.0a2`), not yet tagged or published.
-- Last published release: **v0.4.0-alpha.1**. Its wheel predates the current
-  hardening and must not be presented as equivalent to alpha.2 source.
-- PRs #16 and #17 are merged into `main`; the hardening branch remains
-  unreleased until reviewed and merged.
+- Current published release: **v0.4.0-alpha.2** (`pyproject.toml` version
+  `0.4.0a2`), shipped through GitHub Releases with wheel, source archive, and
+  SHA-256 checksums.
+- PRs #16, #17, and #19 are merged into `main`.
 - GitHub Pages is live at
   <https://dabi-init.github.io/endurance-stint-planner/> and is served from
   legacy source `main:/docs`.
@@ -239,8 +236,8 @@ python -m http.server 8080 --directory docs   # then open http://localhost:8080/
 
 ## 10. Release and deployment process
 
-1. Choose `<next-pep440-version>` and `<next-public-tag>`; for this candidate
-   they are `0.4.0a2` and `v0.4.0-alpha.2`.
+1. Choose `<next-pep440-version>` and `<next-public-tag>`; alpha.2 used
+   `0.4.0a2` and `v0.4.0-alpha.2`.
 2. Update every runtime/package version reference, then merge the feature PR
    into `main` only after CI and human review. **Never force-push `main`.**
 3. Move the `CHANGELOG.md` Unreleased entries under a dated version heading.
@@ -265,11 +262,8 @@ python -m http.server 8080 --directory docs   # then open http://localhost:8080/
   Level C). This is the single biggest credibility gap. See issue #11.
 - **No sourced regulation packs.** The tool checks only user-configured rules;
   championship rule packs need current, citable public sources before shipping.
-- **PyPI publication is not set up.** The landing page and README must point to
-  the source ZIP until a matching versioned release wheel actually exists.
-- **Alpha.2 is not published.** The main source ZIP is the current candidate
-  install; do not invent an alpha.2 asset URL or imply alpha.1 contains the
-  hardening.
+- **PyPI publication is not set up.** The landing page and README point to the
+  versioned GitHub release assets and source ZIP instead.
 
 ---
 

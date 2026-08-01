@@ -37,7 +37,7 @@
   "softwareVersion": "0.4.0-alpha.2",
   "description": "Open-source endurance stint planner with deterministic fuel, tyre, driver-rotation and pit-stop strategy. Optional local Ollama routing; no cloud upload.",
   "url": "https://dabi-init.github.io/endurance-stint-planner/",
-  "downloadUrl": "https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip",
+  "downloadUrl": "https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip",
   "codeRepository": "https://github.com/Dabi-init/endurance-stint-planner",
   "programmingLanguage": "Python",
   "license": "https://github.com/Dabi-init/endurance-stint-planner/blob/main/LICENSE",
@@ -140,7 +140,7 @@ footer nav a{margin-right:16px}
     <p class="lead">Compare fuel, tyre, driver-rotation and pit-stop strategies before your endurance race.</p>
     <p class="sub">A local-first, terminal-based strategy tool for sim racers, team captains, and race-day operators. Free and open-source. Optional local AI routes plain language; deterministic tools own the race facts.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip">Download for Windows</a>
+      <a class="btn primary" href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip">Download alpha.2 for Windows</a>
       <a class="btn" href="#demo">See example output</a>
       <a class="btn" href="https://github.com/Dabi-init/endurance-stint-planner">View source</a>
     </div>
@@ -287,7 +287,7 @@ STINT 2  Laps 29–56 | Marco Bronze | Fuel add 81.2 L   | Pit 87.5 s</code></pr
   <div class="wrap">
     <h2>Install</h2>
     <div class="note" style="margin-bottom:22px">
-      <p style="margin:0"><strong>GitHub-only alpha.</strong> Pitwall Agent is not published on PyPI. The main-branch source ZIP contains the current unreleased alpha.2 hardening; no alpha.2 wheel exists yet. The published alpha.1 wheel predates these fixes. The core install never downloads Ollama or an AI model.</p>
+      <p style="margin:0"><strong>GitHub-only alpha.</strong> Pitwall Agent is not published on PyPI. Download the versioned <a href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip">alpha.2 source ZIP</a> or <a href="https://github.com/Dabi-init/endurance-stint-planner/releases/download/v0.4.0-alpha.2/pitwall_agent-0.4.0a2-py3-none-any.whl">wheel</a> from GitHub Releases. The core install never downloads Ollama or an AI model.</p>
     </div>
     <div class="grid g2">
       <div>
@@ -296,7 +296,7 @@ STINT 2  Laps 29–56 | Marco Bronze | Fuel add 81.2 L   | Pit 87.5 s</code></pr
 # 2. Download the source ZIP linked below
 # 3. Choose Extract all
 # 4. Double-click run.bat</code></pre>
-        <p class="small"><a href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/heads/main.zip">Download the source ZIP</a>. The launcher creates a private environment, runs a health check, and opens Pitwall.</p>
+        <p class="small"><a href="https://github.com/Dabi-init/endurance-stint-planner/archive/refs/tags/v0.4.0-alpha.2.zip">Download the alpha.2 source ZIP</a>. The launcher creates a private environment, runs a health check, and opens Pitwall.</p>
       </div>
       <div>
         <h3>Linux / macOS</h3>
@@ -311,9 +311,9 @@ pitwall compare</code></pre>
       </div>
     </div>
     <h3 style="margin-top:18px">Package size and releases</h3>
-    <p class="sub">A wheel built from the current alpha.2 source is approximately 89 KB. It is not published yet; do not treat the older alpha.1 wheel on the <a href="https://github.com/Dabi-init/endurance-stint-planner/releases">GitHub releases page</a> as equivalent. The release process will attach a versioned alpha.2 wheel after this hardening is merged and tagged.</p>
+    <p class="sub">The published alpha.2 wheel is approximately 92 KB and is attached to the <a href="https://github.com/Dabi-init/endurance-stint-planner/releases/tag/v0.4.0-alpha.2">versioned GitHub release</a>. SHA-256 checksums are published beside the wheel and source archive.</p>
     <h3 style="margin-top:18px">Measured disk footprint</h3>
-    <p class="sub">In a clean Windows/Python 3.14 audit, Pitwall's installed files used about 830 KB, the complete private virtual environment used about 27.4 MB, and an extracted source copy plus its launcher-created environment used about 28.0 MB. The launcher's isolated two-run test retained 0 bytes in its pip-cache directory. A Git clone also retains Git history; totals vary by Python and operating system. App imports are capped at 10 MiB and 50,000 rows per CSV, with 100 MiB total telemetry storage. Reports and validations are capped at 2 MiB each, 25 MiB combined, and 500 files.</p>
+    <p class="sub">In a clean Windows/Python 3.14 audit, Pitwall's installed files used about 738 KB, the complete private virtual environment used about 27.4 MB, and an extracted source copy plus its launcher-created environment used about 28.1 MB. The launcher's isolated two-run test retained 0 bytes in its pip-cache directory. A Git clone also retains Git history; totals vary by Python and operating system. App imports are capped at 10 MiB and 50,000 rows per CSV, with 100 MiB total telemetry storage. Reports and validations are capped at 2 MiB each, 25 MiB combined, and 500 files.</p>
     <h3 style="margin-top:18px">Developer install</h3>
     <pre><code>git clone https://github.com/Dabi-init/endurance-stint-planner
 cd endurance-stint-planner
