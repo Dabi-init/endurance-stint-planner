@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import json
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -38,6 +42,75 @@ class ByteResponse:
 
     def read(self, size: int = -1) -> bytes:
         return self.payload if size < 0 else self.payload[:size]
+
+
+class RecordingHttpHandler(BaseHTTPRequestHandler):
+    def _respond(self) -> None:
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length) if length else b""
+        self.server.requests.append((self.command, self.path, body))
+        self.send_response(self.server.response_status)
+        for name, value in self.server.response_headers.items():
+            self.send_header(name, value)
+        self.send_header("Content-Length", str(len(self.server.response_body)))
+        self.end_headers()
+        if self.server.response_body:
+            self.wfile.write(self.server.response_body)
+
+    def do_GET(self) -> None:
+        self._respond()
+
+    def do_POST(self) -> None:
+        self._respond()
+
+    def log_message(self, format: str, *args: object) -> None:
+        return None
+
+
+class RecordingHttpServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(
+        self,
+        address: tuple[str, int],
+        *,
+        response_status: int = 200,
+        response_body: bytes = b"{}",
+        response_headers: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(address, RecordingHttpHandler)
+        self.requests: list[tuple[str, str, bytes]] = []
+        self.response_status = response_status
+        self.response_body = response_body
+        self.response_headers = response_headers or {}
+
+
+@contextmanager
+def running_http_server(
+    *,
+    bind_host: str = "127.0.0.1",
+    response_status: int = 200,
+    response_body: bytes = b"{}",
+    response_headers: dict[str, str] | None = None,
+) -> Iterator[RecordingHttpServer]:
+    server = RecordingHttpServer(
+        (bind_host, 0),
+        response_status=response_status,
+        response_body=response_body,
+        response_headers=response_headers,
+    )
+    thread = threading.Thread(
+        target=server.serve_forever,
+        kwargs={"poll_interval": 0.01},
+        daemon=True,
+    )
+    thread.start()
+    try:
+        yield server
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
 
 
 @pytest.fixture
@@ -91,11 +164,12 @@ def test_provider_rejects_malformed_nested_chat_shapes(
     payload: dict,
     message: str,
 ) -> None:
+    provider = OllamaProvider(Settings(provider="ollama", model="local"))
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
+        provider._opener,
+        "open",
         lambda request, timeout: ByteResponse(json.dumps(payload).encode()),
     )
-    provider = OllamaProvider(Settings(provider="ollama", model="local"))
 
     with pytest.raises(ProviderError, match=message):
         provider.chat([{"role": "user", "content": "plan"}], [])
@@ -110,11 +184,12 @@ def test_provider_rejects_invalid_utf8_and_nonfinite_json(
             ByteResponse(b'{"message":{"content":NaN}}'),
         ]
     )
+    provider = OllamaProvider(Settings(provider="ollama", model="local"))
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
+        provider._opener,
+        "open",
         lambda request, timeout: next(responses),
     )
-    provider = OllamaProvider(Settings(provider="ollama", model="local"))
 
     with pytest.raises(ProviderError, match="invalid UTF-8"):
         provider.chat([], [])
@@ -125,11 +200,12 @@ def test_provider_rejects_invalid_utf8_and_nonfinite_json(
 def test_provider_rejects_malformed_model_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    provider = OllamaProvider(Settings(provider="ollama", model="local"))
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
+        provider._opener,
+        "open",
         lambda request, timeout: ByteResponse(b'{"models":3}'),
     )
-    provider = OllamaProvider(Settings(provider="ollama", model="local"))
 
     with pytest.raises(ProviderError, match="invalid model list"):
         provider.list_models()
@@ -139,14 +215,97 @@ def test_provider_caps_local_response_size(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("pitwall.providers.MAX_PROVIDER_RESPONSE_BYTES", 8)
+    provider = OllamaProvider(Settings(provider="ollama", model="local"))
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
+        provider._opener,
+        "open",
         lambda request, timeout: ByteResponse(b"123456789"),
     )
-    provider = OllamaProvider(Settings(provider="ollama", model="local"))
 
     with pytest.raises(ProviderError, match="8 MiB safety limit"):
         provider.chat([], [])
+
+
+def test_provider_proxy_environment_cannot_intercept_get_or_post(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = json.dumps(
+        {
+            "models": [{"name": "local"}],
+            "message": {"content": "local response"},
+        }
+    ).encode()
+    with (
+        running_http_server(response_body=response) as ollama,
+        running_http_server(response_body=response) as proxy,
+    ):
+        proxy_url = f"http://127.0.0.1:{proxy.server_port}"
+        for variable in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+            monkeypatch.setenv(variable, proxy_url)
+        monkeypatch.delenv("NO_PROXY", raising=False)
+        monkeypatch.delenv("no_proxy", raising=False)
+
+        settings = Settings(
+            provider="ollama",
+            model="local",
+            ollama_host=f"http://127.0.0.1:{ollama.server_port}",
+        )
+        provider = OllamaProvider(settings, timeout_sec=2)
+
+        assert provider.list_models() == ["local"]
+        assert (
+            provider.chat([{"role": "user", "content": "private prompt"}], []).content
+            == "local response"
+        )
+
+    assert proxy.requests == []
+    assert [(method, path) for method, path, _ in ollama.requests] == [
+        ("GET", "/api/tags"),
+        ("POST", "/api/chat"),
+    ]
+    post_body = json.loads(ollama.requests[1][2])
+    assert post_body["messages"] == [{"role": "user", "content": "private prompt"}]
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_provider_rejects_redirects_to_disallowed_loopback_host(
+    status: int,
+    method: str,
+) -> None:
+    redirected_response = json.dumps(
+        {
+            "models": [{"name": "redirect-followed"}],
+            "message": {"content": "redirect-followed"},
+        }
+    ).encode()
+    with running_http_server(
+        bind_host="0.0.0.0",
+        response_body=redirected_response,
+    ) as target:
+        target_url = f"http://127.0.0.2:{target.server_port}/redirected"
+        with running_http_server(
+            response_status=status,
+            response_headers={"Location": target_url},
+        ) as origin:
+            settings = Settings(
+                provider="ollama",
+                model="local",
+                ollama_host=f"http://127.0.0.1:{origin.server_port}",
+            )
+            provider = OllamaProvider(settings, timeout_sec=2)
+
+            with pytest.raises(ProviderError, match="redirects are not allowed"):
+                if method == "GET":
+                    provider.list_models()
+                else:
+                    provider.chat([{"role": "user", "content": "private prompt"}], [])
+
+    assert target.requests == []
+    expected_path = "/api/tags" if method == "GET" else "/api/chat"
+    assert [(seen_method, path) for seen_method, path, _ in origin.requests] == [
+        (method, expected_path)
+    ]
 
 
 def test_model_race_prose_is_replaced_without_a_successful_relevant_tool(

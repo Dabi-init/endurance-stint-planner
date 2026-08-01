@@ -16,7 +16,10 @@ Target: `v0.4.0-alpha.2` (not yet tagged or published).
   and Ollama responses;
 - hostile-input, concurrent-write, JSON error-contract, packaging, and local-AI
   boundary regression coverage;
-- a Windows CI launcher smoke and a complete pip source-distribution manifest.
+- a Windows CI launcher smoke and a complete pip source-distribution manifest;
+- `pitwall model recommend`, a read-only core self-check that presents an
+  Ollama-only 8B first-try candidate, a smaller unverified 4B candidate, and the
+  verified zero-model-storage path without downloads or configuration changes.
 
 ### Changed
 
@@ -27,9 +30,12 @@ Target: `v0.4.0-alpha.2` (not yet tagged or published).
 - persistence uses atomic or exclusive writes so interrupted and concurrent
   commands cannot silently overwrite reports or control files;
 - install instructions now use working GitHub source/release routes and disclose
-  the measured core and optional Ollama disk footprints;
+  the measured core and optional Ollama disk footprints; Windows examples use
+  the application-policy-friendly `python -m pitwall` entry path;
 - `doctor` no longer probes Ollama while AI is disabled, and the double-click
-  launcher remains usable in deterministic mode when an opted-in model is down.
+  launcher remains usable in deterministic mode when an opted-in model is down;
+- the Ollama HTTP client now ignores environment proxies and rejects redirects,
+  keeping prompts and tool context on the validated loopback endpoint.
 
 ### Fixed
 

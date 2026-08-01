@@ -35,6 +35,12 @@ from pitwall.guided import (
     preset_defaults,
     summary_rows,
 )
+from pitwall.model_advisor import (
+    CATALOG_REVIEWED,
+    CORE_ONLY,
+    FIRST_TRY,
+    MODEL_OPTIONS,
+)
 from pitwall.providers import ProviderError, list_local_models
 from pitwall.tools import (
     CURRENT_RACE,
@@ -272,7 +278,10 @@ def doctor(
             {
                 "check": "Ollama",
                 "status": "optional",
-                "detail": "disabled; no local service contacted",
+                "detail": (
+                    "disabled; no local service contacted; run "
+                    "'pitwall model recommend' for read-only choices"
+                ),
             }
         )
     else:
@@ -969,6 +978,85 @@ def race_show(ctx: typer.Context) -> None:
     console.print(table)
 
 
+@model_app.command("recommend")
+def model_recommend(ctx: typer.Context) -> None:
+    """Run read-only local checks and suggest an optional Ollama model."""
+    state: State = ctx.obj
+    try:
+        comparison = compare_strategies(load_preset(DEFAULT_PRESET), iterations=20)
+        core_ready = comparison.preferred.plan.is_feasible
+        core_detail = (
+            f"{comparison.preferred.name}, "
+            f"{comparison.preferred.plan.predicted_laps} laps"
+        )
+    except Exception as exc:  # pragma: no cover - defensive diagnostics
+        core_ready = False
+        core_detail = str(exc)
+
+    options = [option.to_dict() for option in MODEL_OPTIONS]
+    payload = {
+        "ok": core_ready,
+        "status": "provisional",
+        "provider": "ollama-only",
+        "catalog_reviewed": CATALOG_REVIEWED,
+        "core_check": {
+            "status": "pass" if core_ready else "fail",
+            "detail": core_detail,
+        },
+        "operational_default": CORE_ONLY.to_dict(),
+        "optional_first_try": FIRST_TRY.to_dict() if core_ready else None,
+        "choices": options,
+        "pitwall_conformance_tested": False,
+        "changes_made": False,
+        "downloads_started": False,
+        "validation": (
+            "Provisional candidate guidance only; Pitwall has not published a "
+            "real-model tool-calling conformance benchmark."
+        ),
+    }
+    if state.json_output:
+        _print_json(payload)
+    else:
+        console.print(
+            Panel.fit(
+                "[bold]Read-only Ollama model guide[/bold]\n"
+                "Nothing was downloaded and no setting was changed.",
+                border_style="cyan",
+            )
+        )
+        console.print(
+            f"Core self-check: {'pass' if core_ready else 'fail'} · {core_detail}"
+        )
+        table = Table(title="Ollama-only choices")
+        table.add_column("Role")
+        table.add_column("Model")
+        table.add_column("Approx. model storage", justify="right")
+        table.add_column("Meaning")
+        for option in MODEL_OPTIONS:
+            table.add_row(
+                option.label,
+                option.model or "none",
+                f"{option.approximate_model_gb:g} GB",
+                option.purpose,
+            )
+        console.print(table)
+        if core_ready:
+            console.print(
+                "\nCore-only remains the verified operational path. If you choose "
+                "optional natural-language routing, first try:"
+            )
+            console.print(f"  ollama pull {FIRST_TRY.model}")
+            console.print(f"  pitwall model use {FIRST_TRY.model}")
+        else:
+            console.print("\nFix the core check before adding a model.")
+        console.print(
+            "[yellow]Provisional guidance:[/yellow] the self-check does not test "
+            "real-model tool-calling quality or hardware fit."
+        )
+    if not core_ready:
+        raise typer.Exit(code=1)
+
+
 @model_app.command("list")
 def model_list(ctx: typer.Context) -> None:
     """List models already installed in local Ollama."""
@@ -977,12 +1065,19 @@ def model_list(ctx: typer.Context) -> None:
     try:
         models = list_local_models(state.workspace.settings())
     except (ProviderError, WorkspaceError, ValueError) as exc:
-        _command_error(state, f"Model configuration is not ready: {exc}")
+        _command_error(
+            state,
+            f"Model configuration is not ready: {exc}. "
+            "Run 'pitwall model recommend' for no-download choices.",
+        )
     if state.json_output:
         _print_json({"models": models})
         return
     if not models:
-        console.print("Ollama is running, but no models are installed.")
+        console.print(
+            "Ollama is running, but no models are installed. "
+            "Run `pitwall model recommend` for storage-aware choices."
+        )
         return
     console.print("\n".join(f"  • {name}" for name in models))
 
@@ -1011,7 +1106,9 @@ def model_use(
         if name not in models:
             _command_error(
                 state,
-                f"{name!r} is not installed. Available: {', '.join(models) or 'none'}",
+                f"{name!r} is not installed. Available: "
+                f"{', '.join(models) or 'none'}. Run 'pitwall model recommend' "
+                "for no-download choices.",
             )
     updated = replace(settings, provider="ollama", model=name)
     state.workspace.save_settings(updated)

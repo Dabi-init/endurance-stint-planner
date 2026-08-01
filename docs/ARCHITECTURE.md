@@ -72,7 +72,8 @@ There is no weighted language-model score.
 ## Ollama routing loop
 
 1. The agent sends a fixed safety policy, the user question, and the six JSON
-   tool schemas to `/api/chat`.
+   tool schemas to `/api/chat`. The provider accepts only a loopback endpoint,
+   ignores environment proxy settings, and rejects every HTTP redirect.
 2. Each requested call is checked for known name, relevance, argument schema,
    range limits, total-call caps, and explicit consent for report export.
 3. Failed or irrelevant calls may be returned to Ollama for one bounded retry.

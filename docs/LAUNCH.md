@@ -108,6 +108,7 @@ CI logs, or a reproducible command, it does not ship.
 > - All bundled examples are synthetic (Evidence Level C)
 > - No live timing, no competitor data, no official regulation database
 > - No published real-model conformance benchmark; direct commands remain the operational path
+> - `pitwall model recommend` is advisory only; it never contacts Ollama, downloads a model, creates a workspace, or changes configuration
 >
 > ### Install the current candidate
 > ```
@@ -202,11 +203,26 @@ No. Every deterministic feature works with no model at all. If you install
 questions into typed local tools over loopback only. There is no cloud AI and
 no API key anywhere.
 
-Pitwall never downloads a model automatically. The example `qwen3:8b` model is
-about 5.2 GB and Ollama's Windows installation requires at least 4 GB, so budget
-roughly 9.2 GB or more before caches and other models. Disable and remove it with
-`python -m pitwall model off` followed by `ollama rm qwen3:8b`. By comparison,
-the measured current source plus its private core environment uses about 28 MB.
+Pitwall never downloads a model automatically. Core-only remains the verified
+operational default. The provisional first model to try is `qwen3:8b` (about
+5.2 GB of model storage): opt in with
+`ollama pull qwen3:8b`, then `python -m pitwall model use qwen3:8b`. The lighter
+unverified candidate is `qwen3:4b` (about 2.5 GB): use `ollama pull qwen3:4b`, then
+`python -m pitwall model use qwen3:4b`. Ollama's Windows installation requires
+at least 4 GB, so budget roughly 9.2 GB or more for the 8B setup before caches
+and other models.
+
+Core-only uses zero model storage, needs no Ollama installation, and keeps every
+deterministic function available. Clear a previous selection with
+`python -m pitwall model off`, then remove its files with `ollama rm qwen3:8b`
+or `ollama rm qwen3:4b`. By comparison, the measured current source plus its
+private core environment uses about 28 MB.
+
+`pitwall model recommend` runs a read-only deterministic core self-check and
+prints these Ollama-only choices. It never contacts Ollama, downloads a model,
+creates a workspace, or changes configuration. Both candidates remain
+unverified until Pitwall publishes a real-model tool-calling conformance
+benchmark.
 
 **4. Can I use it for real (non-sim) racing?**
 You can, but treat it as a planning aid, not an authority. It is alpha software

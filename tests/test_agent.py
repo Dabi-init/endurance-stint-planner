@@ -62,6 +62,14 @@ class FakeHttpResponse:
         return encoded if size < 0 else encoded[:size]
 
 
+class FakeHttpOpener:
+    def __init__(self, open_request) -> None:
+        self.open_request = open_request
+
+    def open(self, request, timeout):
+        return self.open_request(request, timeout)
+
+
 @pytest.fixture
 def workspace(tmp_path: Path) -> PitwallWorkspace:
     result = PitwallWorkspace.from_path(tmp_path / ".pitwall")
@@ -136,8 +144,8 @@ def test_ollama_provider_parses_tool_calls_and_lists_models(
         ]
     )
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
-        lambda request, timeout: next(responses),
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(lambda request, timeout: next(responses)),
     )
     settings = Settings(provider="ollama", model="qwen3:8b")
     provider = OllamaProvider(settings)
@@ -153,15 +161,20 @@ def test_ollama_errors_are_explicit_and_probe_needs_no_selected_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
-        lambda request, timeout: FakeHttpResponse({"models": [{"name": "local"}]}),
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(
+            lambda request, timeout: FakeHttpResponse({"models": [{"name": "local"}]})
+        ),
     )
     assert list_local_models(Settings()) == ["local"]
 
     def fail(request, timeout):
         raise URLError("offline")
 
-    monkeypatch.setattr("pitwall.providers.urlopen", fail)
+    monkeypatch.setattr(
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(fail),
+    )
     with pytest.raises(ProviderError, match="Cannot reach local Ollama"):
         OllamaProvider(Settings(provider="ollama", model="local")).list_models()
     with pytest.raises(ProviderError, match="No Ollama model"):

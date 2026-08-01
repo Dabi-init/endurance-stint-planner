@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Never, Protocol
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from pitwall.config import Settings
 
@@ -15,6 +15,33 @@ MAX_PROVIDER_RESPONSE_BYTES = 8 * 1024 * 1024
 
 class ProviderError(RuntimeError):
     """A local model could not be reached or returned an invalid response."""
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Fail closed instead of following a response away from the validated URL."""
+
+    def redirect_request(
+        self,
+        request: Request,
+        response: Any,
+        code: int,
+        message: str,
+        headers: Any,
+        new_url: str,
+    ) -> Never:
+        response.close()
+        raise HTTPError(
+            request.full_url,
+            code,
+            f"{message}; Ollama redirects are not allowed",
+            headers,
+            None,
+        )
+
+
+def _build_local_opener():
+    """Create an isolated client that ignores proxies and rejects redirects."""
+    return build_opener(ProxyHandler({}), _RejectRedirects())
 
 
 @dataclass(frozen=True)
@@ -54,6 +81,7 @@ class OllamaProvider:
         self.host = settings.ollama_host.rstrip("/")
         self.model = settings.model
         self.timeout_sec = timeout_sec
+        self._opener = _build_local_opener()
 
     def chat(
         self,
@@ -144,7 +172,7 @@ class OllamaProvider:
             method="GET" if payload is None else "POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout_sec) as response:
+            with self._opener.open(request, timeout=self.timeout_sec) as response:
                 encoded = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
                 if len(encoded) > MAX_PROVIDER_RESPONSE_BYTES:
                     raise ProviderError(

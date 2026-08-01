@@ -26,9 +26,11 @@ Runtime files stay under the selected `.pitwall` workspace. Telemetry must be
 explicitly ingested before a model-visible tool can read it; tool file names
 cannot escape `.pitwall/data`.
 
-The optional Ollama provider is restricted to loopback hosts. The model receives
-six typed race tools and no shell, browser, arbitrary network, arbitrary file,
-deletion, or overwrite capability. New reports are create-only.
+The optional Ollama provider is restricted to loopback hosts. Its private HTTP
+client ignores environment proxy settings and rejects redirects so prompts and
+tool context stay on the validated endpoint. The model receives six typed race
+tools and no shell, browser, arbitrary network, arbitrary file, deletion, or
+overwrite capability. New reports are create-only.
 
 Security reports are especially useful for:
 

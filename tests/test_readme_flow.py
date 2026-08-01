@@ -50,6 +50,8 @@ class TestReadmeQuickStart:
         assert "Python 3.11" in readme
         assert "Evidence Level C" in readme
         assert "Ollama" in readme
+        assert r".\.venv\Scripts\python.exe -m pitwall doctor" in readme
+        assert r"Scripts\pitwall.exe" not in readme
 
     def test_launch_scripts_use_an_isolated_install(self) -> None:
         batch = (ROOT / "run.bat").read_text(encoding="utf-8")

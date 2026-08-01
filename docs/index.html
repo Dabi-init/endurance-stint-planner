@@ -341,7 +341,21 @@ python3 -m venv .venv
     </div>
     <p class="sub">The first comparison uses the bundled Evidence C demo. Run <code>/setup</code> before relying on your own race inputs. No API key, cloud account, or data upload.</p>
     <div class="note" style="margin-top:22px">
-      <p style="margin:0"><strong>Optional AI storage.</strong> Pitwall never downloads a model automatically. The example <code>qwen3:8b</code> model is about 5.2 GB, while Ollama's Windows installation requires at least 4 GB, so budget roughly 9.2 GB or more before caches and other models. From the extracted Windows folder, disable it with <code>.\.venv\Scripts\python.exe -m pitwall model off</code>, then remove the model with <code>ollama rm qwen3:8b</code>; uninstall Ollama separately if you no longer need it.</p>
+      <p><strong>Choose your model storage.</strong> Every deterministic feature works with no AI. Core-only uses <strong>0 GB of model storage</strong>; no Ollama install or model opt-in is required.</p>
+      <ul>
+        <li><strong>Core only:</strong> keep AI off, or clear a previous selection with <code>.\.venv\Scripts\python.exe -m pitwall model off</code>.</li>
+        <li><strong>Provisional first try:</strong> <code>qwen3:8b</code>, approximately 5.2 GB of model storage.</li>
+        <li><strong>Smaller unverified candidate:</strong> <code>qwen3:4b</code>, approximately 2.5 GB of model storage.</li>
+      </ul>
+      <pre><code># Provisional first model to try
+ollama pull qwen3:8b
+.\.venv\Scripts\python.exe -m pitwall model use qwen3:8b
+
+# Smaller unverified candidate
+ollama pull qwen3:4b
+.\.venv\Scripts\python.exe -m pitwall model use qwen3:4b</code></pre>
+      <p><code>pitwall model recommend</code> runs a read-only deterministic core self-check and prints these Ollama-only choices. It never contacts Ollama, downloads a model, creates a workspace, or changes configuration. Core-only is the verified operational path; both model candidates remain unverified until Pitwall publishes a real-model tool-calling conformance benchmark.</p>
+      <p style="margin-bottom:0">Pitwall never downloads a model automatically. Model sizes exclude Ollama and its caches. Ollama's Windows installation requires at least 4 GB, so the 8B setup needs roughly 9.2 GB or more. Remove an opted-in model with <code>.\.venv\Scripts\python.exe -m pitwall model off</code> followed by <code>ollama rm qwen3:8b</code> or <code>ollama rm qwen3:4b</code>; uninstall Ollama separately if you no longer need it.</p>
     </div>
   </div>
 </section>
@@ -356,7 +370,7 @@ python3 -m venv .venv
       <li>No real-session case studies yet. Every bundled example uses synthetic data.</li>
       <li>Safety Car support is a pre-race what-if only — it is not live race control.</li>
       <li>No live timing, no competitor prediction, no proprietary telemetry APIs.</li>
-      <li>Ollama is optional and never auto-downloaded — every deterministic feature works with no AI at all.</li>
+      <li>Ollama is optional and never auto-downloaded — every deterministic feature works with no AI at all. Model recommendations are provisional until a real-model conformance benchmark is published.</li>
       <li>Evidence Level C means the numbers came from preset or synthetic assumptions, not measured data.</li>
       <li>Sporting regulations are your responsibility. Pitwall Agent checks the rules you configure, not any official rulebook.</li>
     </ul>

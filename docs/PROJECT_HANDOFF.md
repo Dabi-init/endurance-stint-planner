@@ -172,6 +172,15 @@ prompts, the report generator and trigger cards landed with PR #16; no real
 validation result has been published, and simulator adapters remain open as
 #12.)*
 
+**Model-discovery UX:** `pitwall model recommend` is an informational,
+Ollama-only command that performs an in-memory deterministic core self-check but
+never contacts Ollama, downloads a model, creates a workspace, or changes
+configuration. It presents core-only/no model as the verified operational path,
+`qwen3:8b` (about 5.2 GB) as a provisional first model to try, and `qwen3:4b`
+(about 2.5 GB) as a smaller unverified candidate. Every deterministic function
+remains available without AI. Keep both model candidates explicitly unverified
+until Pitwall publishes a real-model tool-calling conformance benchmark.
+
 **0.5 — interoperability:** read-only MCP server for the deterministic tools;
 optional local HTTP API; versioned import/export schema; scheduled post-session
 calibration report.
