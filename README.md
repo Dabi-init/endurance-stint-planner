@@ -57,6 +57,19 @@ Evidence C · Low confidence · generic manual uncertainty
 
 Numbers above are a bundled example, not a performance claim.
 
+## See it working
+
+The screenshots below are captured from the published alpha.2 CLI running the
+bundled 6-hour preset in core-only mode.
+
+![Pitwall compare output ranks Conservative, Balanced, and Fuel Save strategies with uncertainty and trigger cards.](docs/assets/pitwall-compare-demo.png)
+
+*Synthetic example data (Evidence Level C) — not a performance claim.*
+
+![Pitwall plan output shows the deterministic stint-by-stint plan, fuel, tyres, drivers, and trigger cards.](docs/assets/pitwall-plan-demo.png)
+
+*Synthetic example data (Evidence Level C) — not a performance claim.*
+
 ## Why this is useful
 
 | Race question | Pitwall answer |
