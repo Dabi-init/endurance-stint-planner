@@ -88,6 +88,7 @@ WELCOME_NEXT_STEPS = [
     "pitwall compare         # rank three strategies under the same uncertainty",
     "pitwall plan            # see the stint-by-stint sheet",
     "pitwall export          # write a Markdown pit sheet for the crew",
+    "pitwall model recommend # optional read-only Ollama choices; downloads nothing",
 ]
 
 GUIDED_OFFER = (

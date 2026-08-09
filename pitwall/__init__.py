@@ -5,4 +5,4 @@ from pitwall.config import Settings
 from pitwall.workspace import PitwallWorkspace
 
 __all__ = ["AgentReply", "PitwallAgent", "PitwallWorkspace", "Settings"]
-__version__ = "0.4.0a1"
+__version__ = "0.4.0a2"

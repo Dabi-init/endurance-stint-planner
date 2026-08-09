@@ -1,0 +1,11 @@
+include CHANGELOG.md
+include CITATION.cff
+include CONTRIBUTING.md
+include SECURITY.md
+include requirements.txt
+include requirements-dev.txt
+include run.bat
+include run.ps1
+recursive-include docs *
+recursive-include examples *
+recursive-include tests *.py

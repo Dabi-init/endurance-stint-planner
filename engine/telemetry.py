@@ -42,6 +42,7 @@ ALIASES: dict[str, tuple[str, ...]] = {
 
 GREEN_VALUES = {"", "green", "g", "clear", "racing", "1"}
 TRUE_VALUES = {"1", "true", "yes", "y", "pit", "in"}
+MAX_TELEMETRY_ROWS = 50_000
 
 
 @dataclass(frozen=True)
@@ -213,14 +214,25 @@ def _linear_slope(points: list[tuple[float, float]]) -> float | None:
     return sum((x - x_mean) * (y - y_mean) for x, y in points) / denominator
 
 
-def _read_text(source: str | bytes | TextIO) -> str:
+def _text_stream(source: str | bytes | TextIO) -> TextIO:
     if hasattr(source, "read"):
-        value = source.read()
-    else:
-        value = source
-    if isinstance(value, bytes):
-        return value.decode("utf-8-sig")
-    return str(value)
+        return source  # type: ignore[return-value]
+    if isinstance(source, bytes):
+        return StringIO(source.decode("utf-8-sig"))
+    return StringIO(str(source))
+
+
+def _bounded_rows(reader: csv.DictReader) -> Iterable[dict[str, Any]]:
+    try:
+        for row_number, row in enumerate(reader, start=1):
+            if row_number > MAX_TELEMETRY_ROWS:
+                raise ValueError(
+                    "Telemetry has more than "
+                    f"{MAX_TELEMETRY_ROWS:,} rows; split or aggregate the session"
+                )
+            yield row
+    except csv.Error as exc:
+        raise ValueError(f"Telemetry CSV cannot be parsed: {exc}") from exc
 
 
 def calibrate_telemetry(
@@ -230,17 +242,16 @@ def calibrate_telemetry(
     is_synthetic: bool = False,
 ) -> TelemetryCalibration:
     """Profile, validate, and calibrate a generic one-row-per-lap CSV."""
-    text = _read_text(source)
-    reader = csv.DictReader(StringIO(text))
+    reader = csv.DictReader(_text_stream(source))
     headers = reader.fieldnames or []
     mapped = _map_headers(headers)
-    raw_rows = list(reader)
     findings: list[QualityFinding] = []
 
     missing_core = [
         column for column in ("lap", "lap_time_sec") if column not in mapped
     ]
     if missing_core:
+        total = sum(1 for _row in _bounded_rows(reader))
         findings.append(
             QualityFinding(
                 "Critical",
@@ -251,7 +262,7 @@ def calibrate_telemetry(
         return TelemetryCalibration(
             source_name,
             is_synthetic,
-            len(raw_rows),
+            total,
             0,
             0,
             0,
@@ -263,7 +274,9 @@ def calibrate_telemetry(
 
     records: list[dict[str, Any]] = []
     invalid_rows = 0
-    for raw in raw_rows:
+    total = 0
+    for raw in _bounded_rows(reader):
+        total += 1
         lap_value = _float(raw.get(mapped["lap"]))
         lap_time = _lap_time_seconds(raw.get(mapped["lap_time_sec"]))
         if (
@@ -342,7 +355,6 @@ def calibrate_telemetry(
     ]
     tyre_slope = _linear_slope(tyre_points)
 
-    total = len(raw_rows)
     valid = len(records)
     score = 100.0
     if total < 20:
@@ -436,17 +448,9 @@ def calibrate_telemetry(
         confidence = "Low"
     else:
         confidence = "Insufficient"
-    evidence_level = (
-        "C"
-        if is_synthetic
-        else (
-            "A"
-            if confidence == "High"
-            else "B"
-            if confidence in {"Medium", "Low"}
-            else "C"
-        )
-    )
+    # One imported session can support Level B at best. Level A requires several
+    # independently audited real sessions and is therefore not assigned here.
+    evidence_level = "C" if is_synthetic or confidence == "Insufficient" else "B"
 
     fuel_supported = fuel_deltas if len(fuel_deltas) >= 5 else []
     return TelemetryCalibration(

@@ -5,7 +5,10 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+from pitwall import __version__
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -32,6 +35,7 @@ class TestReadmeQuickStart:
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         assert "typer>=" in pyproject and "<1" in pyproject
         assert "rich>=" in pyproject and "<16" in pyproject
+        assert 'requires-python = ">=3.11,<3.15"' in pyproject
         assert "streamlit" not in pyproject
         assert "pandas" not in pyproject
 
@@ -46,15 +50,57 @@ class TestReadmeQuickStart:
         assert "Python 3.11" in readme
         assert "Evidence Level C" in readme
         assert "Ollama" in readme
+        assert r".\.venv\Scripts\python.exe -m pitwall doctor" in readme
+        assert r"Scripts\pitwall.exe" not in readme
 
     def test_launch_scripts_use_an_isolated_install(self) -> None:
         batch = (ROOT / "run.bat").read_text(encoding="utf-8")
         powershell = (ROOT / "run.ps1").read_text(encoding="utf-8")
         assert "run.ps1" in batch
-        assert "python -m venv .venv" in powershell
-        assert "-m pip install -e ." in powershell
-        assert "-m pitwall doctor" in powershell
+        assert "Get-Command py" in powershell
+        assert "Get-Command python" in powershell
+        assert "-m venv .venv" in powershell
+        assert "-m pip install" in powershell
+        assert "--no-cache-dir" in powershell
+        assert "PIP_NO_CACHE_DIR" in powershell
+        assert "PIP_DISABLE_PIP_VERSION_CHECK" in powershell
+        assert "-e ." in powershell
+        assert ".pitwall-project-hash" in powershell
+        assert "-m pip check" in powershell
+        assert "-m pitwall doctor --core-only" in powershell
+        assert "m.version('pitwall-agent')" in powershell
+        assert "$DoctorOnly" in powershell
         assert "-m pitwall" in powershell
+
+    def test_source_version_metadata_agrees(self) -> None:
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+
+        assert project["project"]["version"] == __version__
+        major, minor, patch_alpha = __version__.split(".")
+        patch, alpha = patch_alpha.split("a")
+        assert f'version: "{major}.{minor}.{patch}-alpha.{alpha}"' in citation
+
+    def test_alpha2_release_copy_uses_versioned_links(self) -> None:
+        public_files = [
+            (ROOT / "README.md").read_text(encoding="utf-8"),
+            (ROOT / "docs/index.html").read_text(encoding="utf-8"),
+            (ROOT / "docs/LAUNCH.md").read_text(encoding="utf-8"),
+        ]
+        release_tag = "v0.4.0-alpha.2"
+
+        assert all(
+            f"archive/refs/tags/{release_tag}.zip" in text for text in public_files
+        )
+        assert "releases/download/v0.4.0-alpha.2/" in public_files[0]
+        assert "releases/download/v0.4.0-alpha.2/" in public_files[1]
+        assert "## [0.4.0-alpha.2] - 2026-08-02" in (ROOT / "CHANGELOG.md").read_text(
+            encoding="utf-8"
+        )
+        for text in public_files:
+            lowered = text.lower()
+            assert "not yet published" not in lowered
+            assert "no alpha.2 wheel exists" not in lowered
 
     def test_fresh_clone_core_smoke(self, tmp_path: Path) -> None:
         destination = tmp_path / "fresh-clone"

@@ -8,11 +8,12 @@ authors:
 repository-code: "https://github.com/Dabi-init/endurance-stint-planner"
 url: "https://github.com/Dabi-init/endurance-stint-planner"
 license: MIT
-version: "0.4.0-alpha.1"
-date-released: "2026-07-26"
+version: "0.4.0-alpha.2"
 keywords:
-  - agent
   - endurance racing
+  - endurance stint planner
+  - fuel strategy
+  - pit stop strategy
   - race strategy
   - Ollama
   - telemetry

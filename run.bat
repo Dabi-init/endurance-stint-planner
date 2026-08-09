@@ -9,3 +9,6 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+echo.
+echo Pitwall session ended. This window can now be closed.
+pause

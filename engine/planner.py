@@ -92,10 +92,22 @@ def validate_config(
             "Set the scheduled duration in hours.",
         ),
         (
-            config.base_lap_time_sec > 0,
+            config.race_duration_hours <= 48,
+            "race_duration_too_large",
+            "Race duration exceeds the 48-hour planning limit.",
+            "Use a race duration no greater than 48 hours.",
+        ),
+        (
+            config.base_lap_time_sec >= 20,
             "invalid_lap_time",
-            "Base lap time must be greater than zero.",
-            "Enter a representative green-flag lap time in seconds.",
+            "Base lap time must be at least 20 seconds.",
+            "Enter a realistic representative green-flag lap time in seconds.",
+        ),
+        (
+            config.base_lap_time_sec <= 900,
+            "lap_time_too_large",
+            "Base lap time exceeds the 900-second planning limit.",
+            "Check the lap-time unit and enter seconds.",
         ),
         (
             config.fuel_tank_liters > 0,
@@ -104,10 +116,22 @@ def validate_config(
             "Enter the usable tank capacity in litres.",
         ),
         (
+            config.fuel_tank_liters <= 250,
+            "tank_too_large",
+            "Fuel tank exceeds the 250-litre planning limit.",
+            "Check the tank unit and usable-capacity value.",
+        ),
+        (
             config.fuel_consumption_per_lap > 0,
             "invalid_consumption",
             "Fuel consumption per lap must be greater than zero.",
             "Enter measured or assumed consumption in litres per lap.",
+        ),
+        (
+            config.fuel_consumption_per_lap <= 60,
+            "consumption_too_large",
+            "Fuel consumption exceeds the 60 L/lap planning limit.",
+            "Check the fuel-consumption unit.",
         ),
         (
             config.refuel_rate_liters_per_sec > 0,
@@ -120,6 +144,12 @@ def validate_config(
             "invalid_tyre_life",
             "Tyre life must be at least one lap.",
             "Set a positive tyre-life cap.",
+        ),
+        (
+            config.tyre_life_laps <= 200,
+            "tyre_life_too_large",
+            "Tyre life exceeds the 200-lap planning limit.",
+            "Use a realistic intended tyre-life cap.",
         ),
         (
             config.pit_stop_time_loss_sec >= 0,
@@ -156,6 +186,14 @@ def validate_config(
                 "no_drivers",
                 "At least one driver is required.",
                 "Add the entered drivers and their categories.",
+            )
+        )
+    elif len(config.drivers) > 8:
+        issues.append(
+            Infeasibility(
+                "too_many_drivers",
+                "Driver roster exceeds the eight-driver planning limit.",
+                "Keep at most eight drivers in one race configuration.",
             )
         )
     else:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
@@ -19,6 +20,73 @@ CATEGORY_COLORS = {
     DriverCategory.SILVER: "#75a7ff",
     DriverCategory.BRONZE: "#f5a65b",
 }
+
+
+def _object(value: Any, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def _field_label(prefix: str, key: str) -> str:
+    return f"{prefix}.{key}" if prefix else key
+
+
+def _string_field(
+    data: dict[str, Any],
+    key: str,
+    default: str,
+    *,
+    prefix: str = "",
+) -> str:
+    value = data.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"{_field_label(prefix, key)} must be a string")
+    return value
+
+
+def _number_field(
+    data: dict[str, Any],
+    key: str,
+    default: float,
+    *,
+    prefix: str = "",
+) -> float:
+    value = data.get(key, default)
+    label = _field_label(prefix, key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be a finite number")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{label} must be a finite number")
+    return number
+
+
+def _integer_field(
+    data: dict[str, Any],
+    key: str,
+    default: int,
+    *,
+    prefix: str = "",
+) -> int:
+    value = data.get(key, default)
+    label = _field_label(prefix, key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{label} must be an integer")
+    return value
+
+
+def _boolean_field(
+    data: dict[str, Any],
+    key: str,
+    default: bool,
+    *,
+    prefix: str = "",
+) -> bool:
+    value = data.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(f"{_field_label(prefix, key)} must be a boolean")
+    return value
 
 
 def format_duration(minutes: float | None) -> str:
@@ -74,12 +142,35 @@ class Driver:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], index: int = 0) -> Driver:
-        name = str(data.get("name", f"Driver {index + 1}"))
+        prefix = f"drivers[{index}]"
+        payload = _object(data, prefix)
+        category_value = _string_field(
+            payload,
+            "category",
+            "Pro",
+            prefix=prefix,
+        )
+        try:
+            category = DriverCategory(category_value)
+        except ValueError as exc:
+            raise ValueError(
+                f"{prefix}.category must be one of: Pro, Silver, Bronze"
+            ) from exc
         return cls(
-            name=name,
-            category=DriverCategory(data.get("category", "Pro")),
-            pace_delta_sec=float(data.get("pace_delta_sec", 0.0)),
-            driver_id=str(data.get("id", "")).strip(),
+            name=_string_field(
+                payload,
+                "name",
+                f"Driver {index + 1}",
+                prefix=prefix,
+            ),
+            category=category,
+            pace_delta_sec=_number_field(
+                payload,
+                "pace_delta_sec",
+                0.0,
+                prefix=prefix,
+            ),
+            driver_id=_string_field(payload, "id", "", prefix=prefix).strip(),
         )
 
 
@@ -128,23 +219,68 @@ class DriverRegulations:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DriverRegulations:
+        payload = _object(data, "regulations")
         return cls(
-            max_continuous_stint_min=float(data.get("max_continuous_stint_min", 120.0)),
-            pro_max_continuous_stint_min=float(
-                data.get("pro_max_continuous_stint_min", 120.0)
+            max_continuous_stint_min=_number_field(
+                payload,
+                "max_continuous_stint_min",
+                120.0,
+                prefix="regulations",
             ),
-            silver_max_continuous_stint_min=float(
-                data.get("silver_max_continuous_stint_min", 90.0)
+            pro_max_continuous_stint_min=_number_field(
+                payload,
+                "pro_max_continuous_stint_min",
+                120.0,
+                prefix="regulations",
             ),
-            bronze_max_continuous_stint_min=float(
-                data.get("bronze_max_continuous_stint_min", 65.0)
+            silver_max_continuous_stint_min=_number_field(
+                payload,
+                "silver_max_continuous_stint_min",
+                90.0,
+                prefix="regulations",
             ),
-            min_total_drive_min=float(data.get("min_total_drive_min", 0.0)),
-            max_total_drive_min=float(data.get("max_total_drive_min", 0.0)),
-            bronze_min_drive_min=float(data.get("bronze_min_drive_min", 120.0)),
-            silver_min_drive_min=float(data.get("silver_min_drive_min", 0.0)),
-            fuel_safety_laps=int(data.get("fuel_safety_laps", 1)),
-            change_tyres_every_stop=bool(data.get("change_tyres_every_stop", True)),
+            bronze_max_continuous_stint_min=_number_field(
+                payload,
+                "bronze_max_continuous_stint_min",
+                65.0,
+                prefix="regulations",
+            ),
+            min_total_drive_min=_number_field(
+                payload,
+                "min_total_drive_min",
+                0.0,
+                prefix="regulations",
+            ),
+            max_total_drive_min=_number_field(
+                payload,
+                "max_total_drive_min",
+                0.0,
+                prefix="regulations",
+            ),
+            bronze_min_drive_min=_number_field(
+                payload,
+                "bronze_min_drive_min",
+                120.0,
+                prefix="regulations",
+            ),
+            silver_min_drive_min=_number_field(
+                payload,
+                "silver_min_drive_min",
+                0.0,
+                prefix="regulations",
+            ),
+            fuel_safety_laps=_integer_field(
+                payload,
+                "fuel_safety_laps",
+                1,
+                prefix="regulations",
+            ),
+            change_tyres_every_stop=_boolean_field(
+                payload,
+                "change_tyres_every_stop",
+                True,
+                prefix="regulations",
+            ),
         )
 
 
@@ -210,7 +346,10 @@ class RaceConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RaceConfig:
-        raw_drivers = data.get("drivers", [])
+        payload = _object(data, "race configuration")
+        raw_drivers = payload.get("drivers", [])
+        if not isinstance(raw_drivers, list):
+            raise ValueError("drivers must be a JSON array")
         drivers: list[Driver] = []
         seen_ids: dict[str, int] = {}
         for index, raw in enumerate(raw_drivers):
@@ -221,28 +360,39 @@ class RaceConfig:
             unique_id = base_id if occurrence == 1 else f"{base_id}-{occurrence}"
             drivers.append(replace(driver, driver_id=unique_id))
 
-        regs = DriverRegulations.from_dict(data.get("regulations", {}))
+        raw_regulations = payload.get("regulations", {})
+        regs = DriverRegulations.from_dict(raw_regulations)
         return cls(
-            race_name=str(data.get("race_name", "Custom Race")),
-            race_duration_hours=float(data.get("race_duration_hours", 6.0)),
-            base_lap_time_sec=float(data.get("base_lap_time_sec", 120.0)),
-            fuel_tank_liters=float(data.get("fuel_tank_liters", 100.0)),
-            fuel_consumption_per_lap=float(data.get("fuel_consumption_per_lap", 2.9)),
-            pit_stop_time_loss_sec=float(data.get("pit_stop_time_loss_sec", 55.0)),
-            refuel_rate_liters_per_sec=float(
-                data.get("refuel_rate_liters_per_sec", 2.5)
+            race_name=_string_field(payload, "race_name", "Custom Race"),
+            race_duration_hours=_number_field(payload, "race_duration_hours", 6.0),
+            base_lap_time_sec=_number_field(payload, "base_lap_time_sec", 120.0),
+            fuel_tank_liters=_number_field(payload, "fuel_tank_liters", 100.0),
+            fuel_consumption_per_lap=_number_field(
+                payload, "fuel_consumption_per_lap", 2.9
             ),
-            tyre_life_laps=int(data.get("tyre_life_laps", 28)),
-            tyre_change_time_sec=float(data.get("tyre_change_time_sec", 18.0)),
-            driver_change_time_sec=float(data.get("driver_change_time_sec", 18.0)),
-            services_parallel=bool(data.get("services_parallel", True)),
-            fuel_save_pace_cost_sec_per_pct=float(
-                data.get("fuel_save_pace_cost_sec_per_pct", 0.12)
+            pit_stop_time_loss_sec=_number_field(
+                payload, "pit_stop_time_loss_sec", 55.0
+            ),
+            refuel_rate_liters_per_sec=_number_field(
+                payload, "refuel_rate_liters_per_sec", 2.5
+            ),
+            tyre_life_laps=_integer_field(payload, "tyre_life_laps", 28),
+            tyre_change_time_sec=_number_field(payload, "tyre_change_time_sec", 18.0),
+            driver_change_time_sec=_number_field(
+                payload, "driver_change_time_sec", 18.0
+            ),
+            services_parallel=_boolean_field(payload, "services_parallel", True),
+            fuel_save_pace_cost_sec_per_pct=_number_field(
+                payload, "fuel_save_pace_cost_sec_per_pct", 0.12
             ),
             drivers=drivers,
             regulations=regs,
-            circuit_id=str(data.get("circuit_id", "")),
-            data_source=str(data.get("data_source", "Manual assumptions")),
+            circuit_id=_string_field(payload, "circuit_id", ""),
+            data_source=_string_field(
+                payload,
+                "data_source",
+                "Manual assumptions",
+            ),
         )
 
 

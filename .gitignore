@@ -41,6 +41,7 @@ outputs/
 # pytest / coverage
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 
 # mypy

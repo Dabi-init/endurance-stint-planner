@@ -57,8 +57,17 @@ class FakeHttpResponse:
     def __exit__(self, exc_type, exc, traceback) -> None:
         return None
 
-    def read(self) -> bytes:
-        return json.dumps(self.payload).encode()
+    def read(self, size: int = -1) -> bytes:
+        encoded = json.dumps(self.payload).encode()
+        return encoded if size < 0 else encoded[:size]
+
+
+class FakeHttpOpener:
+    def __init__(self, open_request) -> None:
+        self.open_request = open_request
+
+    def open(self, request, timeout):
+        return self.open_request(request, timeout)
 
 
 @pytest.fixture
@@ -135,8 +144,8 @@ def test_ollama_provider_parses_tool_calls_and_lists_models(
         ]
     )
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
-        lambda request, timeout: next(responses),
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(lambda request, timeout: next(responses)),
     )
     settings = Settings(provider="ollama", model="qwen3:8b")
     provider = OllamaProvider(settings)
@@ -152,15 +161,20 @@ def test_ollama_errors_are_explicit_and_probe_needs_no_selected_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "pitwall.providers.urlopen",
-        lambda request, timeout: FakeHttpResponse({"models": [{"name": "local"}]}),
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(
+            lambda request, timeout: FakeHttpResponse({"models": [{"name": "local"}]})
+        ),
     )
     assert list_local_models(Settings()) == ["local"]
 
     def fail(request, timeout):
         raise URLError("offline")
 
-    monkeypatch.setattr("pitwall.providers.urlopen", fail)
+    monkeypatch.setattr(
+        "pitwall.providers._build_local_opener",
+        lambda: FakeHttpOpener(fail),
+    )
     with pytest.raises(ProviderError, match="Cannot reach local Ollama"):
         OllamaProvider(Settings(provider="ollama", model="local")).list_models()
     with pytest.raises(ProviderError, match="No Ollama model"):
@@ -208,9 +222,8 @@ def test_model_must_receive_deterministic_tool_result(
     assert reply.mode == "ollama"
     assert reply.used_tools == ("compare_race_strategies",)
     assert "Balanced" in reply.answer
-    tool_message = provider.messages[-1][-2]
-    assert tool_message["role"] == "tool"
-    assert json.loads(tool_message["content"])["ok"] is True
+    assert len(provider.messages) == 1
+    assert reply.trace[-1]["result"]["ok"] is True
 
 
 def test_strategy_question_without_tool_is_replaced_by_audited_result(
@@ -225,7 +238,7 @@ def test_strategy_question_without_tool_is_replaced_by_audited_result(
     assert any("replaced" in warning for warning in reply.warnings)
 
 
-def test_agent_stops_repeating_tools_at_safety_limit(
+def test_agent_returns_after_first_successful_authoritative_tool(
     workspace: PitwallWorkspace,
 ) -> None:
     response = ModelMessage(
@@ -235,9 +248,9 @@ def test_agent_stops_repeating_tools_at_safety_limit(
     provider = FakeProvider([response, response])
     reply = PitwallAgent(workspace, provider=provider, max_steps=2).ask("Compare")
 
-    assert reply.mode == "ollama-bounded"
-    assert len(reply.used_tools) == 2
-    assert "safety limit" in reply.warnings[0]
+    assert reply.mode == "ollama"
+    assert reply.used_tools == ("compare_race_strategies",)
+    assert len(provider.messages) == 1
 
 
 def test_no_model_mode_still_answers_with_real_tools(
