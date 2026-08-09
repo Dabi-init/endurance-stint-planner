@@ -92,6 +92,9 @@ ul.check{list-style:none;padding:0;margin:0}
 ul.check li{position:relative;padding-left:26px;margin-bottom:10px;color:var(--muted)}
 ul.check li::before{content:"▸";position:absolute;left:4px;color:var(--accent-2)}
 pre{background:#010409;border:1px solid var(--line);border-radius:var(--radius);padding:18px;overflow-x:auto;font-family:var(--mono);font-size:.86rem;line-height:1.55;color:#d7e3f0;margin:0 0 16px}
+.terminal-shot{margin:24px 0 14px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#010409}
+.terminal-shot img{display:block;width:100%;height:auto}
+.terminal-shot figcaption{padding:12px 16px;color:var(--warn);font-size:.88rem;background:var(--card);border-top:1px solid var(--line)}
 code{font-family:var(--mono)}
 .note{border-left:3px solid var(--warn);background:rgba(245,158,11,.08);padding:14px 16px;border-radius:0 var(--radius) var(--radius) 0;color:var(--text)}
 .note strong{color:var(--warn)}
@@ -239,24 +242,12 @@ footer nav a{margin-right:16px}
 <section id="demo">
   <div class="wrap">
     <h2>What it looks like in the terminal</h2>
-    <p class="sub">Illustrative output from the bundled synthetic example — not a performance claim.</p>
-    <pre><code>$ pitwall doctor
-strategy core   pass      Conservative, 174 laps
-workspace       pass      .pitwall
-configuration   pass      valid
-Ollama           optional  deterministic mode is available
-
-$ pitwall compare
-Recommendation: Conservative
-Strategy       Projected laps  P10 laps  Stops  Reserve  Risk
-Conservative   174             174.0     6      2 laps   Low
-Balanced       174             174.0     6      1 lap    Low
-Fuel Save      174             173.0     6      1 lap    Low
-
-Evidence C · Low confidence · Manual assumptions
-
-$ pitwall export --name race_day
-Created .pitwall/reports/race_day.md · Conservative</code></pre>
+    <p class="sub">Captured output from the published alpha.2 CLI running the bundled synthetic 6-hour example in core-only mode.</p>
+    <figure class="terminal-shot">
+      <img src="assets/pitwall-compare-demo.png" alt="Pitwall compare output ranks Conservative, Balanced, and Fuel Save strategies, with uncertainty and deterministic trigger cards.">
+      <figcaption>Synthetic example data (Evidence Level C) — not a performance claim.</figcaption>
+    </figure>
+    <p class="small"><a href="assets/pitwall-plan-demo.png">Open the full stint-by-stint plan screenshot</a> — fuel, tyre, driver, pit-stop, and trigger-card output from the same deterministic run.</p>
   </div>
 </section>
 

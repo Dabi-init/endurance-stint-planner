@@ -40,43 +40,37 @@
 
 **Files:**
 - Modify: \`docs/index.html\`
-- Modify: \`tests/test_readme_flow.py\`
 
 **Interfaces:**
 - Consumes: \`assets/pitwall-compare-demo.png\` and \`assets/pitwall-plan-demo.png\` relative to \`docs/index.html\`.
 - Produces: an accessible \`#demo\` screenshot card, responsive image styling, and a direct plan-image link.
 
-- [ ] Add a focused test requiring both screenshot paths and the exact Evidence Level C caption.
-- [ ] Run the focused test and confirm it fails before the page change.
 - [ ] Add a \`.terminal-shot\` responsive image style and replace the text-only terminal illustration with the authentic comparison image, caption, and plan-image link.
-- [ ] Run the focused test and inspect desktop/mobile views for overflow and caption visibility.
+- [ ] Inspect desktop/mobile views for image loading, overflow, and caption visibility.
 - [ ] Commit: \`docs: show authentic terminal workflow on landing page\`.
 
 ### Task 3: Add the GitHub README showcase
 
 **Files:**
 - Modify: \`README.md\`
-- Modify: \`tests/test_readme_flow.py\`
 
 **Interfaces:**
 - Consumes: repository-relative \`docs/assets/pitwall-compare-demo.png\` and \`docs/assets/pitwall-plan-demo.png\`.
 - Produces: a concise \`## See it working\` section with two images, descriptive alt text, and the exact synthetic-demo caption.
 
-- [ ] Extend the focused test for README paths and captions; verify it fails before the README edit.
 - [ ] Add the compact README section after the local-first/Ollama boundary without analytics, external hosting, or performance claims.
-- [ ] Run the focused test and \`git diff --check\`.
+- [ ] Verify GitHub-relative image paths and \`git diff --check\`.
 - [ ] Commit: \`docs: add terminal workflow screenshots to readme\`.
 
 ### Task 4: Run full verification and submit safely
 
 **Files:**
-- Verify: \`README.md\`, \`docs/index.html\`, \`docs/assets/pitwall-compare-demo.png\`, \`docs/assets/pitwall-plan-demo.png\`, and \`tests/test_readme_flow.py\`
+- Verify: \`README.md\`, \`docs/index.html\`, \`docs/assets/pitwall-compare-demo.png\`, and \`docs/assets/pitwall-plan-demo.png\`
 
 **Interfaces:**
 - Consumes: completed image and document changes.
 - Produces: full quality-gate evidence and an open PR against \`main\`.
 
 - [ ] Run \`ruff check .\`, \`ruff format --check .\`, \`python -m compileall -q engine pitwall tests\`, and \`pytest --cov --cov-report=term-missing\`.
-- [ ] Confirm the diff contains only screenshots, documentation, and the focused test.
+- [ ] Confirm the diff contains only screenshots and documentation.
 - [ ] Push a feature branch, open a PR to \`main\`, and verify CI, CodeQL, and Pages before merging.
-
