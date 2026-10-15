@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from engine.f1 import best_f1_plan
+from engine.f1 import StintRequest, best_f1_plan, score_stints
 from engine.series_config import apply_overrides, load_setup
 from historical.terms import JOLPICA_TERMS, OPENF1_TERMS
 from pitwall_api.app import create_app
@@ -39,7 +39,14 @@ def test_declared_weather_is_not_a_forecast() -> None:
     assert dry.json()["open_meteo"] == "not called"
     assert dry.json()["plan"]["race_time_sec"] == 5466.21
     assert "Open-Meteo is not called" in dry.json()["note"]
-    assert wet.json()["plan"]["feasible"] is False
+    assert wet.json()["plan"]["feasible"] is True
+    assert wet.json()["plan"]["race_time_sec"] == 5466.21
+    assert [stint["compound"] for stint in wet.json()["plan"]["stints"]] == [
+        "HARD",
+        "SOFT",
+    ]
+    assert "not searched" in wet.json()["note"]
+    assert "two-compound" in wet.json()["note"]
     assert "stint life" in wet.json()["note"]
     setup = apply_overrides(
         load_setup(2024, 1),
@@ -57,6 +64,46 @@ def test_declared_weather_is_not_a_forecast() -> None:
     assert body["plan"]["race_time_sec"] == expected.race_time_sec
     assert "30 laps you typed" in body["note"]
     assert body["forecast"] is False
+    mixed = score_stints(
+        setup,
+        [StintRequest("INTERMEDIATE", 30), StintRequest("HARD", 27)],
+    )
+    assert mixed.feasible is True
+
+
+def test_weather_and_class_validation_errors_are_422() -> None:
+    client = _client()
+    short_life = client.post(
+        "/v1/f1/weather",
+        json={"season": 2024, "round": 1, "declared": "wet", "wet_life_laps": 0},
+    )
+    long_life = client.post(
+        "/v1/f1/weather",
+        json={"season": 2024, "round": 1, "declared": "wet", "wet_life_laps": 500},
+    )
+    unknown = client.post(
+        "/v1/f1/weather",
+        json={"season": 2024, "round": 1, "declared": "storm"},
+    )
+    too_many = client.post(
+        "/v1/endurance/classes",
+        json={"classes": [{"name": f"C{index}", "race": {}} for index in range(5)]},
+    )
+
+    assert short_life.status_code == 422
+    assert long_life.status_code == 422
+    assert unknown.status_code == 422
+    assert too_many.status_code == 422
+
+
+def test_accuracy_panel_shows_predicted_and_recorded_stop_laps() -> None:
+    script = _client().get("/static/wall.js").text
+
+    assert "predicted_stop_laps" in script
+    assert "actual_stop_laps" in script
+    assert "Predicted stop laps" in script
+    assert "recorded stop laps" in script
+    assert "Not validated yet" in script
 
 
 def test_sheets_are_created_once_and_never_replace_race_json(tmp_path: Path) -> None:

@@ -429,26 +429,34 @@ stored in this repository. A checkbox can speak the strategy sentence with the
 browser's own speech synthesis. The server does not generate that audio.
 
 `POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
-the two pit losses. It does not model the rival. `POST /v1/f1/odds` samples
-one feasible plan by nudging the file's degradation and pit-lane loss with a
-fixed seed. The response says that sample is not a P10–P90 forecast from race
-history.
+the two pit losses, then subtracts an out-lap warm-up and an in-lap delta and
+adds any traffic you say was avoided. Those three default to zero. It does not
+model the rival. `POST /v1/f1/odds` samples one feasible plan by nudging the
+file's degradation and pit-lane loss with a fixed seed. The page calls that
+sample a race-time spread. The response says it is not a P10–P90 forecast
+from race history.
 
 The Endurance view uses the bundled synthetic presets (6h, 4h, and 24h). It is
 not a World Endurance Championship entry list. Pro, Silver, and Bronze limits
-come from the preset file. Each class is planned on its own. A safety-car
+come from the preset file. Classes do not interact: there is no traffic,
+passing, or shared pit lane between them. A safety-car
 window is a minute and a duration you type. `POST /v1/endurance/telemetry`
 previews lap rows you paste. If the text is an `http` or `https` link, the
 API refuses it and does not fetch the URL, including Al Kamel timing links.
-`GET /v1/live/wec` is a separate optional adapter for the public timing page at
-livetiming.fiawec.com. It stays off unless `enable=true`. That read is for
-personal use on this computer: the classification is not written to disk and
-is not redistributed, and the adapter does not capture video or broadcast
-audio. It does not replace the paid OpenF1 live slot.
+`GET /v1/live/wec` is a separate optional adapter. When `enable=true` it
+fetches the public JSON at https://insights.griiip.com/ that
+livetiming.fiawec.com shows. It stays off unless asked. That read is for
+personal use on this computer: one in-memory copy is kept for about 15
+seconds, the classification is not written to disk and is not redistributed,
+and the adapter does not capture video or broadcast audio. This project does
+not have a commercial licence for that feed. It does not replace the paid
+OpenF1 live slot.
 
 `POST /v1/f1/weather` accepts a declared `dry` or `wet` setting. It does not
-call Open-Meteo or any other forecast. A wet plan needs a tyre life you type,
-because the Bahrain file does not give Intermediate or Wet a stint life.
+call Open-Meteo or any other forecast. A wet declaration with no wet-tyre life
+keeps the slick plan and says Intermediate and Wet are not searched, because
+the Bahrain file does not give them a stint life. A life you type is used for
+those compounds; their pace stays at the file default.
 `POST /v1/sheets` creates one new JSON file under `.cache/pitwall-sheets` and
 refuses `race.json` and any name that already exists. `GET /v1/terms` returns
 the OpenF1 and Jolpica notes. The pit wall can show the Bahrain back-test;
@@ -472,8 +480,10 @@ gap is one comparison, not an accuracy claim.
 
 Pitwall Agent is pre-race decision support in alpha. The Formula 1 lap feed
 replays a bundled recording; play, pause, and a lap jump do not make it live
-timing. Optional WEC timing is a personal-use read of the public page and is
-not stored. A second endurance class
+timing. Optional WEC timing, when you turn it on, fetches the public JSON at
+https://insights.griiip.com/ for personal use, keeps one short in-memory copy,
+and is not stored on disk. This project does not have a commercial licence
+for that feed. A second endurance class
 is a separate plan from numbers you supply, not a combined multi-class race.
 It does not currently provide weather, traffic, a rival model, wave-by,
 pit-closure, or validated real-session accuracy. Always verify the official

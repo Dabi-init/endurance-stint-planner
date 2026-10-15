@@ -40,11 +40,50 @@ semantic versioning.
   the strategy timeline. Audio files are not downloaded;
 - a browser speech-synthesis toggle for the strategy call. The server does not
   generate audio;
-- an optional personal-use read of the public timing at livetiming.fiawec.com.
-  It is off until asked, it is not stored or redistributed, and it does not
-  capture video or broadcast audio. A pasted timing link is still refused;
+- an optional personal-use read of the public JSON at
+  https://insights.griiip.com/ for livetiming.fiawec.com. It is off until
+  asked, one in-memory copy is kept for a few seconds, it is not written to
+  disk or redistributed, and it does not capture video or broadcast audio.
+  This project does not have a commercial licence for that feed. A pasted
+  timing link is still refused;
 - play, pause, speed, and jump-to-lap on the Bahrain recording. The paid
   OpenF1 live socket stays closed unless a server transport is plugged in.
+
+### Fixed
+
+- the F1 fuel check rejects a starting load above the tank before it compares
+  fuel used with the fuel on board;
+- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
+  rule, so a crossover sequence can be planned;
+- a safety-car re-plan can add a declared field lap-time loss and rival pit
+  stops (both default to zero, so a pit-only window is unchanged);
+- an endurance safety car whose deploy minute sits outside the race returns
+  422 instead of being clamped;
+- a malformed back-test fixture prints a readable error instead of a bare
+  `KeyError`;
+- plan requests bound stint length, compound name length, season, round, and
+  the number of scenarios;
+- the timing tower escapes grid and finish position before writing HTML, the
+  replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
+  into the race, and a bad replay override returns 422. The replay is opened
+  with POST only;
+- a declared wet race with no wet-tyre life keeps the slick plan and says
+  intermediates and wets are not searched. The Bahrain back-test panel shows
+  predicted stop laps beside the recorded stop laps. Out-of-range weather and
+  class requests return 422;
+- the pit wall script is split into a format module, an F1 view, and an
+  endurance view. Classes are described as separate plans with no traffic,
+  passing, or shared pit lane, and a preset name cannot leave the bundled
+  directory;
+- the undercut sum includes an out-lap warm-up, an in-lap delta, and traffic
+  avoided (all default to zero). A negative gap or pit loss is rejected, a
+  reversed or negative safety-car window returns 422, a live deep link is
+  clamped into the race, and the lap stream waits with async sleep. The sample
+  on the page is labelled a race-time spread;
+- team-radio clips stay a list of https links on each lap, and the player
+  pauses and reloads when you leave that lap. The optional WEC read names the
+  public JSON host it fetches, keeps one in-memory copy for 15 seconds, and
+  says this project has no commercial licence for that feed.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 

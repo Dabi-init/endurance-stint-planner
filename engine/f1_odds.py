@@ -24,16 +24,34 @@ def undercut(
     tyre_gain_sec_per_lap: float,
     our_pit_loss_sec: float,
     their_pit_loss_sec: float,
+    out_lap_warmup_sec: float = 0.0,
+    in_lap_delta_sec: float = 0.0,
+    traffic_avoided_sec: float = 0.0,
 ) -> dict[str, object]:
     """Net gap after we stop `laps_ahead` laps before the rival and both have pitted.
 
     Positive net means we are ahead of that rival at the moment they stop.
-    Tyre gain is an assumption you type in. It is not measured from a rival model.
+    Tyre gain, out-lap warm-up, in-lap delta, and traffic avoided are assumptions
+    you type in. They are not measured from a rival model. The last three
+    default to zero, so a call that omits them keeps the pit-and-gap sum.
     """
     if laps_ahead < 1:
         raise ValueError("laps_ahead must be at least 1")
+    if gap_behind_sec < 0 or our_pit_loss_sec < 0 or their_pit_loss_sec < 0:
+        raise ValueError("Gap and pit loss must be zero or higher.")
+    if out_lap_warmup_sec < 0 or in_lap_delta_sec < 0 or traffic_avoided_sec < 0:
+        raise ValueError("Out-lap, in-lap, and traffic offsets must be zero or higher.")
     gained = tyre_gain_sec_per_lap * laps_ahead
-    net = round(gained - our_pit_loss_sec + their_pit_loss_sec - gap_behind_sec, 3)
+    net = round(
+        gained
+        - our_pit_loss_sec
+        + their_pit_loss_sec
+        - gap_behind_sec
+        - out_lap_warmup_sec
+        - in_lap_delta_sec
+        + traffic_avoided_sec,
+        3,
+    )
     span = "1 lap" if laps_ahead == 1 else f"{laps_ahead} laps"
     if net > 0:
         text = (
@@ -43,10 +61,19 @@ def undercut(
         text = f"Pit {span} earlier and this rival is still {abs(net):.3f} s ahead when they stop."
     else:
         text = f"Pit {span} earlier and this rival is alongside when they stop."
+    if out_lap_warmup_sec or in_lap_delta_sec or traffic_avoided_sec:
+        text += (
+            f" Out-lap warm-up costs {out_lap_warmup_sec:.3f} s, "
+            f"the in-lap costs {in_lap_delta_sec:.3f} s, "
+            f"and traffic avoided adds {traffic_avoided_sec:.3f} s."
+        )
     return {
         "net_sec": net,
         "ahead": net > 0,
         "tyre_gain_sec": round(gained, 3),
+        "out_lap_warmup_sec": out_lap_warmup_sec,
+        "in_lap_delta_sec": in_lap_delta_sec,
+        "traffic_avoided_sec": traffic_avoided_sec,
         "explanation": text,
         "assumption": "Tyre gain per lap is your input, not a measured rival.",
     }
@@ -87,6 +114,7 @@ def race_time_odds(
         "p50_sec": _percentile(times, 0.50),
         "p90_sec": _percentile(times, 0.90),
         "honesty": ODDS_HONESTY,
+        "label": "Race-time spread",
     }
 
 

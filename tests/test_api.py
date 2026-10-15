@@ -374,6 +374,65 @@ def test_bad_inputs_are_400_and_an_illegal_endurance_plan_stays_honest() -> None
     assert illegal["summary"].startswith("This setup cannot make a legal plan.")
 
 
+def test_endurance_safety_car_deploy_outside_the_race_is_422() -> None:
+    client = _client()
+    config = load_preset(DEFAULT_PRESET)
+    race = config.to_dict()
+    late = client.post(
+        "/v1/safety-car",
+        json={
+            "series": "endurance",
+            "race": race,
+            "safety_car": {
+                "deploy_min": config.race_duration_min + 1,
+                "duration_min": 5,
+            },
+        },
+    )
+    negative = client.post(
+        "/v1/safety-car",
+        json={
+            "series": "endurance",
+            "race": race,
+            "safety_car": {"deploy_min": -1, "duration_min": 5},
+        },
+    )
+
+    assert late.status_code == 422
+    assert "deploy_min" in late.json()["detail"]
+    assert "past the race" in late.json()["detail"]
+    assert negative.status_code == 422
+    assert "past the race" in negative.json()["detail"]
+
+
+def test_request_bounds_reject_a_bad_stint_season_and_too_many_scenarios() -> None:
+    client = _client()
+    short = client.post(
+        "/v1/plans",
+        json={
+            "series": "f1",
+            "setup": _toy(),
+            "strategy": [{"compound": "HARD", "laps": 0}],
+        },
+    )
+    season = client.post(
+        "/v1/plans",
+        json={"series": "f1", "season": 1800, "round": 1},
+    )
+    scenarios = client.post(
+        "/v1/scenarios/compare",
+        json={
+            "series": "f1",
+            "setup": _toy(),
+            "scenarios": [{"name": f"S{index}", "stints": None} for index in range(9)],
+        },
+    )
+
+    assert short.status_code == 422
+    assert season.status_code == 422
+    assert scenarios.status_code == 422
+
+
 def test_api_entrypoint_stays_on_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
     from pitwall_api.__main__ import main
 

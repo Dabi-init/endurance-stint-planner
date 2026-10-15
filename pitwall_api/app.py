@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-import time
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from backtest.harness import run_fixture
+from backtest.harness import BUNDLED_FIXTURES, run_fixture
 from engine.series_config import colour_css, load_setup, setup_to_dict
 from historical.cache import CachingTransport, FileCache
 from historical.catalogue import F1History
@@ -82,10 +82,6 @@ def create_app(source: object | None = None) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok", "engine": "pitwall", "version": __version__}
 
-    @app.get("/v1/replays/{fixture_id}")
-    def replay_get(fixture_id: str) -> dict[str, object]:
-        return _replay(fixture_id, {}, False)
-
     @app.post("/v1/replays/{fixture_id}")
     def replay_post(fixture_id: str, body: ReplayRequest) -> dict[str, object]:
         return _replay(fixture_id, body.overrides, body.anchor_pace)
@@ -149,11 +145,11 @@ def create_app(source: object | None = None) -> FastAPI:
         )
         delay = pace_delay_sec(pace_ms)
 
-        def generate():
+        async def generate():
             for frame in frames:
                 yield f"data: {json.dumps(frame)}\n\n"
                 if delay:
-                    time.sleep(delay)
+                    await _pace(delay)
 
         return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -245,6 +241,10 @@ def pace_delay_sec(pace_ms: int) -> float:
     return min(max(pace_ms, 0), 2_000) / 1000
 
 
+async def _pace(seconds: float) -> None:
+    await asyncio.sleep(seconds)
+
+
 def _safety_query(
     sc_start: int | None,
     sc_end: int | None,
@@ -255,6 +255,12 @@ def _safety_query(
         return None
     if sc_start is None or sc_end is None or sc_pit is None:
         raise RequestError("Safety car needs start_lap, end_lap, and pit_loss_sec.")
+    if sc_end < sc_start or sc_pit < 0:
+        raise RequestError(
+            "Safety car end_lap must be at or after start_lap, "
+            "and pit_loss_sec must be zero or higher.",
+            status=422,
+        )
     return {
         "kind": sc_kind,
         "start_lap": sc_start,
@@ -274,12 +280,18 @@ def _live_frames(
 
 
 def _replay(fixture_id: str, overrides: dict, anchor_pace: bool) -> dict[str, object]:
+    if fixture_id not in BUNDLED_FIXTURES:
+        known = ", ".join(sorted(BUNDLED_FIXTURES))
+        raise RequestError(
+            f"Unknown replay fixture {fixture_id}. Known fixtures: {known}.",
+            status=404,
+        )
     try:
         script = build_replay(
             fixture_id, overrides=overrides or None, anchor_pace=anchor_pace
         )
     except ValueError as exc:
-        raise RequestError(str(exc), status=404) from exc
+        raise RequestError(str(exc), status=422) from exc
     return script.payload
 
 

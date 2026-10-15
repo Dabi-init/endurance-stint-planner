@@ -117,7 +117,7 @@
             <input id="class-name" type="text" value="GT3" maxlength="40" />
           </label>
           <button type="button" id="add-class">Add the 4h synthetic preset as another class</button>
-          <p id="class-note" class="fine">Each class is planned on its own. Pitwall does not invent a second pace.</p>
+          <p id="class-note" class="fine">Classes do not interact. There is no traffic, passing, or shared pit lane between them.</p>
           <form id="sc-form" class="builder">
             <p class="kicker">Manual safety car</p>
             <label>Deploy minute<input id="sc-minute" type="number" min="0" step="1" value="120" /></label>
@@ -137,7 +137,7 @@
             <p class="kicker">Optional public timing</p>
             <label class="check"><input id="wec-enable" type="checkbox" /> Read livetiming.fiawec.com for personal use</label>
             <button type="submit" id="wec-refresh" disabled>Refresh timing</button>
-            <p id="wec-note" class="fine">Off by default. Nothing is fetched until you turn this on. The feed is not stored or redistributed. No video or broadcast audio.</p>
+            <p id="wec-note" class="fine">Off by default. A refresh fetches the public JSON at insights.griiip.com for personal use. It is not stored, there is no commercial licence, and no video or broadcast audio is captured.</p>
             <ol id="wec-rows" class="wec-rows"></ol>
           </form>
         </section>
@@ -155,10 +155,13 @@
             <label>Gap behind (seconds)<input id="gap" type="number" step="0.1" value="2" /></label>
             <label>Laps we stop earlier<input id="laps-ahead" type="number" step="1" value="5" /></label>
             <label>Tyre gain per lap (seconds)<input id="tyre-gain" type="number" step="0.1" value="0.5" /></label>
+            <label>Out-lap warm-up (seconds)<input id="out-lap" type="number" min="0" step="0.1" value="0" /></label>
+            <label>In-lap delta (seconds)<input id="in-lap" type="number" min="0" step="0.1" value="0" /></label>
+            <label>Traffic avoided (seconds)<input id="traffic" type="number" min="0" step="0.1" value="0" /></label>
             <button type="submit">Check the undercut</button>
-            <p id="undercut-note" class="fine">Tyre gain is your input, not a measured rival.</p>
+            <p id="undercut-note" class="fine">Tyre gain, out-lap, in-lap, and traffic are your inputs, not a measured rival.</p>
           </form>
-          <button type="button" id="odds-button">Sample race-time odds</button>
+          <button type="button" id="odds-button">Sample the race-time spread</button>
           <p id="odds-note" class="fine"></p>
         </section>
 
@@ -212,9 +215,9 @@
     <footer class="disclaimer">
       Pre-race estimate from the configured rules and assumptions.
       The Formula 1 lap feed is a recording, not live timing.
-      Optional WEC timing is a personal-use read of the public page and is not stored.
+      Optional WEC timing, when enabled, fetches the public JSON at insights.griiip.com for personal use and is not stored. This project does not have a commercial licence for that feed.
       Not an official regulation text, and not a validated prediction.
     </footer>
-    <script src="/static/wall.js"></script>
+    <script type="module" src="/static/wall.js"></script>
   </body>
 </html>

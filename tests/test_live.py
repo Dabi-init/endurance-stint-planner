@@ -175,11 +175,50 @@ def test_live_http_replay_undercut_and_odds() -> None:
     assert sampled["honesty"] == ODDS_HONESTY
     assert too_many.status_code == 422
     assert missing.status_code == 404
+    assert sampled["label"] == "Race-time spread"
+    negative_gap = client.post(
+        "/v1/f1/undercut",
+        json={
+            "gap_behind_sec": -1,
+            "laps_ahead": 5,
+            "tyre_gain_sec_per_lap": 0.5,
+            "our_pit_loss_sec": 22,
+            "their_pit_loss_sec": 22,
+        },
+    )
+    negative_pit = client.post(
+        "/v1/f1/undercut",
+        json={
+            "gap_behind_sec": 2,
+            "laps_ahead": 5,
+            "tyre_gain_sec_per_lap": 0.5,
+            "our_pit_loss_sec": -1,
+            "their_pit_loss_sec": 22,
+        },
+    )
+    reversed_window = client.get(
+        "/v1/live/replay/frames",
+        params={"sc_start": 36, "sc_end": 34, "sc_pit": 10},
+    )
+    negative_sc = client.get(
+        "/v1/live/replay/frames",
+        params={"sc_start": 34, "sc_end": 36, "sc_pit": -1},
+    )
+    assert negative_gap.status_code == 422
+    assert negative_pit.status_code == 422
+    assert reversed_window.status_code == 422
+    assert "end_lap" in reversed_window.json()["detail"]
+    assert negative_sc.status_code == 422
+    assert "pit_loss_sec" in negative_sc.json()["detail"]
 
 
 def test_replay_stream_is_server_sent_events(monkeypatch: pytest.MonkeyPatch) -> None:
     slept: list[float] = []
-    monkeypatch.setattr("pitwall_api.app.time.sleep", slept.append)
+
+    async def record(seconds: float) -> None:
+        slept.append(seconds)
+
+    monkeypatch.setattr("pitwall_api.app._pace", record)
     client = _client()
     quiet = client.get("/v1/live/replay/stream")
     paced = client.get("/v1/live/replay/stream", params={"pace_ms": 50_000})

@@ -1,14 +1,17 @@
 """Optional personal-use read of the public WEC timing page.
 
-The page at livetiming.fiawec.com loads a public timing table. This adapter
-asks for that table only when the caller turns it on, keeps the classification
-columns, and does not write the feed anywhere. It does not capture video,
-broadcast audio, or car locations.
+When the caller turns it on, this adapter fetches the public JSON at
+https://insights.griiip.com/ that livetiming.fiawec.com shows. It keeps the
+classification columns, holds one in-memory copy for a few seconds, and does
+not write the feed to disk. It does not capture video, broadcast audio, or
+car locations. This project does not have a commercial licence for that feed.
 """
 
 from __future__ import annotations
 
+import copy
 import json
+import time
 from typing import Any, Protocol
 
 import httpx
@@ -20,10 +23,14 @@ WEC_SERIES_ID = 10
 _HOST = "https://insights.griiip.com/"
 _LIST_URL = f"{_HOST}live/session-info/"
 WEC_NOTICE = (
-    "Optional personal-use read of the public timing at livetiming.fiawec.com. "
+    "Optional personal-use read. When enabled, this adapter fetches the public "
+    "JSON at https://insights.griiip.com/ for the timing page livetiming.fiawec.com. "
     "Pitwall does not store or redistribute that feed, and it does not capture "
-    "video or broadcast audio. Leave this off unless you are using it for yourself."
+    "video or broadcast audio. This project does not have a commercial licence "
+    "for that feed. Leave this off unless you are using it for yourself."
 )
+_CACHE_TTL_SEC = 15.0
+_cached: tuple[float, dict[str, Any]] | None = None
 _USER_AGENT = (
     "pitwall-agent personal-use timing read (not stored, not redistributed; "
     "+https://github.com/Dabi-init/endurance-stint-planner)"
@@ -71,15 +78,29 @@ class PublicWecTransport:
                 client.close()
 
 
+def clear_wec_cache() -> None:
+    """Drop the in-memory timing copy. Nothing is written to disk."""
+    global _cached
+    _cached = None
+
+
 def read_wec(
     *,
     enabled: bool,
     transport: WecTransport | None = None,
+    now: float | None = None,
+    cache: bool | None = None,
 ) -> dict[str, Any]:
-    """Read the public WEC classification, or return the notice when disabled."""
+    """Read the public WEC classification, or return the notice when disabled.
+
+    A second enabled read inside ``_CACHE_TTL_SEC`` returns the in-memory copy
+    and does not call the transport. Injected transports skip that cache unless
+    ``cache`` is set.
+    """
     payload: dict[str, Any] = {
         "enabled": bool(enabled),
         "fetched": False,
+        "cached": False,
         "live": False,
         "page": WEC_PAGE,
         "notice": WEC_NOTICE,
@@ -91,6 +112,13 @@ def read_wec(
     }
     if not enabled:
         return payload
+    use_cache = (transport is None) if cache is None else cache
+    clock = time.monotonic() if now is None else now
+    global _cached
+    if use_cache and _cached is not None and clock - _cached[0] < _CACHE_TTL_SEC:
+        hit = copy.deepcopy(_cached[1])
+        hit["cached"] = True
+        return hit
     reader = transport or PublicWecTransport()
     listed = _read(reader, _LIST_URL, {"includeViewers": "false"})
     if not isinstance(listed, list):
@@ -103,6 +131,8 @@ def read_wec(
         payload["notice"] = (
             f"{WEC_NOTICE} No FIA WEC session is on the public timing page right now."
         )
+        if use_cache:
+            _cached = (clock, copy.deepcopy(payload))
         return payload
     sid = session_id(chosen)
     snapshot = _read(reader, bootstrap_url(sid), {})
@@ -118,6 +148,8 @@ def read_wec(
         "name": _text(chosen.get("sessionName")),
     }
     payload["rows"] = project_timing(snapshot, session=chosen)
+    if use_cache:
+        _cached = (clock, copy.deepcopy(payload))
     return payload
 
 

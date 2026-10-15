@@ -102,11 +102,7 @@ def _replay_frames(safety_car: dict[str, Any] | None) -> Iterator[dict[str, Any]
     payload = script.payload
     alert = _safety_alert(safety_car)
     events = {event["lap"]: event for event in payload["events"]}
-    radio = {
-        int(clip["lap"]): clip["recording_url"]
-        for clip in payload.get("radio") or []
-        if isinstance(clip, dict) and isinstance(clip.get("recording_url"), str)
-    }
+    radio = _radio_by_lap(payload.get("radio") or [])
     for lap in payload["laps"]:
         number = int(lap["lap"])
         kind = "pit" if lap["pit"] else "green"
@@ -133,8 +129,24 @@ def _replay_frames(safety_car: dict[str, Any] | None) -> Iterator[dict[str, Any]
             "plan_summary": None if plan is None else plan["summary"],
             "race_time_sec": None if plan is None else plan["race_time_sec"],
             "explanation": None if plan is None else plan["explanation"],
-            "radio_url": radio.get(number),
+            "radio_urls": radio.get(number, []),
         }
+
+
+def _radio_by_lap(clips: list[Any]) -> dict[int, list[str]]:
+    """Keep every https clip on its lap. Other URLs never reach a frame."""
+    found: dict[int, list[str]] = {}
+    for clip in clips:
+        if not isinstance(clip, dict):
+            continue
+        url = clip.get("recording_url")
+        lap = clip.get("lap")
+        if not isinstance(url, str) or not url.startswith("https://"):
+            continue
+        if isinstance(lap, bool) or not isinstance(lap, int):
+            continue
+        found.setdefault(lap, []).append(url)
+    return found
 
 
 def _latest(events: list[dict[str, Any]], lap: int) -> dict[str, Any] | None:

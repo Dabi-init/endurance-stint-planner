@@ -9,13 +9,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from historical.openf1 import OpenF1Client
-from live.sources import LiveSourceError, iter_frames
+from live.sources import LiveSourceError, _radio_by_lap, iter_frames
 from live.wec import (
     WEC_NOTICE,
     WEC_PAGE,
     PublicWecTransport,
     bootstrap_url,
     choose_wec_session,
+    clear_wec_cache,
     project_timing,
     read_wec,
     session_id,
@@ -159,11 +160,28 @@ def test_assign_clips_keeps_https_and_the_open_lap() -> None:
 def test_replay_frames_carry_the_radio_link_for_that_lap() -> None:
     frames = list(iter_frames("replay"))
 
-    assert frames[0]["radio_url"] is None
-    assert frames[3]["radio_url"].startswith("https://")
-    assert frames[3]["radio_url"].endswith(".mp3")
+    assert frames[0]["radio_urls"] == []
+    assert frames[3]["radio_urls"][0].startswith("https://")
+    assert frames[3]["radio_urls"][0].endswith(".mp3")
     assert frames[15]["lap"] == 16
-    assert frames[15]["radio_url"].startswith("https://")
+    assert frames[15]["radio_urls"][0].startswith("https://")
+
+
+def test_radio_by_lap_keeps_every_https_clip_and_drops_the_rest() -> None:
+    found = _radio_by_lap(
+        [
+            {"lap": 4, "recording_url": "https://example.test/a.mp3"},
+            {"lap": 4, "recording_url": "https://example.test/b.mp3"},
+            {"lap": 4, "recording_url": "http://example.test/plain.mp3"},
+            {"lap": True, "recording_url": "https://example.test/bool.mp3"},
+            {"lap": "4", "recording_url": "https://example.test/text.mp3"},
+            "nope",
+        ]
+    )
+
+    assert found == {
+        4: ["https://example.test/a.mp3", "https://example.test/b.mp3"],
+    }
 
 
 def test_openf1_team_radio_asks_for_metadata() -> None:
@@ -234,6 +252,60 @@ def test_wec_adapter_ignores_other_series_and_keeps_classification_only() -> Non
     assert timing["rows"][1]["class_name"] == "Class"
     assert timing["rows"][2]["gap"] == "+1 lap"
     assert timing["rows"][3]["gap"] == "+2 laps"
+
+
+def test_wec_read_reuses_an_in_memory_copy_for_fifteen_seconds() -> None:
+    clear_wec_cache()
+    try:
+        first_transport = _Transport([_session()], _snapshot())
+        first = read_wec(enabled=True, transport=first_transport, now=100.0, cache=True)
+        second_transport = _Transport([_session()], _snapshot())
+        second = read_wec(
+            enabled=True, transport=second_transport, now=110.0, cache=True
+        )
+
+        assert first["cached"] is False
+        assert first["live"] is True
+        assert len(first_transport.urls) == 2
+        assert second["cached"] is True
+        assert second["rows"] == first["rows"]
+        assert second_transport.urls == []
+
+        later = read_wec(
+            enabled=True, transport=second_transport, now=116.0, cache=True
+        )
+        empty = _Transport([{"seriesId": 229, "sid": 9}])
+        quiet = read_wec(enabled=True, transport=empty, now=200.0, cache=True)
+        again = _Transport([{"seriesId": 229, "sid": 9}])
+        cached_empty = read_wec(enabled=True, transport=again, now=205.0, cache=True)
+
+        assert later["cached"] is False
+        assert len(second_transport.urls) == 2
+        assert quiet["live"] is False
+        assert "No FIA WEC session" in quiet["notice"]
+        assert cached_empty["cached"] is True
+        assert again.urls == []
+    finally:
+        clear_wec_cache()
+
+
+def test_wec_errors_are_not_cached() -> None:
+    clear_wec_cache()
+    try:
+        with pytest.raises(LiveSourceError, match="session list"):
+            read_wec(
+                enabled=True,
+                transport=_Transport({"sessions": []}),
+                now=1.0,
+                cache=True,
+            )
+        transport = _Transport([_session()], _snapshot())
+        timing = read_wec(enabled=True, transport=transport, now=2.0, cache=True)
+
+        assert timing["cached"] is False
+        assert len(transport.urls) == 2
+    finally:
+        clear_wec_cache()
 
 
 def test_wec_adapter_reports_an_empty_public_page() -> None:
