@@ -532,8 +532,8 @@ def declared_weather(body: DeclaredWeatherRequest) -> DeclaredWeatherResponse:
         )
     elif body.declared == "wet":
         note = (
-            f"{DECLARED_WEATHER} The file does not give Intermediate or Wet a stint life, "
-            "so a wet plan needs a life you type."
+            f"{DECLARED_WEATHER} Intermediate and Wet have no stint life in this file, "
+            "so they are not searched. The two-compound rule still applies to this slick plan."
         )
     setup = _f1_setup(body.season, body.round, None, overrides)
     return DeclaredWeatherResponse(

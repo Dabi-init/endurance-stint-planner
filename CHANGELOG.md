@@ -55,6 +55,10 @@ semantic versioning.
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
+- a declared wet race with no wet-tyre life keeps the slick plan and says
+  intermediates and wets are not searched. The Bahrain back-test panel shows
+  predicted stop laps beside the recorded stop laps. Out-of-range weather and
+  class requests return 422;
 - the pit wall script is split into a format module, an F1 view, and an
   endurance view. Classes are described as separate plans with no traffic,
   passing, or shared pit lane, and a preset name cannot leave the bundled

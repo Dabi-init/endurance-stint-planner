@@ -291,7 +291,9 @@ $("accuracy-button").addEventListener("click", async () => {
   try {
     const report = await postJson("/v1/backtests/2024-r01-bahrain-verstappen", {});
     const delta = report.race_time_delta_sec;
-    $("accuracy-note").textContent = `Not validated yet. Predicted ${report.predicted_stint_laps.join("/")} laps versus recorded ${report.actual_stint_laps.join("/")}. Race-time gap ${delta} s under file assumptions. ${report.notes[0] || ""}`;
+    const predictedStops = (report.predicted_stop_laps || []).join(", ") || "none";
+    const recordedStops = (report.actual_stop_laps || []).join(", ") || "none";
+    $("accuracy-note").textContent = `Not validated yet. Predicted stop laps ${predictedStops} versus recorded stop laps ${recordedStops}. Predicted ${report.predicted_stint_laps.join("/")} laps versus recorded ${report.actual_stint_laps.join("/")}. Race-time gap ${delta} s under file assumptions. ${report.notes[0] || ""}`;
   } catch (error) {
     $("accuracy-note").textContent = error.message;
   }
