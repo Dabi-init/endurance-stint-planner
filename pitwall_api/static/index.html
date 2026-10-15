@@ -130,6 +130,32 @@
           <p id="odds-note" class="fine"></p>
         </section>
 
+        <section class="panel" id="depth-tools" aria-labelledby="depth-title">
+          <div class="panel-head">
+            <h2 id="depth-title">Depth</h2>
+            <p>A declaration, a saved sheet, one back-test, and the source terms.</p>
+          </div>
+          <form id="rain-form" class="builder">
+            <p class="kicker">Declared rain</p>
+            <label class="check"><input id="declared-wet" type="checkbox" /> Declared wet race</label>
+            <label>Wet tyre life, laps you assume
+              <input id="wet-life" type="number" min="1" max="80" step="1" placeholder="optional" />
+            </label>
+            <button type="submit">Apply the declaration</button>
+            <p id="rain-note" class="fine">Not a forecast. Open-Meteo is not called.</p>
+          </form>
+          <form id="sheet-form" class="builder">
+            <p class="kicker">Strategy sheet</p>
+            <label>Name<input id="sheet-name" type="text" value="bahrain-plan" maxlength="80" /></label>
+            <button type="submit">Save a new sheet</button>
+            <p id="sheet-note" class="fine">A new file only. race.json is left untouched. A copy downloads in the browser.</p>
+          </form>
+          <button type="button" id="accuracy-button">Show the Bahrain back-test</button>
+          <p id="accuracy-note" class="fine">Not validated yet.</p>
+          <button type="button" id="terms-button">Show source terms</button>
+          <p id="terms-note" class="fine"></p>
+        </section>
+
         <section class="panel" aria-labelledby="builder-title">
           <div class="panel-head">
             <h2 id="builder-title">Your overrides</h2>

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import os
+import re
+from pathlib import Path
+
 from engine.f1 import (
     DISCLAIMER,
     UNCERTAINTY,
@@ -31,12 +36,15 @@ from engine.series_config import (
 from engine.strategy import compare_strategies
 from engine.telemetry import calibrate_telemetry
 from historical.errors import HistoricalSourceError
+from historical.terms import JOLPICA_TERMS, OPENF1_TERMS
 from pitwall_api.schemas import (
     ClassesRequest,
     ClassesResponse,
     ClassPlanOut,
     CompareRequest,
     CompareResponse,
+    DeclaredWeatherRequest,
+    DeclaredWeatherResponse,
     DriverCard,
     EnduranceOptionsIn,
     IssueOut,
@@ -48,6 +56,8 @@ from pitwall_api.schemas import (
     RuleOut,
     SafetyCarRequestIn,
     SafetyCarResponse,
+    SheetRequest,
+    SheetResponse,
     SimulationOut,
     StintOut,
     TeamCard,
@@ -431,6 +441,18 @@ CLASS_NOTE = (
     "Each class is its own plan from the numbers you supplied. "
     "Classes are not combined into one race."
 )
+DECLARED_WEATHER = (
+    "This wet or dry setting is declared by you. It is not a forecast. "
+    "Open-Meteo is not called."
+)
+SHEET_NOTE = (
+    "Created a new file. race.json was not written and nothing was overwritten."
+)
+COMMERCIAL_NOTE = (
+    "Review these terms before any public or commercial release. "
+    "This build is not a commercial licence for OpenF1 or Jolpica data."
+)
+SHEET_DIR = Path.cwd() / ".cache" / "pitwall-sheets"
 
 
 def endurance_presets() -> dict[str, object]:
@@ -481,6 +503,76 @@ def endurance_telemetry(body: TelemetryRequest) -> dict[str, object]:
     report["config_patch"] = calibrated.config_patch()
     report["usable_for_strategy"] = calibrated.usable_for_strategy
     return report
+
+
+def declared_weather(body: DeclaredWeatherRequest) -> DeclaredWeatherResponse:
+    overrides: dict[str, object] = {"dry_race": body.declared == "dry"}
+    note = DECLARED_WEATHER
+    if body.declared == "wet" and body.wet_life_laps is not None:
+        life = body.wet_life_laps
+        overrides["compounds"] = {
+            "INTERMEDIATE": {"max_laps": life},
+            "WET": {"max_laps": life},
+        }
+        note = (
+            f"{DECLARED_WEATHER} Intermediate and Wet life are the {life} laps you typed. "
+            "Their pace and degradation stay at the file default."
+        )
+    elif body.declared == "wet":
+        note = (
+            f"{DECLARED_WEATHER} The file does not give Intermediate or Wet a stint life, "
+            "so a wet plan needs a life you type."
+        )
+    setup = _f1_setup(body.season, body.round, None, overrides)
+    return DeclaredWeatherResponse(
+        declared=body.declared,
+        forecast=False,
+        open_meteo="not called",
+        note=note,
+        plan=_f1_plan(best_f1_plan(setup), "full"),
+    )
+
+
+def licence_terms() -> dict[str, str]:
+    return {
+        "openf1": OPENF1_TERMS,
+        "jolpica": JOLPICA_TERMS,
+        "commercial": COMMERCIAL_NOTE,
+    }
+
+
+def save_sheet(body: SheetRequest, root: Path | None = None) -> SheetResponse:
+    folder = (root or SHEET_DIR).resolve()
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = _sheet_filename(body.name)
+    target = (folder / filename).resolve()
+    if target.parent != folder:
+        raise RequestError("Choose a sheet name that stays in the sheet folder.")
+    payload = {"note": SHEET_NOTE, "document": body.document}
+    text = json.dumps(payload, indent=2, sort_keys=True)
+    if len(text.encode("utf-8")) > 256 * 1024:
+        raise RequestError("That sheet is larger than 256 KiB.")
+    try:
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise RequestError(
+            f"{filename} already exists. Choose a new name. Nothing was overwritten.",
+            status=409,
+        ) from exc
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.write("\n")
+    return SheetResponse(
+        name=filename, created=True, note=SHEET_NOTE, document=body.document
+    )
+
+
+def _sheet_filename(value: str) -> str:
+    stem = Path(value).name
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(stem).stem).strip(".-_")
+    if not cleaned or cleaned.lower() in {"race", "race.json"}:
+        raise RequestError("Choose a sheet name that is not race.json.")
+    return cleaned[:80] + ".json"
 
 
 def _remote_timing(text: str) -> bool:

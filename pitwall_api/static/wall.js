@@ -553,6 +553,65 @@ $("use-pace").addEventListener("click", () => {
     $("telemetry-note").textContent = error.message;
   });
 });
+$("rain-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const life = $("wet-life").value;
+  const body = {
+    season: 2024,
+    round: 1,
+    declared: $("declared-wet").checked ? "wet" : "dry",
+  };
+  if (life) body.wet_life_laps = Number(life);
+  try {
+    const result = await postJson("/v1/f1/weather", body);
+    const time = result.plan.race_time_sec == null ? "no race time" : `${result.plan.race_time_sec} s`;
+    $("rain-note").textContent = `${result.note} ${result.plan.summary} ${time}.`;
+    $("explain").textContent = $("rain-note").textContent;
+  } catch (error) {
+    $("rain-note").textContent = error.message;
+  }
+});
+$("sheet-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const documentBody = {
+    series: state.series,
+    event: $("event-name").textContent,
+    explanation: $("explain").textContent,
+  };
+  try {
+    const saved = await postJson("/v1/sheets", {
+      name: $("sheet-name").value,
+      document: documentBody,
+    });
+    const blob = new Blob([JSON.stringify(saved.document, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = saved.name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    $("sheet-note").textContent = `${saved.note} Saved as ${saved.name}.`;
+  } catch (error) {
+    $("sheet-note").textContent = error.message;
+  }
+});
+$("accuracy-button").addEventListener("click", async () => {
+  $("accuracy-note").textContent = "Reading the bundled Bahrain comparison.";
+  try {
+    const report = await postJson("/v1/backtests/2024-r01-bahrain-verstappen", {});
+    const delta = report.race_time_delta_sec;
+    $("accuracy-note").textContent = `Not validated yet. Predicted ${report.predicted_stint_laps.join("/")} laps versus recorded ${report.actual_stint_laps.join("/")}. Race-time gap ${delta} s under file assumptions. ${report.notes[0] || ""}`;
+  } catch (error) {
+    $("accuracy-note").textContent = error.message;
+  }
+});
+$("terms-button").addEventListener("click", async () => {
+  try {
+    const terms = await getJson("/v1/terms");
+    $("terms-note").textContent = `${terms.openf1} ${terms.jolpica} ${terms.commercial}`;
+  } catch (error) {
+    $("terms-note").textContent = error.message;
+  }
+});
 
 $("mode-plan").addEventListener("click", () => setMode("plan"));
 $("mode-replay").addEventListener("click", () => setMode("replay"));

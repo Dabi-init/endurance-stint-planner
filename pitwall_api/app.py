@@ -22,11 +22,13 @@ from pitwall_api.schemas import (
     BacktestResponse,
     ClassesRequest,
     CompareRequest,
+    DeclaredWeatherRequest,
     OddsRequest,
     PlanRequest,
     PrepareRequest,
     ReplayRequest,
     SafetyCarRequestIn,
+    SheetRequest,
     TelemetryRequest,
     UndercutRequest,
 )
@@ -34,14 +36,17 @@ from pitwall_api.service import (
     RequestError,
     compare,
     create_plan,
+    declared_weather,
     endurance_classes,
     endurance_preset,
     endurance_presets,
     endurance_telemetry,
     f1_odds,
     f1_undercut,
+    licence_terms,
     prepare_event,
     safety_car,
+    save_sheet,
 )
 from replay.session import build_replay
 
@@ -159,6 +164,18 @@ def create_app(source: object | None = None) -> FastAPI:
     @app.post("/v1/endurance/telemetry")
     def telemetry(body: TelemetryRequest) -> dict[str, object]:
         return endurance_telemetry(body)
+
+    @app.get("/v1/terms")
+    def terms() -> dict[str, str]:
+        return licence_terms()
+
+    @app.post("/v1/f1/weather")
+    def weather(body: DeclaredWeatherRequest):
+        return declared_weather(body)
+
+    @app.post("/v1/sheets")
+    def sheets(body: SheetRequest):
+        return save_sheet(body)
 
     @app.post("/v1/f1/undercut")
     def undercut_route(body: UndercutRequest) -> dict[str, object]:

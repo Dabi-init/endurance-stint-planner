@@ -436,6 +436,14 @@ window is a minute and a duration you type. `POST /v1/endurance/telemetry`
 previews lap rows you paste. If the text is an `http` or `https` link, the
 API refuses it and does not fetch the URL, including Al Kamel timing links.
 
+`POST /v1/f1/weather` accepts a declared `dry` or `wet` setting. It does not
+call Open-Meteo or any other forecast. A wet plan needs a tyre life you type,
+because the Bahrain file does not give Intermediate or Wet a stint life.
+`POST /v1/sheets` creates one new JSON file under `.cache/pitwall-sheets` and
+refuses `race.json` and any name that already exists. `GET /v1/terms` returns
+the OpenF1 and Jolpica notes. The pit wall can show the Bahrain back-test;
+that comparison is not a claim of accuracy.
+
 Each plan returns a plain-language summary and a why sentence, plus the rule
 checks an expert can read. An F1 result is one deterministic time, and it says
 that a P10–P90 range is not estimated yet. Endurance comparisons still return

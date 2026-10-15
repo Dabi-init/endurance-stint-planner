@@ -100,6 +100,18 @@ class ClassesRequest(BaseModel):
     classes: list[ClassIn] = Field(min_length=1, max_length=4)
 
 
+class DeclaredWeatherRequest(BaseModel):
+    season: int
+    round: int
+    declared: Literal["dry", "wet"]
+    wet_life_laps: int | None = Field(default=None, ge=1, le=80)
+
+
+class SheetRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    document: dict
+
+
 class IssueOut(BaseModel):
     code: str
     message: str
@@ -202,6 +214,21 @@ class ClassPlanOut(BaseModel):
 class ClassesResponse(BaseModel):
     classes: list[ClassPlanOut]
     note: str
+
+
+class DeclaredWeatherResponse(BaseModel):
+    declared: Literal["dry", "wet"]
+    forecast: bool
+    open_meteo: str
+    note: str
+    plan: PlanResponse
+
+
+class SheetResponse(BaseModel):
+    name: str
+    created: bool
+    note: str
+    document: dict
 
 
 class SafetyCarResponse(BaseModel):

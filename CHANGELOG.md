@@ -31,7 +31,11 @@ semantic versioning.
 - an endurance view on the same pit wall for the bundled synthetic presets,
   with Pro, Silver, and Bronze drive time, separate class plans, a safety-car
   window you type in, and a lap-row preview. A pasted timing URL is refused.
-  Pitwall does not fetch or redistribute Al Kamel timing.
+  Pitwall does not fetch or redistribute Al Kamel timing;
+- a declared wet or dry setting that does not call a weather service, a
+  strategy sheet that is created once and never replaces `race.json`, the
+  Bahrain back-test on the pit wall, and the OpenF1 and Jolpica terms. The
+  back-test is one comparison and is not a validation claim.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
