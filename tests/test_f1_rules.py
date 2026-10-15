@@ -203,6 +203,73 @@ def test_soft_stint_past_its_life_is_not_legal() -> None:
     assert "exceeds" in plan.infeasibilities[-1].message
 
 
+def test_starting_fuel_above_the_tank_fails_before_fuel_used() -> None:
+    setup = _setup(
+        cars=[
+            _car(
+                fuel_capacity_kg=110.0,
+                starting_fuel_kg=120.0,
+                fuel_consumption_kg_per_lap=1.0,
+            )
+        ]
+    )
+
+    plan = score_stints(setup, [StintRequest("HARD", 6), StintRequest("SOFT", 4)])
+
+    assert plan.feasible is False
+    assert any(issue.code == "fuel_capacity" for issue in plan.infeasibilities)
+    assert any("120.000 kg" in issue.message for issue in plan.infeasibilities)
+    assert any("110.000 kg tank" in issue.message for issue in plan.infeasibilities)
+
+
+def test_a_wet_tyre_lifts_the_slick_rule_and_a_crossover_stays_legal() -> None:
+    setup = _setup(
+        compounds=[
+            CompoundSpec("SOFT", "Soft", True, "FF1E00", 4, -1.0, 0.0),
+            CompoundSpec("HARD", "Hard", True, "F0F0F0", 10, 0.0, 0.0),
+            CompoundSpec("INTERMEDIATE", "Intermediate", False, "43B02A", 8, -2.0, 0.0),
+        ]
+    )
+    crossover = _setup(
+        max_stops=1,
+        compounds=[
+            CompoundSpec("SOFT", "Soft", True, "FF1E00", 4, -1.0, 0.0),
+            CompoundSpec("HARD", "Hard", True, "F0F0F0", 10, 0.0, 0.0),
+            CompoundSpec("INTERMEDIATE", "Intermediate", False, "43B02A", 4, -2.0, 0.0),
+        ],
+    )
+
+    plan = best_f1_plan(setup)
+    mixed = score_stints(
+        setup,
+        [StintRequest("INTERMEDIATE", 8), StintRequest("HARD", 2)],
+    )
+    slick = score_stints(
+        setup,
+        [StintRequest("HARD", 6), StintRequest("SOFT", 4)],
+    )
+    crossed = best_f1_plan(crossover)
+    hard_only = score_stints(setup, [StintRequest("HARD", 10)])
+    blocked = best_f1_plan(_setup(max_stops=0))
+
+    assert plan.feasible is True
+    assert plan.compounds_used == ["INTERMEDIATE", "INTERMEDIATE"]
+    assert plan.stint_laps == [2, 8]
+    assert plan.race_time_sec == 1000.0
+    assert "wet-weather" in plan.why
+    assert mixed.feasible is True
+    assert mixed.race_time_sec == 1004.0
+    assert slick.race_time_sec == 1016.0
+    assert mixed.race_time_sec < slick.race_time_sec
+    assert crossed.feasible is True
+    assert crossed.compounds_used == ["HARD", "INTERMEDIATE"]
+    assert crossed.stint_laps == [6, 4]
+    assert crossed.race_time_sec == 1012.0
+    assert hard_only.feasible is False
+    assert any(issue.code == "compound_rule" for issue in hard_only.infeasibilities)
+    assert blocked.infeasibilities[0].code == "no_legal_plan"
+
+
 def test_fuel_that_cannot_finish_the_race_is_refused() -> None:
     setup = _setup(cars=[_car(fuel_consumption_kg_per_lap=3.0)])
 
@@ -342,3 +409,46 @@ def test_safety_car_window_outside_the_race_is_not_applied() -> None:
     assert result.time_saved_sec == 0.0
     assert "window was 0–2" in result.summary
     assert result.confidence == "Not evaluated"
+
+
+def test_safety_car_field_loss_hits_both_clocks_and_a_rival_stop_cancels_the_saving() -> (
+    None
+):
+    plan = best_f1_plan(_setup())
+    field = replan_f1_safety_car(
+        plan,
+        SafetyCarRequest(
+            start_lap=6,
+            end_lap=8,
+            pit_loss_sec=8.0,
+            pull_pit_into_sc=False,
+            field_lap_delta_sec=2.0,
+        ),
+    )
+    rival = replan_f1_safety_car(
+        plan,
+        SafetyCarRequest(
+            start_lap=6,
+            end_lap=8,
+            pit_loss_sec=8.0,
+            pull_pit_into_sc=False,
+            rival_stops=1,
+        ),
+    )
+    refused = replan_f1_safety_car(
+        plan,
+        SafetyCarRequest(start_lap=6, end_lap=8, pit_loss_sec=-1.0),
+    )
+
+    assert field.original_race_time_sec == 1022.0
+    assert field.replanned_race_time_sec == 1010.0
+    assert field.time_saved_sec == 12.0
+    assert "saving 12.000 s" in field.summary
+    assert "both clocks" in field.summary
+    assert rival.time_saved_sec == 0.0
+    assert "saving 12.000 s" in rival.summary
+    assert "net saving against that rival is 0.000 s" in rival.summary
+    assert "not resimulated" in field.confidence
+    assert refused.confidence == "Not evaluated"
+    assert "must be zero or higher" in refused.summary
+    assert "window was" not in refused.summary

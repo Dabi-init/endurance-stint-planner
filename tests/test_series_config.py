@@ -11,6 +11,7 @@ from engine.series_config import (
     EntryTeam,
     apply_overrides,
     colour_css,
+    load_season_document,
     load_setup,
     setup_from_dict,
     setup_to_dict,
@@ -47,6 +48,11 @@ def _entry() -> EntryList:
 def test_bundled_2024_bahrain_uses_season_rules_and_event_numbers() -> None:
     setup = load_setup(2024, 1)
 
+    season_doc, season_label = load_season_document(2024)
+
+    assert setup.schema_version == 1
+    assert season_doc["schema_version"] == 1
+    assert season_label == "season"
     assert setup.refuelling_allowed is False
     assert setup.dry_min_compounds == 2
     assert setup.race_laps == 57
