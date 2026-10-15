@@ -1,3 +1,5 @@
+import { clampLap, esc } from "./escape.js";
+
 const FIXTURE = "2024-r01-bahrain-verstappen";
 const RECORDED = [
   { compound: "SOFT", laps: 17 },
@@ -14,16 +16,6 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
-
-function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  }[ch]));
-}
 
 function safeUrl(url) {
   return typeof url === "string" && url.startsWith("https://") ? url : "";
@@ -99,8 +91,8 @@ function renderTower() {
     return `<li class="driver${driver.focus ? " focus" : ""}">
       <span class="stripe" style="background:${colour(driver.team_colour_css)}"></span>
       <div class="who">${face}<div><strong>${esc(driver.code)}</strong><span>${esc(driver.team_name)}</span></div></div>
-      <span class="meta">${driver.grid ?? "—"}</span>
-      <span class="meta">${pip || (driver.finish_position ?? "—")}</span>
+      <span class="meta">${esc(driver.grid ?? "—")}</span>
+      <span class="meta">${pip || esc(driver.finish_position ?? "—")}</span>
     </li>`;
   }).join("");
   for (const image of $("tower").querySelectorAll("img")) {
@@ -285,7 +277,10 @@ async function boot() {
     $("pit-loss").value = state.event.pit_lane_loss_sec;
     $("base-lap").value = state.event.base_lap_time_sec;
     $("dry-race").checked = Boolean(state.event.dry_race);
-    state.replay = await getJson(`/v1/replays/${FIXTURE}`);
+    state.replay = await postJson(`/v1/replays/${FIXTURE}`, {
+      overrides: {},
+      anchor_pace: false,
+    });
     state.compare = await postJson("/v1/scenarios/compare", {
       series: "f1",
       season: 2024,
@@ -295,7 +290,7 @@ async function boot() {
     const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
     if (hash.get("mode") === "replay") {
       state.mode = "replay";
-      state.lap = Number(hash.get("lap") || 1);
+      state.lap = clampLap(hash.get("lap"), state.replay.race_laps || 57);
       $("lap-slider").value = String(state.lap);
       $("mode-replay").classList.add("on");
       $("mode-plan").classList.remove("on");

@@ -3,7 +3,7 @@
   "series": "f1",
   "season": 2025,
   "evidence_level": "C",
-  "notes": "Strategy-relevant sporting shape for 2025, carried over from the 2024 pack: no refuelling during the race, and a dry race needs at least two dry compounds. Confirm before use. This is not an FIA text.",
+  "notes": "Strategy-relevant sporting shape for 2025, carried over from the 2024 pack: no refuelling during the race. The two-compound minimum applies when every stint is a slick; a wet-weather tyre lifts it. Confirm before use. This is not an FIA text.",
   "rules": {
     "refuelling_allowed": false,
     "dry_min_compounds": 2,

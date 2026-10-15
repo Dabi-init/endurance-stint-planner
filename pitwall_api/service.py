@@ -143,6 +143,8 @@ def safety_car(body: SafetyCarRequestIn) -> SafetyCarResponse:
                 end_lap=int(window["end_lap"]),
                 pit_loss_sec=float(window["pit_loss_sec"]),
                 pull_pit_into_sc=bool(window.get("pull_pit_into_sc", True)),
+                field_lap_delta_sec=float(window.get("field_lap_delta_sec", 0.0)),
+                rival_stops=int(window.get("rival_stops", 0)),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise RequestError(
@@ -178,6 +180,15 @@ def safety_car(body: SafetyCarRequestIn) -> SafetyCarResponse:
         raise RequestError(
             "Endurance safety_car needs deploy_min and duration_min."
         ) from exc
+    race_end = config.race_duration_min
+    if scenario.deploy_min < 0 or scenario.deploy_min > race_end:
+        raise RequestError(
+            (
+                f"deploy_min {scenario.deploy_min:g} is past the race "
+                f"(0 to {race_end:g} minutes)."
+            ),
+            status=422,
+        )
     result = replan_with_safety_car(original, scenario)
     return SafetyCarResponse(
         series="endurance",

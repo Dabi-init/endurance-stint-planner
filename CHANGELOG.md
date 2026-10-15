@@ -29,6 +29,25 @@ semantic versioning.
   type in, plus a seeded sample of one plan's degradation and pit-lane loss.
   That sample is labelled as not a historical P10–P90 forecast.
 
+### Fixed
+
+- the F1 fuel check rejects a starting load above the tank before it compares
+  fuel used with the fuel on board;
+- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
+  rule, so a crossover sequence can be planned;
+- a safety-car re-plan can add a declared field lap-time loss and rival pit
+  stops (both default to zero, so a pit-only window is unchanged);
+- an endurance safety car whose deploy minute sits outside the race returns
+  422 instead of being clamped;
+- a malformed back-test fixture prints a readable error instead of a bare
+  `KeyError`;
+- plan requests bound stint length, compound name length, season, round, and
+  the number of scenarios;
+- the timing tower escapes grid and finish position before writing HTML, the
+  replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
+  into the race, and a bad replay override returns 422. The replay is opened
+  with POST only.
+
 ## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added
