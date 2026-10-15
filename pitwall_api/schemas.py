@@ -17,8 +17,8 @@ class EnduranceOptionsIn(BaseModel):
 
 
 class StintIn(BaseModel):
-    compound: str
-    laps: int
+    compound: str = Field(min_length=1, max_length=40)
+    laps: int = Field(ge=1, le=500)
 
 
 class ScenarioIn(BaseModel):
@@ -28,36 +28,36 @@ class ScenarioIn(BaseModel):
 
 class PlanRequest(BaseModel):
     series: Literal["f1", "endurance"]
-    season: int | None = None
-    round: int | None = None
+    season: int | None = Field(default=None, ge=1950, le=2100)
+    round: int | None = Field(default=None, ge=1, le=30)
     setup: dict | None = None
     overrides: dict = Field(default_factory=dict)
     race: dict | None = None
     options: EnduranceOptionsIn = Field(default_factory=EnduranceOptionsIn)
-    strategy: list[StintIn] | None = None
+    strategy: list[StintIn] | None = Field(default=None, max_length=8)
     detail: Literal["plain", "full"] = "full"
 
 
 class CompareRequest(BaseModel):
     series: Literal["f1", "endurance"]
-    season: int | None = None
-    round: int | None = None
+    season: int | None = Field(default=None, ge=1950, le=2100)
+    round: int | None = Field(default=None, ge=1, le=30)
     setup: dict | None = None
     overrides: dict = Field(default_factory=dict)
     race: dict | None = None
-    scenarios: list[ScenarioIn] = Field(default_factory=list)
+    scenarios: list[ScenarioIn] = Field(default_factory=list, max_length=8)
     detail: Literal["plain", "full"] = "full"
 
 
 class SafetyCarRequestIn(BaseModel):
     series: Literal["f1", "endurance"]
-    season: int | None = None
-    round: int | None = None
+    season: int | None = Field(default=None, ge=1950, le=2100)
+    round: int | None = Field(default=None, ge=1, le=30)
     setup: dict | None = None
     overrides: dict = Field(default_factory=dict)
     race: dict | None = None
     options: EnduranceOptionsIn = Field(default_factory=EnduranceOptionsIn)
-    strategy: list[StintIn] | None = None
+    strategy: list[StintIn] | None = Field(default=None, max_length=8)
     safety_car: dict
     detail: Literal["plain", "full"] = "full"
 

@@ -22,6 +22,21 @@ semantic versioning.
   strategy timeline, scenario cards, a replay of the 2024 Bahrain Grand Prix,
   and plain-language explanations. Headshots are OpenF1 links, not stored files.
 
+### Fixed
+
+- the F1 fuel check rejects a starting load above the tank before it compares
+  fuel used with the fuel on board;
+- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
+  rule, so a crossover sequence can be planned;
+- a safety-car re-plan can add a declared field lap-time loss and rival pit
+  stops (both default to zero, so a pit-only window is unchanged);
+- an endurance safety car whose deploy minute sits outside the race returns
+  422 instead of being clamped;
+- a malformed back-test fixture prints a readable error instead of a bare
+  `KeyError`;
+- plan requests bound stint length, compound name length, season, round, and
+  the number of scenarios.
+
 ## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added

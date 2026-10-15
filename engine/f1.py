@@ -2,8 +2,9 @@
 
 Endurance races stay in ``engine.planner`` (a clock, refuelling, driver
 rotation). An F1 race here is a fixed lap count: no refuelling, a configured
-pit-lane loss, and a minimum number of dry compounds when the file says the
-race is dry. Tyre life, pace, degradation, fuel mass, and pit loss are inputs.
+pit-lane loss, and a minimum number of dry compounds when every stint is a
+slick. A wet-weather tyre is legal in a dry race and lifts that requirement.
+Tyre life, pace, degradation, fuel mass, and pit loss are inputs.
 Nothing in this module is a measured circuit fact.
 """
 
@@ -186,6 +187,8 @@ class SafetyCarRequest:
     end_lap: int
     pit_loss_sec: float
     pull_pit_into_sc: bool = True
+    field_lap_delta_sec: float = 0.0
+    rival_stops: int = 0
 
 
 @dataclass
@@ -391,14 +394,23 @@ def _why(
     if not feasible:
         return issues[0].message if issues else ""
     labels: list[str] = []
+    non_slick = False
     for stint in stints:
         if stint.label not in labels:
             labels.append(stint.label)
-    required = setup.dry_min_compounds if setup.dry_race else setup.wet_min_compounds
-    kind = "dry" if setup.dry_race else "wet"
+        compound = setup.compound(stint.compound_id)
+        if compound is not None and not compound.dry:
+            non_slick = True
+    if non_slick:
+        return (
+            "A wet-weather tyre is in this plan, so the two-compound slick rule does not apply. "
+            f"This plan uses {_join(labels)}. "
+            "Every stint stays within the tyre life in the file."
+        )
+    required = setup.dry_min_compounds
     noun = "tyre type" if required == 1 else "tyre types"
     return (
-        f"A {kind} race in this rule file needs at least {required} different {noun}. "
+        f"A dry race in this rule file needs at least {required} different {noun}. "
         f"This plan uses {_join(labels)}. "
         "Every stint stays within the tyre life in the file."
     )
@@ -647,9 +659,17 @@ def _rule_checks(
             _issue("missing_fuel", detail, "Set the car fuel fields in the event file.")
         )
     else:
-        capacity_mg = round(car.starting_fuel_kg * 1000)
+        start_mg = round(car.starting_fuel_kg * 1000)
+        tank_mg = round(car.fuel_capacity_kg * 1000)
         used_mg = round(fuel_used * 1000)
-        if used_mg > capacity_mg:
+        if start_mg > tank_mg:
+            detail = (
+                f"Starting fuel {car.starting_fuel_kg:.3f} kg is above the "
+                f"{car.fuel_capacity_kg:.3f} kg tank."
+            )
+            rules.append(F1RuleCheck("fuel_range", False, detail))
+            issues.append(_issue("fuel_capacity", detail, "Lower the starting fuel."))
+        elif used_mg > start_mg:
             detail = (
                 f"The race needs {fuel_used:.3f} kg and the car starts with "
                 f"{car.starting_fuel_kg:.3f} kg. No fuel is added at the stops."
@@ -662,13 +682,6 @@ def _rule_checks(
                     "Raise the starting fuel or lower the consumption assumption.",
                 )
             )
-        elif used_mg > round(car.fuel_capacity_kg * 1000):
-            detail = (
-                f"Starting fuel {car.starting_fuel_kg:.3f} kg is above the "
-                f"{car.fuel_capacity_kg:.3f} kg tank."
-            )
-            rules.append(F1RuleCheck("fuel_range", False, detail))
-            issues.append(_issue("fuel_capacity", detail, "Lower the starting fuel."))
         else:
             rules.append(
                 F1RuleCheck(
@@ -683,20 +696,29 @@ def _rule_checks(
 
     dry_ids = [stint.compound_id for stint in stints]
     compounds = [setup.compound(stint.compound_id) for stint in stints]
-    if setup.dry_race and any(
-        compound is not None and not compound.dry for compound in compounds
-    ):
-        detail = "A dry race in this file cannot use a wet-weather tyre."
-        rules.append(F1RuleCheck("compound_count", False, detail))
-        issues.append(
-            _issue("compound_rule", detail, "Use dry tyres, or mark the race wet.")
+    all_slick = bool(compounds) and all(
+        compound is not None and compound.dry for compound in compounds
+    )
+    if not all_slick:
+        labels = [
+            setup.compound(item).label
+            for item in dict.fromkeys(dry_ids)
+            if setup.compound(item) is not None
+        ]
+        rules.append(
+            F1RuleCheck(
+                "compound_count",
+                True,
+                (
+                    f"Used {_join(labels)}. A wet-weather tyre is in this plan, "
+                    "so the two-compound slick rule does not apply."
+                ),
+            )
         )
     else:
         distinct = list(dict.fromkeys(dry_ids))
-        required = (
-            setup.dry_min_compounds if setup.dry_race else setup.wet_min_compounds
-        )
-        kind = "dry" if setup.dry_race else "wet"
+        required = setup.dry_min_compounds
+        kind = "dry"
         if len(distinct) < required:
             detail = (
                 f"Used {_join([setup.compound(item).label for item in distinct if setup.compound(item)])} "
@@ -811,16 +833,19 @@ def _assumptions(
 
 
 def _available(setup: F1Setup) -> list[CompoundSpec]:
-    chosen: list[CompoundSpec] = []
-    for compound in setup.compounds:
-        if not compound.max_laps or compound.max_laps < 1:
-            continue
-        if setup.dry_race and not compound.dry:
-            continue
-        if not setup.dry_race and compound.dry:
-            continue
-        chosen.append(compound)
-    return chosen
+    """Compounds with a stint life, slicks and wet-weather tyres together."""
+    return [
+        compound
+        for compound in setup.compounds
+        if compound.max_laps is not None and compound.max_laps >= 1
+    ]
+
+
+def _slick_rule_blocks(combo: tuple[CompoundSpec, ...], minimum: int) -> bool:
+    """The two-compound rule applies only when every stint in the sequence is a slick."""
+    if not combo or not all(compound.dry for compound in combo):
+        return False
+    return len({compound.compound_id for compound in combo}) < minimum
 
 
 def _rank_key(plan: F1Plan) -> tuple[float, int, tuple[str, ...], tuple[int, ...]]:
@@ -874,7 +899,6 @@ def best_f1_plan(setup: F1Setup, *, name: str = "Suggested") -> F1Plan:
         )
 
     available = _available(setup)
-    required = setup.dry_min_compounds if setup.dry_race else setup.wet_min_compounds
     race_laps = int(setup.race_laps or 0)
     if not available:
         plan = _empty_plan(
@@ -900,11 +924,10 @@ def best_f1_plan(setup: F1Setup, *, name: str = "Suggested") -> F1Plan:
     scored: list[F1Plan] = []
     for stops in range(0, setup.max_stops + 1):
         length = stops + 1
-        if length > race_laps or length < required:
+        if length > race_laps:
             continue
         for combo in itertools.product(available, repeat=length):
-            ids = [compound.compound_id for compound in combo]
-            if len(set(ids)) < required:
+            if _slick_rule_blocks(combo, setup.dry_min_compounds):
                 continue
             costs = [_stint_cost(base, compound) for compound in combo]
             allocated = best_lap_split(
@@ -1022,8 +1045,10 @@ def replan_f1_safety_car(
 ) -> SafetyCarResult:
     """Re-price pit loss under one safety-car window, and move one stop into it.
 
-    Lap times under the safety car are not resimulated. The only modelled
-    effect is the pit-lane loss of a stop that falls inside the window.
+    Lap times under the safety car are not resimulated. A declared field lap
+    delta is added to both clocks for every lap of the window, so it does not
+    change the pit saving. Each rival stop inside the window removes the cheap
+    pit delta from that saving. The caller supplies both numbers.
     """
     setup = plan.setup
     confidence = (
@@ -1044,12 +1069,24 @@ def replan_f1_safety_car(
             assumptions=[summary],
         )
     race_laps = int(setup.race_laps or 0)
-    if (
-        sc.start_lap < 1
-        or sc.end_lap < sc.start_lap
-        or sc.end_lap > race_laps
-        or sc.pit_loss_sec < 0
-    ):
+    if sc.pit_loss_sec < 0 or sc.field_lap_delta_sec < 0 or sc.rival_stops < 0:
+        summary = (
+            "Safety-car pit loss, the field lap delta, and rival stops "
+            "must be zero or higher. This scenario was not evaluated."
+        )
+        return SafetyCarResult(
+            original=plan,
+            replanned=plan,
+            original_race_time_sec=plan.race_time_sec,
+            replanned_race_time_sec=plan.race_time_sec,
+            time_saved_sec=0.0,
+            stop_laps=list(plan.stop_laps),
+            stops_moved=False,
+            summary=summary,
+            confidence="Not evaluated",
+            assumptions=[summary],
+        )
+    if sc.start_lap < 1 or sc.end_lap < sc.start_lap or sc.end_lap > race_laps:
         summary = (
             f"Safety car laps must sit inside the race. "
             f"The window was {sc.start_lap}–{sc.end_lap} and the race is {race_laps} laps."
@@ -1132,14 +1169,25 @@ def replan_f1_safety_car(
             assumptions=[confidence],
         )
 
-    saved_ms = round(plan.race_time_sec * 1000) - round(best.race_time_sec * 1000)
-    saved = saved_ms / 1000
+    window_laps = sc.end_lap - sc.start_lap + 1
+    field_ms = round(sc.field_lap_delta_sec * 1000) * window_laps
+    original_ms = round(plan.race_time_sec * 1000) + field_ms
+    replanned_ms = round(best.race_time_sec * 1000) + field_ms
+    pit_saved_ms = round(plan.race_time_sec * 1000) - round(best.race_time_sec * 1000)
+    green = float(setup.pit_lane_loss_sec or 0.0)
+    cheap_ms = max(0, round(green * 1000) - round(sc.pit_loss_sec * 1000))
+    in_window = sum(1 for lap in best.stop_laps if sc.start_lap <= lap <= sc.end_lap)
+    matched = min(sc.rival_stops, in_window)
+    rival_ms = cheap_ms * matched
+    saved = (pit_saved_ms - rival_ms) / 1000
+    pit_saved = pit_saved_ms / 1000
+    field_cost = field_ms / 1000
     moved = tuple(best_laps) != tuple(base_laps)
     if moved and best.stop_laps:
         summary = (
             f"Move a stop to lap {best.stop_laps[0] if len(best.stop_laps) == 1 else best.stop_laps}, "
             f"inside the safety-car window (laps {sc.start_lap}–{sc.end_lap}). "
-            f"Estimated time saved: {saved:.3f} s."
+            f"Estimated time saved: {pit_saved:.3f} s."
         )
     elif best.stop_laps and any(
         sc.start_lap <= lap <= sc.end_lap for lap in best.stop_laps
@@ -1148,7 +1196,7 @@ def replan_f1_safety_car(
             f"Pit on lap {best.stop_laps[0]}, which is inside the safety-car window "
             f"(laps {sc.start_lap}–{sc.end_lap}). "
             f"That stop costs {sc.pit_loss_sec:.1f} s instead of {setup.pit_lane_loss_sec:.1f} s, "
-            f"saving {saved:.3f} s. The tyre sequence stays the same."
+            f"saving {pit_saved:.3f} s. The tyre sequence stays the same."
         )
     else:
         summary = (
@@ -1156,20 +1204,35 @@ def replan_f1_safety_car(
             "and moving a stop into that window would run a tyre past its life. "
             "Estimated time saved: 0 s."
         )
+    if field_cost:
+        summary += (
+            f" The field loses {sc.field_lap_delta_sec:.3f} s on each of the "
+            f"{window_laps} laps in the window, {field_cost:.3f} s on both clocks."
+        )
+    if rival_ms:
+        stop_word = "stop" if matched == 1 else "stops"
+        verb = "takes" if matched == 1 else "take"
+        summary += (
+            f" {matched} rival {stop_word} inside the window "
+            f"{verb} back {rival_ms / 1000:.3f} s, "
+            f"so the net saving against that rival is {saved:.3f} s."
+        )
+    window_note = (
+        f"One safety car from lap {sc.start_lap} to lap {sc.end_lap}. "
+        f"A stop in that window costs {sc.pit_loss_sec:.1f} s."
+    )
+    if field_cost or rival_ms:
+        window_note += (
+            " Field lap delta and rival stops are caller-declared offsets, "
+            "not a measured circuit multiplier."
+        )
     best.summary = summary
-    best.assumptions = [
-        *best.assumptions,
-        confidence,
-        (
-            f"One safety car from lap {sc.start_lap} to lap {sc.end_lap}. "
-            f"A stop in that window costs {sc.pit_loss_sec:.1f} s."
-        ),
-    ]
+    best.assumptions = [*best.assumptions, confidence, window_note]
     return SafetyCarResult(
         original=plan,
         replanned=best,
-        original_race_time_sec=plan.race_time_sec,
-        replanned_race_time_sec=best.race_time_sec,
+        original_race_time_sec=original_ms / 1000,
+        replanned_race_time_sec=replanned_ms / 1000,
         time_saved_sec=saved,
         stop_laps=list(best.stop_laps),
         stops_moved=moved,
