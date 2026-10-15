@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "series": "f1",
+  "season": 2024,
+  "round": 1,
+  "event_name": "Bahrain Grand Prix",
+  "circuit_id": "bahrain",
+  "race_laps": 57,
+  "dry_race": true,
+  "time_limit_sec": 7200,
+  "pit_lane_loss_sec": 22.0,
+  "base_lap_time_sec": 95.0,
+  "evidence_level": "C",
+  "data_source": "Race distance is the 2024 Bahrain Grand Prix lap count. Pit-lane loss, base lap time, compound life, and fuel are manual assumptions, not a measured team model.",
+  "compounds": {
+    "SOFT": {"max_laps": 22, "pace_delta_sec": -0.4, "deg_sec_per_lap": 0.06},
+    "MEDIUM": {"max_laps": 32, "pace_delta_sec": 0.0, "deg_sec_per_lap": 0.035},
+    "HARD": {"max_laps": 42, "pace_delta_sec": 0.35, "deg_sec_per_lap": 0.02}
+  },
+  "cars": [
+    {
+      "car_id": "assumption-car",
+      "team_name": "",
+      "team_colour": null,
+      "livery_image_url": null,
+      "pace_delta_sec": 0.0,
+      "fuel_capacity_kg": 110.0,
+      "fuel_consumption_kg_per_lap": 1.8,
+      "starting_fuel_kg": 110.0,
+      "upgrades": []
+    }
+  ],
+  "drivers": [],
+  "teams": [],
+  "focus_driver": null
+}

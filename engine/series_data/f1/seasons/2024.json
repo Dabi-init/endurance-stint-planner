@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "series": "f1",
+  "season": 2024,
+  "evidence_level": "C",
+  "notes": "Strategy-relevant sporting shape for 2024: no refuelling during the race, and a dry race needs at least two dry compounds. This is not an FIA text. Compound life and pace are set per event.",
+  "rules": {
+    "refuelling_allowed": false,
+    "dry_min_compounds": 2,
+    "wet_min_compounds": 1,
+    "max_stops": 3
+  },
+  "compounds": [
+    {"id": "SOFT", "label": "Soft", "dry": true, "colour": "FF1E00"},
+    {"id": "MEDIUM", "label": "Medium", "dry": true, "colour": "FFF200"},
+    {"id": "HARD", "label": "Hard", "dry": true, "colour": "F0F0F0"},
+    {"id": "INTERMEDIATE", "label": "Intermediate", "dry": false, "colour": "43B02A"},
+    {"id": "WET", "label": "Wet", "dry": false, "colour": "3E8BFF"}
+  ],
+  "car_defaults": {
+    "fuel_capacity_kg": 110.0,
+    "fuel_consumption_kg_per_lap": 1.8,
+    "starting_fuel_kg": 110.0,
+    "pace_delta_sec": 0.0,
+    "note": "Fuel mass is an order-of-magnitude assumption so an impossible load can be refused. It is not a measured car."
+  }
+}

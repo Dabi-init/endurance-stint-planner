@@ -5,6 +5,20 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- a local API (`python -m pitwall_api`, optional `api` extra) that creates a
+  plan, compares scenarios, and re-plans a safety car for the endurance engine
+  and a new F1 planner;
+- versioned F1 season and event files for tyre compounds, mandatory compound
+  use, pit-lane loss, and no refuelling, with user overrides and an optional
+  entry-list refresh from OpenF1 and Jolpica before an event;
+- driver and team cards that carry a headshot URL, a team colour, and an
+  optional livery URL, stored as links only (image files are not downloaded);
+- an offline back-test (`python -m backtest`) of the 2024 Bahrain Grand Prix,
+  car 1, reporting predicted stints and race time against the recorded result.
+  This is one comparison under file assumptions, not a validation claim.
+
 ## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added

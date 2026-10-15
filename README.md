@@ -31,7 +31,7 @@ compares complete, executable strategies: fuel loads and additions, driver
 rotation, tyre sets, parallel or sequential pit service, uncertainty, configured
 driver rules, and a scoped Safety Car what-if.
 
-It is terminal software—not a website. It works without a language model. If
+The published app is terminal software, with a local API for a later pit-wall screen. It is not a hosted website. It works without a language model. If
 you connect a local [Ollama](https://ollama.com/) model, the model can translate
 plain English into allowlisted race-tool calls. Material race answers are then
 rendered locally from successful deterministic tool results; a failed or unknown
@@ -380,16 +380,68 @@ your terminal.
   Without it Pitwall labels the run `Manual assumptions` and stays at Evidence
   Level C.
 
+## Local API and back-test
+
+The terminal app remains the way to run a plan on this computer. A local HTTP
+API sits beside it for a later pit-wall screen. It does not upload telemetry,
+and it is not a hosted website.
+
+```bash
+pip install -e ".[api]"
+python -m pitwall_api
+```
+
+That listens on `127.0.0.1:8000`. `GET /v1/health` reports the engine version.
+`POST /v1/plans`, `POST /v1/scenarios/compare`, and `POST /v1/safety-car` accept
+a `series` of `f1` or `endurance`. An F1 plan can name a season and round, or
+post a setup document. `detail` of `plain` keeps the numbers, the summary, the
+rule checks, and the assumptions, and leaves out field provenance.
+
+Rules, car specs, driver line-ups, and team upgrades are JSON under
+`engine/series_data/f1/`, not code. Season files hold the rule shape. Event
+files hold the distance, pit-lane loss, and tyre life you are willing to assume.
+`POST /v1/f1/events/{season}/{round}/prepare` can refresh the entry list,
+drivers, teams, and calendar from OpenF1 and Jolpica before the event. Pass
+`{"offline": true}` to skip the network. User overrides win over the fetched
+list and over the files. Bundled files are not rewritten.
+
+OpenF1 historical data is free for non-commercial education, personal, and
+research use. Formula 1 owns the underlying timing data. Jolpica-F1 is used
+under CC BY-NC-SA 4.0. Live timing is not called. Successful JSON responses are
+cached under `.cache/pitwall-historical`, which is gitignored. Image fields are
+links only: OpenF1 may provide `headshot_url` and `team_colour`. Pitwall does
+not download or commit those images. A livery URL is used only when you or a
+source provide one.
+
+Each plan returns a plain-language summary and a why sentence, plus the rule
+checks an expert can read. An F1 result is one deterministic time, and it says
+that a P10–P90 range is not estimated yet. Endurance comparisons still return
+P10, median, and P90 laps.
+
+The recorded comparison does not use the network:
+
+```bash
+python -m backtest
+```
+
+It runs the 2024 Bahrain Grand Prix, car 1, from a small fixture. The printed
+gap is one comparison, not an accuracy claim.
+
 ## Honest scope
 
 Pitwall Agent is pre-race decision support in alpha. It does not currently
 provide live timing, weather, traffic, competitors, wave-by, pit-closure, class
-split, championship-specific rule packs, or validated real-session accuracy.
-Always verify the official event regulations and live fuel data.
+split, or validated real-session accuracy. Always verify the official event
+regulations and live fuel data.
 
 The engine is credible when its assumptions match your race—not because an AI
-described it confidently. Real-session predicted-versus-actual validation is
-the largest remaining product gap.
+described it confidently. An F1 rule pack (tyre compounds, mandatory compound
+use, pit-lane loss, no refuelling) sits beside the endurance planner as
+versioned files. One recorded comparison, the 2024 Bahrain Grand Prix for one
+car, is included as a back-test. That comparison is not a claim of accuracy:
+the pace anchor is taken from the same session, and tyre life, degradation, and
+pit-lane loss are file assumptions (Evidence Level C). A blind pre-race
+forecast on a shareable session is not validated yet.
 
 ## Development
 

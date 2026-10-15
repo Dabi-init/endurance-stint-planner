@@ -29,6 +29,9 @@ desktop.ini
 
 # Project outputs
 outputs/
+
+# Historical API cache (OpenF1 / Jolpica). Do not commit.
+.cache/
 .pitwall*/
 *.png
 *.csv
