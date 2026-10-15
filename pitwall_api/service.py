@@ -196,7 +196,12 @@ def safety_car(body: SafetyCarRequestIn) -> SafetyCarResponse:
             "Endurance safety_car needs deploy_min and duration_min."
         ) from exc
     race_end = config.race_duration_min
-    if scenario.deploy_min < 0 or scenario.deploy_min > race_end:
+    if scenario.deploy_min < 0:
+        raise RequestError(
+            f"deploy_min {scenario.deploy_min:g} must be zero or higher.",
+            status=422,
+        )
+    if scenario.deploy_min > race_end:
         raise RequestError(
             (
                 f"deploy_min {scenario.deploy_min:g} is past the race "
