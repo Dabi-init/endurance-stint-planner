@@ -22,6 +22,7 @@
       <div class="modes" role="group" aria-label="View">
         <button type="button" id="mode-plan" class="mode on" data-mode="plan">Plan</button>
         <button type="button" id="mode-replay" class="mode" data-mode="replay">Replay</button>
+        <button type="button" id="mode-live" class="mode" data-mode="live">Live</button>
       </div>
       <p class="pill" id="evidence-pill">Evidence C</p>
     </header>
@@ -47,9 +48,10 @@
             </div>
             <p class="lap-readout" id="lap-readout">Lap —</p>
           </div>
+          <p id="live-banner" class="live-banner" hidden></p>
           <div id="timeline" class="timeline"></div>
           <div class="scrub" id="scrub" hidden>
-            <label for="lap-slider">Replay lap</label>
+            <label for="lap-slider">Lap</label>
             <input id="lap-slider" type="range" min="1" max="57" value="1" />
             <p id="pit-flag" class="pit-flag" hidden>Pit this lap</p>
           </div>
@@ -72,6 +74,29 @@
             <p>Suggested plan beside the recorded stints.</p>
           </div>
           <div id="cards" class="cards"></div>
+        </section>
+
+        <section class="panel" id="live-tools" hidden aria-labelledby="live-title">
+          <div class="panel-head">
+            <h2 id="live-title">Live tools</h2>
+            <p>Replay is the free feed. OpenF1 live stays on the server and is paid.</p>
+          </div>
+          <p id="live-source" class="fine"></p>
+          <label class="check"><input id="sc-on" type="checkbox" /> What-if safety car, laps 34–36, pit loss 10 s</label>
+          <button type="button" id="play-live">Play the recording</button>
+          <form id="undercut-form" class="builder">
+            <p class="kicker">Undercut</p>
+            <label>Gap behind (seconds)<input id="gap" type="number" step="0.1" value="2" /></label>
+            <label>Laps we stop earlier<input id="laps-ahead" type="number" step="1" value="5" /></label>
+            <label>Tyre gain per lap (seconds)<input id="tyre-gain" type="number" step="0.1" value="0.5" /></label>
+            <label>Out-lap warm-up (seconds)<input id="out-lap" type="number" min="0" step="0.1" value="0" /></label>
+            <label>In-lap delta (seconds)<input id="in-lap" type="number" min="0" step="0.1" value="0" /></label>
+            <label>Traffic avoided (seconds)<input id="traffic" type="number" min="0" step="0.1" value="0" /></label>
+            <button type="submit">Check the undercut</button>
+            <p id="undercut-note" class="fine">Tyre gain, out-lap, in-lap, and traffic are your inputs, not a measured rival.</p>
+          </form>
+          <button type="button" id="odds-button">Sample the race-time spread</button>
+          <p id="odds-note" class="fine"></p>
         </section>
 
         <section class="panel" aria-labelledby="builder-title">

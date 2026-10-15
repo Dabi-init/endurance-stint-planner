@@ -64,7 +64,9 @@ function clock(seconds) {
 
 function currentEvent() {
   const events = state.replay?.events || [];
-  if (state.mode !== "replay") return events[0];
+  if (!events.length || state.mode === "plan") return events[0];
+  // A safety-car sentence is about the full-race plan, not a later slice.
+  if (state.mode === "live" && liveFrame()?.alert) return events[0];
   let chosen = events[0];
   for (const event of events) {
     if (event.lap <= state.lap) chosen = event;
@@ -119,7 +121,12 @@ function renderTimeline() {
   const band = window
     ? `<div class="window" style="left:${((window[0] - 1) / planLaps) * 100}%;width:${((window[1] - window[0] + 1) / planLaps) * 100}%"></div>`
     : "";
-  const label = state.mode === "replay" && event?.lap ? `From lap ${event.lap}` : "Suggested";
+  const frame = state.mode === "live" ? liveFrame() : null;
+  const label = frame?.alert
+    ? "Safety-car what-if"
+    : state.mode !== "plan" && event?.lap
+      ? `From lap ${event.lap}`
+      : "Suggested";
   $("timeline").innerHTML = `
     <div class="lane"><p>${label}</p><div class="track">${segments(event?.stints || [], planLaps)}${band}</div></div>
     <div class="lane"><p>Recorded</p><div class="track">${segments(recorded, raceLaps)}</div></div>
@@ -127,15 +134,24 @@ function renderTimeline() {
   $("timeline-note").textContent = window
     ? `Amber band: a legal stop for this tyre order, laps ${window[0]}–${window[1]}.`
     : "No one-stop window for the plan on screen.";
-  const onPit = state.mode === "replay" && lapState()?.pit;
+  const onPit = (state.mode === "replay" && lapState()?.pit) || frame?.kind === "pit";
   $("pit-flag").hidden = !onPit;
-  $("lap-readout").textContent = state.mode === "replay" ? `Lap ${state.lap} / ${raceLaps}` : `Lap 1–${raceLaps}`;
-  $("scrub").hidden = state.mode !== "replay";
+  $("lap-readout").textContent = state.mode === "plan" ? `Lap 1–${raceLaps}` : `Lap ${state.lap} / ${raceLaps}`;
+  $("scrub").hidden = state.mode === "plan";
+  const banner = $("live-banner");
+  if (frame && (frame.kind === "safety-car" || frame.kind === "vsc" || frame.kind === "pit")) {
+    banner.hidden = false;
+    banner.textContent = frame.message;
+  } else {
+    banner.hidden = true;
+  }
 }
 
 function renderExplain() {
   const event = currentEvent();
-  $("explain").textContent = event?.explanation || "No plan yet.";
+  const frame = state.mode === "live" ? liveFrame() : null;
+  const lead = frame?.alert ? `${frame.alert} ` : "";
+  $("explain").textContent = `${lead}${event?.explanation || "No plan yet."}`;
   $("uncertainty").textContent = event?.uncertainty || "";
 }
 
@@ -149,9 +165,14 @@ function card(name, seconds, summary, reason, preferred, rank) {
 }
 
 function renderCards() {
-  if (state.mode === "replay") {
+  if (state.mode === "replay" || state.mode === "live") {
     const event = currentEvent();
-    const name = event?.lap ? `From lap ${event.lap}` : "Before the start";
+    const frame = state.mode === "live" ? liveFrame() : null;
+    const name = frame?.alert
+      ? "Safety-car what-if"
+      : event?.lap
+        ? `From lap ${event.lap}`
+        : "Before the start";
     $("cards").innerHTML = card(name, event?.race_time_sec, event?.summary, event?.why, event?.feasible, "•");
     return;
   }
@@ -178,10 +199,55 @@ function render() {
 
 function setMode(mode) {
   state.mode = mode;
+  if (state.playTimer) {
+    clearInterval(state.playTimer);
+    state.playTimer = null;
+  }
   for (const button of document.querySelectorAll(".mode")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
+  $("live-tools").hidden = mode !== "live";
+  if (mode !== "live") $("live-banner").hidden = true;
+  $("series-kicker").textContent = mode === "live"
+    ? "Formula 1 · replay feed, not live timing"
+    : "Formula 1 · file assumptions";
   render();
+}
+
+function liveFrame() {
+  return (state.liveFrames || []).find((frame) => frame.lap === state.lap);
+}
+
+async function startLive(jumpLap) {
+  const params = new URLSearchParams();
+  if ($("sc-on").checked) {
+    params.set("sc_start", "34");
+    params.set("sc_end", "36");
+    params.set("sc_pit", "10");
+  }
+  state.liveFrames = await getJson(`/v1/live/replay/frames?${params.toString()}`);
+  const sources = await getJson("/v1/live/sources");
+  $("live-source").textContent = sources.map((row) => `${row.id}: ${row.detail}`).join(" ");
+  setMode("live");
+  state.lap = clampLap(jumpLap, state.liveFrames.length || state.replay?.race_laps || 57);
+  $("lap-slider").max = String(state.liveFrames.length);
+  $("lap-slider").value = String(state.lap);
+  $("scrub").hidden = false;
+  render();
+}
+
+function playLive() {
+  if (state.playTimer) clearInterval(state.playTimer);
+  state.playTimer = setInterval(() => {
+    if (state.mode !== "live") return;
+    if (state.lap >= (state.liveFrames || []).length) {
+      clearInterval(state.playTimer);
+      return;
+    }
+    state.lap += 1;
+    $("lap-slider").value = String(state.lap);
+    render();
+  }, 180);
 }
 
 async function refresh(withOverrides) {
@@ -229,7 +295,11 @@ async function boot() {
       $("mode-replay").classList.add("on");
       $("mode-plan").classList.remove("on");
     }
+    if (hash.get("sc") === "1") $("sc-on").checked = true;
     render();
+    if (hash.get("mode") === "live") {
+      await startLive(hash.get("lap") || 35);
+    }
   } catch (error) {
     $("explain").textContent = error.message;
   }
@@ -237,9 +307,44 @@ async function boot() {
 
 $("mode-plan").addEventListener("click", () => setMode("plan"));
 $("mode-replay").addEventListener("click", () => setMode("replay"));
+$("mode-live").addEventListener("click", () => startLive());
 $("lap-slider").addEventListener("input", (event) => {
   state.lap = Number(event.target.value);
   render();
+});
+$("play-live").addEventListener("click", () => {
+  state.lap = 1;
+  playLive();
+});
+$("sc-on").addEventListener("change", () => {
+  if (state.mode === "live") startLive(state.lap);
+});
+$("undercut-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const result = await postJson("/v1/f1/undercut", {
+      gap_behind_sec: Number($("gap").value),
+      laps_ahead: Number($("laps-ahead").value),
+      tyre_gain_sec_per_lap: Number($("tyre-gain").value),
+      our_pit_loss_sec: 22,
+      their_pit_loss_sec: 22,
+      out_lap_warmup_sec: Number($("out-lap").value),
+      in_lap_delta_sec: Number($("in-lap").value),
+      traffic_avoided_sec: Number($("traffic").value),
+    });
+    $("undercut-note").textContent = result.explanation;
+  } catch (error) {
+    $("undercut-note").textContent = error.message;
+  }
+});
+$("odds-button").addEventListener("click", async () => {
+  $("odds-note").textContent = "Sampling the file's degradation and pit loss as a race-time spread.";
+  try {
+    const odds = await postJson("/v1/f1/odds", { season: 2024, round: 1, iterations: 64 });
+    $("odds-note").textContent = `P10 ${odds.p10_sec} s, median ${odds.p50_sec} s, P90 ${odds.p90_sec} s. ${odds.honesty}`;
+  } catch (error) {
+    $("odds-note").textContent = error.message;
+  }
 });
 $("builder").addEventListener("submit", async (event) => {
   event.preventDefault();

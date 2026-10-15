@@ -72,6 +72,23 @@ class ReplayRequest(BaseModel):
     anchor_pace: bool = False
 
 
+class UndercutRequest(BaseModel):
+    gap_behind_sec: float = Field(ge=0)
+    laps_ahead: int = Field(ge=1)
+    tyre_gain_sec_per_lap: float
+    our_pit_loss_sec: float = Field(ge=0)
+    their_pit_loss_sec: float = Field(ge=0)
+    out_lap_warmup_sec: float = Field(default=0, ge=0)
+    in_lap_delta_sec: float = Field(default=0, ge=0)
+    traffic_avoided_sec: float = Field(default=0, ge=0)
+
+
+class OddsRequest(BaseModel):
+    season: int
+    round: int
+    iterations: int = Field(default=64, ge=1, le=400)
+
+
 class IssueOut(BaseModel):
     code: str
     message: str

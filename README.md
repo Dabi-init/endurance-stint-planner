@@ -395,8 +395,10 @@ That listens on `127.0.0.1:8000`. Open <http://127.0.0.1:8000/> for the pit wall
 a dark timing tower, strategy timeline, scenario cards, and a lap-by-lap replay
 of the bundled 2024 Bahrain Grand Prix. Open that replay with
 `POST /v1/replays/{fixture_id}`. `GET` on that path returns 405.
-Headshots load in the browser from
-OpenF1 `headshot_url` links. The page does not download or store those images.
+The Live view plays that recording as a
+lap feed. It is not live timing. A what-if safety car on laps 34–36 is a
+declared scenario. Headshots load in the browser from OpenF1 `headshot_url`
+links. The page does not download or store those images.
 `GET /v1/health` reports the engine version.
 `POST /v1/plans`, `POST /v1/scenarios/compare`, and `POST /v1/safety-car` accept
 a `series` of `f1` or `endurance`. An F1 plan can name a season and round, or
@@ -413,11 +415,23 @@ list and over the files. Bundled files are not rewritten.
 
 OpenF1 historical data is free for non-commercial education, personal, and
 research use. Formula 1 owns the underlying timing data. Jolpica-F1 is used
-under CC BY-NC-SA 4.0. Live timing is not called. Successful JSON responses are
+under CC BY-NC-SA 4.0. The free lap feed is the local Bahrain replay.
+`GET /v1/live/sources` lists that replay and an OpenF1 live slot. OpenF1 live
+is a paid socket: Pitwall does not open it unless a transport is plugged in on
+the server. If `OPENF1_LIVE_TOKEN` is set, the value stays in the server
+process and is never copied into a response. Successful JSON responses are
 cached under `.cache/pitwall-historical`, which is gitignored. Image fields are
 links only: OpenF1 may provide `headshot_url` and `team_colour`. Pitwall does
 not download or commit those images. A livery URL is used only when you or a
 source provide one.
+
+`POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
+the two pit losses, then subtracts an out-lap warm-up and an in-lap delta and
+adds any traffic you say was avoided. Those three default to zero. It does not
+model the rival. `POST /v1/f1/odds` samples one feasible plan by nudging the
+file's degradation and pit-lane loss with a fixed seed. The page calls that
+sample a race-time spread. The response says it is not a P10–P90 forecast
+from race history.
 
 Each plan returns a plain-language summary and a why sentence, plus the rule
 checks an expert can read. An F1 result is one deterministic time, and it says
@@ -435,8 +449,9 @@ gap is one comparison, not an accuracy claim.
 
 ## Honest scope
 
-Pitwall Agent is pre-race decision support in alpha. It does not currently
-provide live timing, weather, traffic, competitors, wave-by, pit-closure, class
+Pitwall Agent is pre-race decision support in alpha. The lap feed replays a
+bundled recording; it does not receive live timing. It does not currently
+provide weather, traffic, a rival model, wave-by, pit-closure, class
 split, or validated real-session accuracy. Always verify the official event
 regulations and live fuel data.
 
