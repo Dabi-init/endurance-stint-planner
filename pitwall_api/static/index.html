@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pitwall</title>
+    <link rel="stylesheet" href="/static/wall.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-kicker">Local pit wall</p>
+          <p class="brand-name">Pitwall</p>
+        </div>
+      </div>
+      <div class="event-block">
+        <p class="kicker" id="series-kicker">Formula 1 · file assumptions</p>
+        <h1 id="event-name">Loading the race</h1>
+      </div>
+      <div class="modes" role="group" aria-label="View">
+        <button type="button" id="mode-plan" class="mode on" data-mode="plan">Plan</button>
+        <button type="button" id="mode-replay" class="mode" data-mode="replay">Replay</button>
+      </div>
+      <p class="pill" id="evidence-pill">Evidence C</p>
+    </header>
+
+    <div class="wall">
+      <aside class="panel tower-panel" aria-labelledby="tower-title">
+        <div class="panel-head">
+          <h2 id="tower-title">Timing tower</h2>
+          <p>Grid and recorded finish. The lap feed is car 1 only.</p>
+        </div>
+        <div class="tower-head" aria-hidden="true">
+          <span></span><span>Driver</span><span>Grid</span><span>Finish</span>
+        </div>
+        <ol id="tower" class="tower"></ol>
+      </aside>
+
+      <main class="centre">
+        <section class="panel" aria-labelledby="timeline-title">
+          <div class="panel-head row">
+            <div>
+              <h2 id="timeline-title">Strategy timeline</h2>
+              <p id="timeline-note">Stints, tyre colours, and the legal pit window.</p>
+            </div>
+            <p class="lap-readout" id="lap-readout">Lap —</p>
+          </div>
+          <div id="timeline" class="timeline"></div>
+          <div class="scrub" id="scrub" hidden>
+            <label for="lap-slider">Replay lap</label>
+            <input id="lap-slider" type="range" min="1" max="57" value="1" />
+            <p id="pit-flag" class="pit-flag" hidden>Pit this lap</p>
+          </div>
+        </section>
+
+        <section class="panel explain" aria-labelledby="explain-title">
+          <div class="panel-head">
+            <h2 id="explain-title">Why this call</h2>
+            <p>Plain language from the planner. The numbers are the engine's, not a guess.</p>
+          </div>
+          <p id="explain" class="explain-body">Waiting for the plan.</p>
+          <p id="uncertainty" class="uncertainty"></p>
+        </section>
+      </main>
+
+      <aside class="side">
+        <section class="panel" aria-labelledby="cards-title">
+          <div class="panel-head">
+            <h2 id="cards-title">Scenario cards</h2>
+            <p>Suggested plan beside the recorded stints.</p>
+          </div>
+          <div id="cards" class="cards"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="builder-title">
+          <div class="panel-head">
+            <h2 id="builder-title">Your overrides</h2>
+            <p>Rules and car numbers are data. Your values replace the file.</p>
+          </div>
+          <form id="builder" class="builder">
+            <label>Pit-lane loss (seconds)
+              <input id="pit-loss" name="pit_lane_loss_sec" type="number" min="0" step="0.1" required />
+            </label>
+            <label>Base lap (seconds)
+              <input id="base-lap" name="base_lap_time_sec" type="number" min="1" step="0.001" required />
+            </label>
+            <label class="check"><input id="dry-race" name="dry_race" type="checkbox" checked /> Dry race</label>
+            <label class="check"><input id="anchor-pace" name="anchor_pace" type="checkbox" /> Use this race's clean-lap median as the pace anchor</label>
+            <button type="submit" id="apply">Update the plan</button>
+            <p id="apply-note" class="fine">Headshots load from OpenF1 links in your browser. Pitwall does not store the image files.</p>
+          </form>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="disclaimer">
+      Pre-race estimate from the configured rules and assumptions.
+      Not live timing, not an official regulation text, and not a validated prediction.
+    </footer>
+    <script type="module" src="/static/wall.js"></script>
+  </body>
+</html>

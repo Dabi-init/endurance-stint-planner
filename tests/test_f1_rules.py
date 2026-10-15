@@ -15,6 +15,7 @@ from engine.f1 import (
     best_lap_split,
     compare_f1,
     lap_time_ms,
+    legal_one_stop_window,
     replan_f1_safety_car,
     score_stints,
 )
@@ -395,6 +396,11 @@ def test_safety_car_window_outside_the_race_is_not_applied() -> None:
     assert result.time_saved_sec == 0.0
     assert "window was 0–2" in result.summary
     assert result.confidence == "Not evaluated"
+
+
+def test_hard_then_soft_window_is_laps_six_to_nine() -> None:
+    assert legal_one_stop_window(_setup(), "HARD", "SOFT") == (6, 9)
+    assert legal_one_stop_window(_setup(), "SOFT", "SOFT") is None
 
 
 def test_safety_car_field_loss_hits_both_clocks_and_a_rival_stop_cancels_the_saving() -> (

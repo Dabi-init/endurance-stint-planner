@@ -25,7 +25,7 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
-      - run: python -m compileall -q engine pitwall historical backtest pitwall_api
+      - run: python -m compileall -q engine pitwall historical backtest pitwall_api replay
 
   tests:
     name: Python ${{ matrix.python-version }}

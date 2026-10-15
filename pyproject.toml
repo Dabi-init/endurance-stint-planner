@@ -64,7 +64,7 @@ Issues = "https://github.com/Dabi-init/endurance-stint-planner/issues"
 Changelog = "https://github.com/Dabi-init/endurance-stint-planner/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = ["engine*", "pitwall*", "historical*", "backtest*", "pitwall_api*"]
+include = ["engine*", "pitwall*", "historical*", "backtest*", "pitwall_api*", "replay*"]
 
 [tool.setuptools.package-data]
 "pitwall.presets" = ["*.json"]
@@ -73,6 +73,7 @@ include = ["engine*", "pitwall*", "historical*", "backtest*", "pitwall_api*"]
   "series_data/f1/events/*.json",
 ]
 "backtest" = ["fixtures/*.json"]
+"pitwall_api" = ["static/*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
@@ -80,7 +81,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["engine", "pitwall", "historical", "backtest", "pitwall_api"]
+source = ["engine", "pitwall", "historical", "backtest", "pitwall_api", "replay"]
 omit = [
   "pitwall/__main__.py",
   "pitwall/cli.py",

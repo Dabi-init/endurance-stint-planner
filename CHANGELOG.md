@@ -17,7 +17,10 @@ semantic versioning.
   optional livery URL, stored as links only (image files are not downloaded);
 - an offline back-test (`python -m backtest`) of the 2024 Bahrain Grand Prix,
   car 1, reporting predicted stints and race time against the recorded result.
-  This is one comparison under file assumptions, not a validation claim.
+  This is one comparison under file assumptions, not a validation claim;
+- a local pit-wall page at `/` when the API is running: dark timing tower,
+  strategy timeline, scenario cards, a replay of the 2024 Bahrain Grand Prix,
+  and plain-language explanations. Headshots are OpenF1 links, not stored files.
 
 ### Fixed
 
@@ -31,10 +34,16 @@ semantic versioning.
   422 instead of being clamped. A negative deploy minute says it must be zero
   or higher;
 - an F1 event round outside 1–30 returns 422 on the event and prepare routes;
+- the pit-wall docs say the Bahrain replay is opened with POST, and GET on
+  that path returns 405;
 - a malformed back-test fixture prints a readable error instead of a bare
   `KeyError`;
 - plan requests bound stint length, compound name length, season, round, and
-  the number of scenarios.
+  the number of scenarios;
+- the timing tower escapes grid and finish position before writing HTML, the
+  replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
+  into the race, and a bad replay override returns 422. The replay is opened
+  with POST only.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
