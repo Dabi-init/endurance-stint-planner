@@ -83,6 +83,14 @@ def test_weather_and_class_validation_errors_are_422() -> None:
         "/v1/f1/weather",
         json={"season": 2024, "round": 1, "declared": "storm"},
     )
+    low_round = client.post(
+        "/v1/f1/weather",
+        json={"season": 2024, "round": 0, "declared": "dry"},
+    )
+    high_round = client.post(
+        "/v1/f1/weather",
+        json={"season": 2024, "round": 31, "declared": "dry"},
+    )
     too_many = client.post(
         "/v1/endurance/classes",
         json={"classes": [{"name": f"C{index}", "race": {}} for index in range(5)]},
@@ -91,6 +99,8 @@ def test_weather_and_class_validation_errors_are_422() -> None:
     assert short_life.status_code == 422
     assert long_life.status_code == 422
     assert unknown.status_code == 422
+    assert low_round.status_code == 422
+    assert high_round.status_code == 422
     assert too_many.status_code == 422
 
 

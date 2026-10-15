@@ -59,7 +59,11 @@ semantic versioning.
 - a safety-car re-plan can add a declared field lap-time loss and rival pit
   stops (both default to zero, so a pit-only window is unchanged);
 - an endurance safety car whose deploy minute sits outside the race returns
-  422 instead of being clamped;
+  422 instead of being clamped. A negative deploy minute says it must be zero
+  or higher;
+- an F1 event round outside 1–30 returns 422 on the event and prepare routes;
+- the pit-wall docs say the Bahrain replay is opened with POST, and GET on
+  that path returns 405;
 - a malformed back-test fixture prints a readable error instead of a bare
   `KeyError`;
 - plan requests bound stint length, compound name length, season, round, and
@@ -69,7 +73,7 @@ semantic versioning.
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
 - a declared wet race uses Intermediate and Wet, not slicks. With no wet-tyre
-  life there is no wet plan. The Bahrain back-test panel shows
+  life there is no wet plan. A weather round outside 1–30 returns 422. The Bahrain back-test panel shows
   predicted stop laps beside the recorded stop laps. Out-of-range weather and
   class requests return 422;
 - the pit wall script is split into a format module, an F1 view, and an
