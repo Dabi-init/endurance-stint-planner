@@ -23,6 +23,8 @@ const state = {
   event: null,
   endurance: null,
   pacePatch: null,
+  spoken: "",
+  playing: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -147,10 +149,27 @@ function renderTimeline() {
     : state.mode !== "plan" && event?.lap
       ? `From lap ${event.lap}`
       : "Suggested";
+  const clips = state.mode === "plan" ? [] : (state.replay?.radio || []);
+  const marks = clips.map((clip) => {
+    const left = ((Number(clip.lap) - 1) / raceLaps) * 100;
+    const on = Number(clip.lap) === state.lap ? " on" : "";
+    return `<button type="button" class="radio-mark${on}" style="left:${left}%" data-lap="${Number(clip.lap)}" title="Team radio, lap ${Number(clip.lap)}"></button>`;
+  }).join("");
+  const radioLane = marks
+    ? `<div class="lane"><p>Radio</p><div class="radio-lane">${marks}</div></div>`
+    : "";
   $("timeline").innerHTML = `
     <div class="lane"><p>${label}</p><div class="track">${segments(event?.stints || [], planLaps)}${band}</div></div>
     <div class="lane"><p>Recorded</p><div class="track">${segments(recorded, raceLaps)}</div></div>
+    ${radioLane}
     <div class="ticks"><span>1</span><span>${Math.round(raceLaps / 2)}</span><span>${raceLaps}</span></div>`;
+  for (const mark of $("timeline").querySelectorAll(".radio-mark")) {
+    mark.addEventListener("click", () => {
+      state.lap = Number(mark.dataset.lap);
+      $("lap-slider").value = String(state.lap);
+      render();
+    });
+  }
   $("timeline-note").textContent = window
     ? `Amber band: a legal stop for this tyre order, laps ${window[0]}–${window[1]}.`
     : "No one-stop window for the plan on screen.";
@@ -171,8 +190,26 @@ function renderExplain() {
   const event = currentEvent();
   const frame = state.mode === "live" ? liveFrame() : null;
   const lead = frame?.alert ? `${frame.alert} ` : "";
-  $("explain").textContent = `${lead}${event?.explanation || "No plan yet."}`;
-  $("uncertainty").textContent = event?.uncertainty || "";
+  setExplain(`${lead}${event?.explanation || "No plan yet."}`, event?.uncertainty || "");
+}
+
+function setExplain(text, uncertainty) {
+  $("explain").textContent = text;
+  if (uncertainty != null) $("uncertainty").textContent = uncertainty;
+  speakIfNeeded(text);
+}
+
+function speakIfNeeded(text) {
+  if (!$("speak-call")?.checked || !text) return;
+  if (state.spoken === text) return;
+  const synth = window.speechSynthesis;
+  if (!synth || typeof SpeechSynthesisUtterance !== "function") {
+    $("speak-note").textContent = "This browser has no speech synthesis.";
+    return;
+  }
+  synth.cancel();
+  synth.speak(new SpeechSynthesisUtterance(text));
+  state.spoken = text;
 }
 
 function card(name, seconds, summary, reason, preferred, rank) {
@@ -219,14 +256,12 @@ function render() {
   renderTimeline();
   renderExplain();
   renderCards();
+  renderRadio();
 }
 
 function setMode(mode) {
   state.mode = mode;
-  if (state.playTimer) {
-    clearInterval(state.playTimer);
-    state.playTimer = null;
-  }
+  pauseRecording();
   for (const button of document.querySelectorAll(".mode[data-mode]")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
@@ -262,18 +297,62 @@ async function startLive(jumpLap) {
   render();
 }
 
-function playLive() {
+function raceLength() {
+  return state.replay?.race_laps || (state.liveFrames || []).length || 1;
+}
+
+function tickMs() {
+  const value = Number($("play-speed").value);
+  return value >= 100 && value <= 5000 ? value : 1000;
+}
+
+function pauseRecording() {
   if (state.playTimer) clearInterval(state.playTimer);
+  state.playTimer = null;
+  state.playing = false;
+  $("play-recording")?.classList.remove("on");
+}
+
+function playRecording() {
+  if (state.mode !== "live" && state.mode !== "replay") return;
+  const resumeLap = state.lap;
+  pauseRecording();
+  state.lap = resumeLap >= raceLength() ? 1 : resumeLap;
+  $("lap-slider").value = String(state.lap);
+  state.playing = true;
+  $("play-recording").classList.add("on");
   state.playTimer = setInterval(() => {
-    if (state.mode !== "live") return;
-    if (state.lap >= (state.liveFrames || []).length) {
-      clearInterval(state.playTimer);
+    if (state.mode !== "live" && state.mode !== "replay") {
+      pauseRecording();
+      return;
+    }
+    if (state.lap >= raceLength()) {
+      pauseRecording();
       return;
     }
     state.lap += 1;
     $("lap-slider").value = String(state.lap);
     render();
-  }, 180);
+  }, tickMs());
+}
+
+function renderRadio() {
+  const box = $("radio-box");
+  const show = state.series !== "endurance" && state.mode !== "plan";
+  box.hidden = !show;
+  if (!show) return;
+  const clip = (state.replay?.radio || []).find((row) => row.lap === state.lap);
+  const audio = $("team-radio");
+  const next = clip ? safeUrl(clip.recording_url) : "";
+  if (audio.dataset.src !== next) {
+    audio.dataset.src = next;
+    if (next) audio.src = next;
+    else audio.removeAttribute("src");
+    if (next && $("radio-auto").checked) audio.play().catch(() => {});
+  }
+  $("radio-note").textContent = clip
+    ? `Lap ${clip.lap}. OpenF1 link. The browser plays it. Pitwall does not store the audio.`
+    : "No team-radio clip on this lap. Clips are OpenF1 links, not stored audio.";
 }
 
 async function refresh(withOverrides) {
@@ -388,8 +467,8 @@ function renderEndurance() {
       : `${driver.full_name} (${driver.team_name}) is not scheduled in this central plan`;
   }).join(". ");
   const safety = pack.safety ? ` ${pack.safety.summary}` : "";
-  $("explain").textContent = `${plan.summary} ${crew}.${safety}`;
-  $("uncertainty").textContent = plan.uncertainty || pack.preset.note || "";
+  $("radio-box").hidden = true;
+  setExplain(`${plan.summary} ${crew}.${safety}`, plan.uncertainty || pack.preset.note || "");
   if (pack.classes && pack.classes.length > 1) {
     $("cards").innerHTML = pack.classes.map((row) => lapCard(
       row.name,
@@ -435,10 +514,7 @@ async function setSeries(series) {
     render();
     return;
   }
-  if (state.playTimer) {
-    clearInterval(state.playTimer);
-    state.playTimer = null;
-  }
+  pauseRecording();
   const listed = await getJson("/v1/endurance/presets");
   $("preset-name").innerHTML = listed.presets.map((name) => `<option>${esc(name)}</option>`).join("");
   $("preset-name").value = "6h Endurance";
@@ -467,6 +543,7 @@ async function boot() {
       $("mode-plan").classList.remove("on");
     }
     if (hash.get("sc") === "1") $("sc-on").checked = true;
+    if (hash.get("speak") === "1") $("speak-call").checked = true;
     render();
     if (hash.get("series") === "endurance") {
       await setSeries("endurance");
@@ -607,7 +684,7 @@ $("accuracy-button").addEventListener("click", async () => {
 $("terms-button").addEventListener("click", async () => {
   try {
     const terms = await getJson("/v1/terms");
-    $("terms-note").textContent = `${terms.openf1} ${terms.jolpica} ${terms.commercial}`;
+    $("terms-note").textContent = `${terms.openf1} ${terms.jolpica} ${terms.wec || ""} ${terms.commercial}`;
   } catch (error) {
     $("terms-note").textContent = error.message;
   }
@@ -620,9 +697,44 @@ $("lap-slider").addEventListener("input", (event) => {
   state.lap = Number(event.target.value);
   render();
 });
-$("play-live").addEventListener("click", () => {
-  state.lap = 1;
-  playLive();
+$("play-live").addEventListener("click", () => playRecording());
+$("play-recording").addEventListener("click", () => playRecording());
+$("pause-recording").addEventListener("click", () => pauseRecording());
+$("play-speed").addEventListener("change", () => {
+  if (state.playing) playRecording();
+});
+$("speak-call").addEventListener("change", () => {
+  state.spoken = "";
+  if (!$("speak-call").checked && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    return;
+  }
+  speakIfNeeded($("explain").textContent);
+});
+$("wec-enable").addEventListener("change", () => {
+  $("wec-refresh").disabled = !$("wec-enable").checked;
+  if (!$("wec-enable").checked) {
+    $("wec-rows").innerHTML = "";
+    $("wec-note").textContent = "Off. Nothing is fetched. The feed is not stored or redistributed.";
+  }
+});
+$("wec-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!$("wec-enable").checked) {
+    $("wec-note").textContent = "Turn on personal-use timing before refreshing. Nothing was fetched.";
+    return;
+  }
+  $("wec-note").textContent = "Reading the public timing page for this screen only.";
+  try {
+    const timing = await getJson("/v1/live/wec?enable=true");
+    $("wec-rows").innerHTML = (timing.rows || []).map((row) =>
+      `<li><span>${esc(row.position ?? "—")}</span><span>${esc(row.car)}</span><span>${esc(row.team || row.class_name)}</span><span>${row.lap ?? "—"}</span><span>${esc(row.gap)}</span></li>`
+    ).join("");
+    const session = timing.session ? `${timing.session.event} ${timing.session.name}. ` : "";
+    $("wec-note").textContent = `${session}${timing.notice}`;
+  } catch (error) {
+    $("wec-note").textContent = error.message;
+  }
 });
 $("sc-on").addEventListener("change", () => {
   if (state.mode === "live") startLive(state.lap);

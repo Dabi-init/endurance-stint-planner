@@ -417,11 +417,16 @@ under CC BY-NC-SA 4.0. The free lap feed is the local Bahrain replay.
 `GET /v1/live/sources` lists that replay and an OpenF1 live slot. OpenF1 live
 is a paid socket: Pitwall does not open it unless a transport is plugged in on
 the server. If `OPENF1_LIVE_TOKEN` is set, the value stays in the server
-process and is never copied into a response. Successful JSON responses are
+process and is never copied into a response. The replay page can play, pause,
+change speed, and jump to a lap. That is still the recording.
+Successful JSON responses are
 cached under `.cache/pitwall-historical`, which is gitignored. Image fields are
 links only: OpenF1 may provide `headshot_url` and `team_colour`. Pitwall does
 not download or commit those images. A livery URL is used only when you or a
-source provide one.
+source provide one. Team radio for the Bahrain replay is the same idea:
+`recording_url` links from OpenF1, played by the browser, with no audio file
+stored in this repository. A checkbox can speak the strategy sentence with the
+browser's own speech synthesis. The server does not generate that audio.
 
 `POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
 the two pit losses. It does not model the rival. `POST /v1/f1/odds` samples
@@ -435,6 +440,11 @@ come from the preset file. Each class is planned on its own. A safety-car
 window is a minute and a duration you type. `POST /v1/endurance/telemetry`
 previews lap rows you paste. If the text is an `http` or `https` link, the
 API refuses it and does not fetch the URL, including Al Kamel timing links.
+`GET /v1/live/wec` is a separate optional adapter for the public timing page at
+livetiming.fiawec.com. It stays off unless `enable=true`. That read is for
+personal use on this computer: the classification is not written to disk and
+is not redistributed, and the adapter does not capture video or broadcast
+audio. It does not replace the paid OpenF1 live slot.
 
 `POST /v1/f1/weather` accepts a declared `dry` or `wet` setting. It does not
 call Open-Meteo or any other forecast. A wet plan needs a tyre life you type,
@@ -460,8 +470,10 @@ gap is one comparison, not an accuracy claim.
 
 ## Honest scope
 
-Pitwall Agent is pre-race decision support in alpha. The lap feed replays a
-bundled recording; it does not receive live timing. A second endurance class
+Pitwall Agent is pre-race decision support in alpha. The Formula 1 lap feed
+replays a bundled recording; play, pause, and a lap jump do not make it live
+timing. Optional WEC timing is a personal-use read of the public page and is
+not stored. A second endurance class
 is a separate plan from numbers you supply, not a combined multi-class race.
 It does not currently provide weather, traffic, a rival model, wave-by,
 pit-closure, or validated real-session accuracy. Always verify the official

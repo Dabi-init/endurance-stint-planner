@@ -35,7 +35,16 @@ semantic versioning.
 - a declared wet or dry setting that does not call a weather service, a
   strategy sheet that is created once and never replaces `race.json`, the
   Bahrain back-test on the pit wall, and the OpenF1 and Jolpica terms. The
-  back-test is one comparison and is not a validation claim.
+  back-test is one comparison and is not a validation claim;
+- OpenF1 team-radio links for the Bahrain replay, played in the browser beside
+  the strategy timeline. Audio files are not downloaded;
+- a browser speech-synthesis toggle for the strategy call. The server does not
+  generate audio;
+- an optional personal-use read of the public timing at livetiming.fiawec.com.
+  It is off until asked, it is not stored or redistributed, and it does not
+  capture video or broadcast audio. A pasted timing link is still refused;
+- play, pause, speed, and jump-to-lap on the Bahrain recording. The paid
+  OpenF1 live socket stays closed unless a server transport is plugged in.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 

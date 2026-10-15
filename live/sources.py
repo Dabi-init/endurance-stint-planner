@@ -56,8 +56,9 @@ def describe_sources() -> list[dict[str, object]]:
             "available": True,
             "connected": True,
             "detail": (
-                "Plays the bundled 2024 Bahrain Grand Prix from the local fixture, "
-                "one lap at a time. This is a recording, not live timing."
+                "Plays the bundled 2024 Bahrain Grand Prix from the local fixture. "
+                "The browser can pause, change speed, and jump to a lap. "
+                "This is a recording, not live timing."
             ),
         },
         openf1,
@@ -101,6 +102,11 @@ def _replay_frames(safety_car: dict[str, Any] | None) -> Iterator[dict[str, Any]
     payload = script.payload
     alert = _safety_alert(safety_car)
     events = {event["lap"]: event for event in payload["events"]}
+    radio = {
+        int(clip["lap"]): clip["recording_url"]
+        for clip in payload.get("radio") or []
+        if isinstance(clip, dict) and isinstance(clip.get("recording_url"), str)
+    }
     for lap in payload["laps"]:
         number = int(lap["lap"])
         kind = "pit" if lap["pit"] else "green"
@@ -127,6 +133,7 @@ def _replay_frames(safety_car: dict[str, Any] | None) -> Iterator[dict[str, Any]
             "plan_summary": None if plan is None else plan["summary"],
             "race_time_sec": None if plan is None else plan["race_time_sec"],
             "explanation": None if plan is None else plan["explanation"],
+            "radio_url": radio.get(number),
         }
 
 

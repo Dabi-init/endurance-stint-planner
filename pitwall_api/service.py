@@ -37,6 +37,7 @@ from engine.strategy import compare_strategies
 from engine.telemetry import calibrate_telemetry
 from historical.errors import HistoricalSourceError
 from historical.terms import JOLPICA_TERMS, OPENF1_TERMS
+from live.wec import WEC_NOTICE
 from pitwall_api.schemas import (
     ClassesRequest,
     ClassesResponse,
@@ -537,6 +538,7 @@ def licence_terms() -> dict[str, str]:
     return {
         "openf1": OPENF1_TERMS,
         "jolpica": JOLPICA_TERMS,
+        "wec": WEC_NOTICE,
         "commercial": COMMERCIAL_NOTE,
     }
 
