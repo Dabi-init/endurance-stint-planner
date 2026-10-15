@@ -105,7 +105,7 @@ class ClassesRequest(BaseModel):
 
 class DeclaredWeatherRequest(BaseModel):
     season: int
-    round: int
+    round: int = Field(ge=1, le=30)
     declared: Literal["dry", "wet"]
     wet_life_laps: int | None = Field(default=None, ge=1, le=80)
 
