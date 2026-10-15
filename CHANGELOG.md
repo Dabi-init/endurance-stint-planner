@@ -5,6 +5,37 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- a local API (`python -m pitwall_api`, optional `api` extra) that creates a
+  plan, compares scenarios, and re-plans a safety car for the endurance engine
+  and a new F1 planner;
+- versioned F1 season and event files for tyre compounds, mandatory compound
+  use, pit-lane loss, and no refuelling, with user overrides and an optional
+  entry-list refresh from OpenF1 and Jolpica before an event;
+- driver and team cards that carry a headshot URL, a team colour, and an
+  optional livery URL, stored as links only (image files are not downloaded);
+- an offline back-test (`python -m backtest`) of the 2024 Bahrain Grand Prix,
+  car 1, reporting predicted stints and race time against the recorded result.
+  This is one comparison under file assumptions, not a validation claim.
+
+### Fixed
+
+- the F1 fuel check rejects a starting load above the tank before it compares
+  fuel used with the fuel on board;
+- a dry race searches slick compounds only, so Intermediate and Wet cannot
+  lift the two-compound rule. A wet race can still use a wet-weather tyre;
+- a safety-car re-plan can add a declared field lap-time loss and rival pit
+  stops (both default to zero, so a pit-only window is unchanged);
+- an endurance safety car whose deploy minute sits outside the race returns
+  422 instead of being clamped. A negative deploy minute says it must be zero
+  or higher;
+- an F1 event round outside 1–30 returns 422 on the event and prepare routes;
+- a malformed back-test fixture prints a readable error instead of a bare
+  `KeyError`;
+- plan requests bound stint length, compound name length, season, round, and
+  the number of scenarios.
+
 ## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added

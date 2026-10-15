@@ -9,3 +9,5 @@ include run.ps1
 recursive-include docs *
 recursive-include examples *
 recursive-include tests *.py
+recursive-include engine/series_data *.json
+recursive-include backtest/fixtures *.json
