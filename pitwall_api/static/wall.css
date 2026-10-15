@@ -199,6 +199,9 @@ button, input { font: inherit; color: inherit; }
 .scrub label { color: var(--muted); font-size: 12px; }
 .scrub input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .pit-flag { margin: 0; color: var(--ink); background: var(--amber); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+.live-banner { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 176, 32, 0.16); color: var(--amber); font-size: 14px; }
+#live-tools .builder { margin-top: 8px; }
+#play-live, #odds-button { margin-top: 8px; border: 0; background: var(--cyan); color: var(--ink); font-weight: 700; border-radius: 10px; padding: 8px 10px; cursor: pointer; width: 100%; }
 
 .explain-body { font-size: 18px; line-height: 1.45; margin: 10px 0 8px; letter-spacing: -0.02em; }
 
@@ -227,7 +230,8 @@ button, input { font: inherit; color: inherit; }
   border-radius: 8px;
   padding: 8px;
 }
-.check { grid-template-columns: auto 1fr; align-items: center; }
+.check { display: flex; gap: 8px; align-items: flex-start; color: var(--muted); font-size: 12px; }
+.builder label.check { display: flex; }
 .builder button {
   border: 0;
   background: var(--cyan);

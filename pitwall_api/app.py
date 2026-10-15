@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import time
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from backtest.harness import run_fixture
@@ -14,19 +16,24 @@ from historical.cache import CachingTransport, FileCache
 from historical.catalogue import F1History
 from historical.errors import HistoricalSourceError
 from historical.http import HttpxTransport
+from live.sources import LiveSourceError, describe_sources, iter_frames
 from pitwall import __version__
 from pitwall_api.schemas import (
     BacktestResponse,
     CompareRequest,
+    OddsRequest,
     PlanRequest,
     PrepareRequest,
     ReplayRequest,
     SafetyCarRequestIn,
+    UndercutRequest,
 )
 from pitwall_api.service import (
     RequestError,
     compare,
     create_plan,
+    f1_odds,
+    f1_undercut,
     prepare_event,
     safety_car,
 )
@@ -95,6 +102,50 @@ def create_app(source: object | None = None) -> FastAPI:
             raise RequestError(str(exc)) from exc
         return setup_to_dict(setup)
 
+    @app.get("/v1/live/sources")
+    def live_sources() -> list[dict[str, object]]:
+        return describe_sources()
+
+    @app.get("/v1/live/{source_id}/frames")
+    def live_frames(
+        source_id: str,
+        sc_start: int | None = None,
+        sc_end: int | None = None,
+        sc_pit: float | None = None,
+        sc_kind: str = "safety-car",
+    ) -> list[dict[str, object]]:
+        return _live_frames(source_id, _safety_query(sc_start, sc_end, sc_pit, sc_kind))
+
+    @app.get("/v1/live/{source_id}/stream")
+    def live_stream(
+        source_id: str,
+        pace_ms: int = 0,
+        sc_start: int | None = None,
+        sc_end: int | None = None,
+        sc_pit: float | None = None,
+        sc_kind: str = "safety-car",
+    ) -> StreamingResponse:
+        frames = _live_frames(
+            source_id, _safety_query(sc_start, sc_end, sc_pit, sc_kind)
+        )
+        delay = pace_delay_sec(pace_ms)
+
+        def generate():
+            for frame in frames:
+                yield f"data: {json.dumps(frame)}\n\n"
+                if delay:
+                    time.sleep(delay)
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+
+    @app.post("/v1/f1/undercut")
+    def undercut_route(body: UndercutRequest) -> dict[str, object]:
+        return f1_undercut(body)
+
+    @app.post("/v1/f1/odds")
+    def odds_route(body: OddsRequest) -> dict[str, object]:
+        return f1_odds(body)
+
     @app.post("/v1/backtests/{fixture_id}")
     def backtest(fixture_id: str) -> BacktestResponse:
         try:
@@ -140,6 +191,39 @@ def create_app(source: object | None = None) -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     return app
+
+
+def pace_delay_sec(pace_ms: int) -> float:
+    """Cap the replay pause so a caller cannot stall the process for long."""
+    return min(max(pace_ms, 0), 2_000) / 1000
+
+
+def _safety_query(
+    sc_start: int | None,
+    sc_end: int | None,
+    sc_pit: float | None,
+    sc_kind: str,
+) -> dict[str, object] | None:
+    if sc_start is None and sc_end is None and sc_pit is None:
+        return None
+    if sc_start is None or sc_end is None or sc_pit is None:
+        raise RequestError("Safety car needs start_lap, end_lap, and pit_loss_sec.")
+    return {
+        "kind": sc_kind,
+        "start_lap": sc_start,
+        "end_lap": sc_end,
+        "pit_loss_sec": sc_pit,
+        "pull_pit_into_sc": True,
+    }
+
+
+def _live_frames(
+    source_id: str, safety_car: dict[str, object] | None
+) -> list[dict[str, object]]:
+    try:
+        return list(iter_frames(source_id, safety_car=safety_car))
+    except LiveSourceError as exc:
+        raise RequestError(str(exc), status=400) from exc
 
 
 def _replay(fixture_id: str, overrides: dict, anchor_pace: bool) -> dict[str, object]:

@@ -16,6 +16,7 @@ from engine.f1 import (
     replan_f1_safety_car,
     score_stints,
 )
+from engine.f1_odds import race_time_odds, undercut
 from engine.models import PlanResult, RaceConfig
 from engine.planner import PlanOptions, compute_plan
 from engine.safety_car import SafetyCarConfig, replan_with_safety_car
@@ -35,6 +36,7 @@ from pitwall_api.schemas import (
     DriverCard,
     EnduranceOptionsIn,
     IssueOut,
+    OddsRequest,
     PlanRequest,
     PlanResponse,
     PrepareRequest,
@@ -45,6 +47,7 @@ from pitwall_api.schemas import (
     SimulationOut,
     StintOut,
     TeamCard,
+    UndercutRequest,
 )
 
 
@@ -408,6 +411,40 @@ def _driver_card(driver: object) -> DriverCard:
         pace_delta_sec=driver.pace_delta_sec,  # type: ignore[attr-defined]
         car_id=driver.car_id,  # type: ignore[attr-defined]
     )
+
+
+def f1_undercut(body: UndercutRequest) -> dict[str, object]:
+    try:
+        return undercut(
+            gap_behind_sec=body.gap_behind_sec,
+            laps_ahead=body.laps_ahead,
+            tyre_gain_sec_per_lap=body.tyre_gain_sec_per_lap,
+            our_pit_loss_sec=body.our_pit_loss_sec,
+            their_pit_loss_sec=body.their_pit_loss_sec,
+        )
+    except ValueError as exc:
+        raise RequestError(str(exc)) from exc
+
+
+def f1_odds(body: OddsRequest) -> dict[str, object]:
+    try:
+        setup = load_setup(body.season, body.round)
+    except ValueError as exc:
+        raise RequestError(str(exc), status=404) from exc
+    plan = best_f1_plan(setup)
+    if not plan.feasible:
+        raise RequestError("No feasible plan to sample.")
+    try:
+        sampled = race_time_odds(
+            setup,
+            [(stint.compound_id, stint.laps) for stint in plan.stints],
+            iterations=body.iterations,
+        )
+    except ValueError as exc:
+        raise RequestError(str(exc)) from exc
+    sampled["compounds"] = [stint.compound_id for stint in plan.stints]
+    sampled["stint_laps"] = [stint.laps for stint in plan.stints]
+    return sampled
 
 
 def _team_card(team: object) -> TeamCard:

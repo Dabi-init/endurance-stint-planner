@@ -20,7 +20,14 @@ semantic versioning.
   This is one comparison under file assumptions, not a validation claim;
 - a local pit-wall page at `/` when the API is running: dark timing tower,
   strategy timeline, scenario cards, a replay of the 2024 Bahrain Grand Prix,
-  and plain-language explanations. Headshots are OpenF1 links, not stored files.
+  and plain-language explanations. Headshots are OpenF1 links, not stored files;
+- a pluggable lap feed. The free source replays the bundled Bahrain recording
+  and can declare a safety-car or virtual-safety-car what-if. OpenF1's paid
+  live socket stays closed unless a server transport is plugged in, and a
+  server token is never returned to the browser;
+- an undercut sum from a gap, a number of laps, and a tyre-gain assumption you
+  type in, plus a seeded sample of one plan's degradation and pit-lane loss.
+  That sample is labelled as not a historical P10–P90 forecast.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
