@@ -1177,3 +1177,28 @@ def replan_f1_safety_car(
         confidence=confidence,
         assumptions=list(best.assumptions[-2:]),
     )
+
+
+def legal_one_stop_window(
+    setup: F1Setup, first: str, second: str
+) -> tuple[int, int] | None:
+    """Inclusive stop laps where this tyre order is legal for the whole race.
+
+    The stop lap is the last lap of the first stint. A missing window means
+    that order cannot finish the race inside the file's tyre life and rules.
+    """
+    race = int(setup.race_laps or 0)
+    if race < 2:
+        return None
+    legal: list[int] = []
+    for stop in range(1, race):
+        plan = score_stints(
+            setup,
+            [StintRequest(first, stop), StintRequest(second, race - stop)],
+            name="window",
+        )
+        if plan.feasible:
+            legal.append(stop)
+    if not legal:
+        return None
+    return legal[0], legal[-1]

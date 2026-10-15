@@ -391,7 +391,11 @@ pip install -e ".[api]"
 python -m pitwall_api
 ```
 
-That listens on `127.0.0.1:8000`. `GET /v1/health` reports the engine version.
+That listens on `127.0.0.1:8000`. Open <http://127.0.0.1:8000/> for the pit wall:
+a dark timing tower, strategy timeline, scenario cards, and a lap-by-lap replay
+of the bundled 2024 Bahrain Grand Prix. Headshots load in the browser from
+OpenF1 `headshot_url` links. The page does not download or store those images.
+`GET /v1/health` reports the engine version.
 `POST /v1/plans`, `POST /v1/scenarios/compare`, and `POST /v1/safety-car` accept
 a `series` of `f1` or `endurance`. An F1 plan can name a season and round, or
 post a setup document. `detail` of `plain` keeps the numbers, the summary, the

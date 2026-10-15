@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backtest.harness import run_fixture
 from engine.series_config import colour_css, load_setup, setup_to_dict
@@ -19,6 +20,7 @@ from pitwall_api.schemas import (
     CompareRequest,
     PlanRequest,
     PrepareRequest,
+    ReplayRequest,
     SafetyCarRequestIn,
 )
 from pitwall_api.service import (
@@ -28,6 +30,9 @@ from pitwall_api.service import (
     prepare_event,
     safety_car,
 )
+from replay.session import build_replay
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def default_source(cache_dir: Path | None = None) -> F1History:
@@ -50,9 +55,21 @@ def create_app(source: object | None = None) -> FastAPI:
     ) -> JSONResponse:
         return JSONResponse(status_code=502, content={"detail": str(exc)})
 
+    @app.get("/")
+    def home() -> FileResponse:
+        return FileResponse(STATIC_DIR / "index.html")
+
     @app.get("/v1/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "engine": "pitwall", "version": __version__}
+
+    @app.get("/v1/replays/{fixture_id}")
+    def replay_get(fixture_id: str) -> dict[str, object]:
+        return _replay(fixture_id, {}, False)
+
+    @app.post("/v1/replays/{fixture_id}")
+    def replay_post(fixture_id: str, body: ReplayRequest) -> dict[str, object]:
+        return _replay(fixture_id, body.overrides, body.anchor_pace)
 
     @app.post("/v1/plans")
     def plans(body: PlanRequest):
@@ -121,7 +138,18 @@ def create_app(source: object | None = None) -> FastAPI:
             image_policy=report.image_policy,
         )
 
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     return app
+
+
+def _replay(fixture_id: str, overrides: dict, anchor_pace: bool) -> dict[str, object]:
+    try:
+        script = build_replay(
+            fixture_id, overrides=overrides or None, anchor_pace=anchor_pace
+        )
+    except ValueError as exc:
+        raise RequestError(str(exc), status=404) from exc
+    return script.payload
 
 
 app = create_app()

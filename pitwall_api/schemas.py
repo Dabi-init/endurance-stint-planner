@@ -67,6 +67,11 @@ class PrepareRequest(BaseModel):
     overrides: dict = Field(default_factory=dict)
 
 
+class ReplayRequest(BaseModel):
+    overrides: dict = Field(default_factory=dict)
+    anchor_pace: bool = False
+
+
 class IssueOut(BaseModel):
     code: str
     message: str

@@ -17,7 +17,10 @@ semantic versioning.
   optional livery URL, stored as links only (image files are not downloaded);
 - an offline back-test (`python -m backtest`) of the 2024 Bahrain Grand Prix,
   car 1, reporting predicted stints and race time against the recorded result.
-  This is one comparison under file assumptions, not a validation claim.
+  This is one comparison under file assumptions, not a validation claim;
+- a local pit-wall page at `/` when the API is running: dark timing tower,
+  strategy timeline, scenario cards, a replay of the 2024 Bahrain Grand Prix,
+  and plain-language explanations. Headshots are OpenF1 links, not stored files.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
