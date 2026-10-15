@@ -31,7 +31,11 @@ semantic versioning.
 - an endurance view on the same pit wall for the bundled synthetic presets,
   with Pro, Silver, and Bronze drive time, separate class plans, a safety-car
   window you type in, and a lap-row preview. A pasted timing URL is refused.
-  Pitwall does not fetch or redistribute Al Kamel timing.
+  Pitwall does not fetch or redistribute Al Kamel timing;
+- a declared wet or dry setting that does not call a weather service, a
+  strategy sheet that is created once and never replaces `race.json`, the
+  Bahrain back-test on the pit wall, and the OpenF1 and Jolpica terms. The
+  back-test is one comparison and is not a validation claim.
 
 ### Fixed
 
@@ -56,6 +60,10 @@ semantic versioning.
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
+- a declared wet race uses Intermediate and Wet, not slicks. With no wet-tyre
+  life there is no wet plan. A weather round outside 1–30 returns 422. The Bahrain back-test panel shows
+  predicted stop laps beside the recorded stop laps. Out-of-range weather and
+  class requests return 422;
 - the pit wall script is split into a format module, an F1 view, and an
   endurance view. Classes are described as separate plans with no traffic,
   passing, or shared pit lane, and a preset name cannot leave the bundled

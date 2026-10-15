@@ -203,7 +203,7 @@ button, input { font: inherit; color: inherit; }
 .pit-flag { margin: 0; color: var(--ink); background: var(--amber); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
 .live-banner { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 176, 32, 0.16); color: var(--amber); font-size: 14px; }
 #live-tools .builder { margin-top: 8px; }
-#play-live, #odds-button, #add-class, #fill-sample, #use-pace { margin-top: 8px; border: 0; background: var(--cyan); color: var(--ink); font-weight: 700; border-radius: 10px; padding: 8px 10px; cursor: pointer; width: 100%; }
+#play-live, #odds-button, #add-class, #fill-sample, #use-pace, #accuracy-button, #terms-button { margin-top: 8px; border: 0; background: var(--cyan); color: var(--ink); font-weight: 700; border-radius: 10px; padding: 8px 10px; cursor: pointer; width: 100%; }
 #endurance-tools textarea, #preset-name, #class-name {
   width: 100%;
   background: #0b1118;
