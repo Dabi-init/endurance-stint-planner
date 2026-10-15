@@ -63,14 +63,31 @@ def list_presets() -> list[str]:
     return known + extras
 
 
+def _bundled_preset_files() -> dict[str, Path]:
+    """Map bundled file names to paths from the directory listing only."""
+    if not PRESETS_DIR.is_dir():
+        return {}
+    return {path.name: path for path in PRESETS_DIR.glob("*.json")}
+
+
 def load_preset(display_name: str) -> RaceConfig:
+    files = _bundled_preset_files()
     filename = PRESET_FILES.get(display_name)
-    if filename:
-        path = PRESETS_DIR / filename
-    else:
-        path = PRESETS_DIR / (display_name.lower().replace(" ", "_") + ".json")
-    if not path.exists():
-        path = PRESETS_DIR / PRESET_FILES[DEFAULT_PRESET]
+    path = files.get(filename) if isinstance(filename, str) else None
+    if path is None:
+        wanted = display_name.strip().lower().replace(" ", "_")
+        path = next(
+            (
+                candidate
+                for name, candidate in files.items()
+                if Path(name).stem == wanted
+            ),
+            None,
+        )
+    if path is None:
+        path = files.get(PRESET_FILES[DEFAULT_PRESET])
+    if path is None:
+        raise FileNotFoundError(PRESET_FILES[DEFAULT_PRESET])
     with path.open(encoding="utf-8") as handle:
         return RaceConfig.from_dict(json.load(handle))
 

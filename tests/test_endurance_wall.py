@@ -23,6 +23,14 @@ def _sample_csv() -> str:
     return "\n".join(rows) + "\n"
 
 
+def test_an_unknown_preset_name_stays_inside_the_bundled_directory() -> None:
+    fallback = load_preset("not a real preset")
+    default = load_preset(DEFAULT_PRESET)
+
+    assert fallback.race_name == default.race_name
+    assert "not a real preset" not in str(fallback.race_name)
+
+
 def test_presets_are_the_bundled_synthetic_files() -> None:
     client = _client()
     listed = client.get("/v1/endurance/presets")
