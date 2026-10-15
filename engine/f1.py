@@ -2,8 +2,9 @@
 
 Endurance races stay in ``engine.planner`` (a clock, refuelling, driver
 rotation). An F1 race here is a fixed lap count: no refuelling, a configured
-pit-lane loss, and a minimum number of dry compounds when every stint is a
-slick. A wet-weather tyre is legal in a dry race and lifts that requirement.
+pit-lane loss, and a minimum number of dry compounds. A dry race searches
+slick compounds only, so a wet-weather tyre cannot lift that rule. A wet
+race can use a wet-weather tyre, and that tyre lifts the two-compound rule.
 Tyre life, pace, degradation, fuel mass, and pit loss are inputs.
 Nothing in this module is a measured circuit fact.
 """
@@ -699,7 +700,19 @@ def _rule_checks(
     all_slick = bool(compounds) and all(
         compound is not None and compound.dry for compound in compounds
     )
-    if not all_slick:
+    wet_in_dry = setup.dry_race and any(
+        compound is not None and not compound.dry for compound in compounds
+    )
+    if wet_in_dry:
+        detail = (
+            "A dry race does not use Intermediate or Wet. "
+            "Those tyres cannot satisfy the compound rule."
+        )
+        rules.append(F1RuleCheck("compound_count", False, detail))
+        issues.append(
+            _issue("compound_rule", detail, "Plan the dry race on slick compounds.")
+        )
+    elif not all_slick:
         labels = [
             setup.compound(item).label
             for item in dict.fromkeys(dry_ids)
@@ -833,12 +846,15 @@ def _assumptions(
 
 
 def _available(setup: F1Setup) -> list[CompoundSpec]:
-    """Compounds with a stint life, slicks and wet-weather tyres together."""
-    return [
+    """Compounds with a stint life. A dry race searches slicks only."""
+    rows = [
         compound
         for compound in setup.compounds
         if compound.max_laps is not None and compound.max_laps >= 1
     ]
+    if setup.dry_race:
+        return [compound for compound in rows if compound.dry]
+    return rows
 
 
 def _slick_rule_blocks(combo: tuple[CompoundSpec, ...], minimum: int) -> bool:
