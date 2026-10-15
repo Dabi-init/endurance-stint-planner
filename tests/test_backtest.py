@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import httpx
@@ -103,6 +104,57 @@ def test_unknown_fixture_and_bad_file_fail_closed(
     broken = tmp_path / "broken.json"
     broken.write_text("{", encoding="utf-8")
     assert main(["--fixture", str(broken)]) == 1
+    broken_err = capsys.readouterr().err
+    assert "not valid JSON" in broken_err
+    assert "KeyError" not in broken_err
+
+    empty = tmp_path / "empty.json"
+    empty.write_text("{}", encoding="utf-8")
+    assert main(["--fixture", str(empty)]) == 1
+    empty_err = capsys.readouterr().err
+    assert "missing" in empty_err
+    assert "stints" in empty_err
+    assert "KeyError" not in empty_err
+
+    partial = tmp_path / "partial.json"
+    partial.write_text(
+        json.dumps(
+            {
+                "season": 2024,
+                "round": 1,
+                "event_name": "Toy",
+                "driver_number": 1,
+                "driver_code": "VER",
+                "race_laps": 10,
+                "stints": [{"laps": 10, "lap_start": 1, "lap_end": 10}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert main(["--fixture", str(partial)]) == 1
+    partial_err = capsys.readouterr().err
+    assert "missing compound" in partial_err
+    assert "KeyError" not in partial_err
+
+    typed = tmp_path / "typed.json"
+    typed.write_text(
+        json.dumps(
+            {
+                "season": "two-thousand",
+                "round": 1,
+                "event_name": "Toy",
+                "driver_number": 1,
+                "driver_code": "VER",
+                "race_laps": 10,
+                "stints": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert main(["--fixture", str(typed)]) == 1
+    typed_err = capsys.readouterr().err
+    assert "could not be read" in typed_err
+    assert "KeyError" not in typed_err
 
 
 def test_fixture_is_small_and_holds_no_image_bytes() -> None:

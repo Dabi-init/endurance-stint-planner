@@ -1,3 +1,5 @@
+import { clampLap, esc } from "./escape.js";
+
 const FIXTURE = "2024-r01-bahrain-verstappen";
 const RECORDED = [
   { compound: "SOFT", laps: 17 },
@@ -26,16 +28,6 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
-
-function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  }[ch]));
-}
 
 function safeUrl(url) {
   return typeof url === "string" && url.startsWith("https://") ? url : "";
@@ -111,8 +103,8 @@ function renderTower() {
     return `<li class="driver${driver.focus ? " focus" : ""}">
       <span class="stripe" style="background:${colour(driver.team_colour_css)}"></span>
       <div class="who">${face}<div><strong>${esc(driver.code)}</strong><span>${esc(driver.team_name)}</span></div></div>
-      <span class="meta">${driver.grid ?? "—"}</span>
-      <span class="meta">${pip || (driver.finish_position ?? "—")}</span>
+      <span class="meta">${esc(driver.grid ?? "—")}</span>
+      <span class="meta">${pip || esc(driver.finish_position ?? "—")}</span>
     </li>`;
   }).join("");
   for (const image of $("tower").querySelectorAll("img")) {
@@ -255,7 +247,7 @@ async function startLive(jumpLap) {
   const sources = await getJson("/v1/live/sources");
   $("live-source").textContent = sources.map((row) => `${row.id}: ${row.detail}`).join(" ");
   setMode("live");
-  state.lap = jumpLap || 1;
+  state.lap = clampLap(jumpLap, state.liveFrames.length || state.replay?.race_laps || 57);
   $("lap-slider").max = String(state.liveFrames.length);
   $("lap-slider").value = String(state.lap);
   $("scrub").hidden = false;
@@ -451,7 +443,10 @@ async function boot() {
     $("pit-loss").value = state.event.pit_lane_loss_sec;
     $("base-lap").value = state.event.base_lap_time_sec;
     $("dry-race").checked = Boolean(state.event.dry_race);
-    state.replay = await getJson(`/v1/replays/${FIXTURE}`);
+    state.replay = await postJson(`/v1/replays/${FIXTURE}`, {
+      overrides: {},
+      anchor_pace: false,
+    });
     state.compare = await postJson("/v1/scenarios/compare", {
       series: "f1",
       season: 2024,
@@ -461,7 +456,7 @@ async function boot() {
     const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
     if (hash.get("mode") === "replay") {
       state.mode = "replay";
-      state.lap = Number(hash.get("lap") || 1);
+      state.lap = clampLap(hash.get("lap"), state.replay.race_laps || 57);
       $("lap-slider").value = String(state.lap);
       $("mode-replay").classList.add("on");
       $("mode-plan").classList.remove("on");
@@ -471,7 +466,7 @@ async function boot() {
     if (hash.get("series") === "endurance") {
       await setSeries("endurance");
     } else if (hash.get("mode") === "live") {
-      await startLive(Number(hash.get("lap") || 35));
+      await startLive(hash.get("lap") || 35);
     }
   } catch (error) {
     $("explain").textContent = error.message;
@@ -577,6 +572,9 @@ $("undercut-form").addEventListener("submit", async (event) => {
       tyre_gain_sec_per_lap: Number($("tyre-gain").value),
       our_pit_loss_sec: 22,
       their_pit_loss_sec: 22,
+      out_lap_warmup_sec: Number($("out-lap").value),
+      in_lap_delta_sec: Number($("in-lap").value),
+      traffic_avoided_sec: Number($("traffic").value),
     });
     $("undercut-note").textContent = result.explanation;
   } catch (error) {
@@ -584,7 +582,7 @@ $("undercut-form").addEventListener("submit", async (event) => {
   }
 });
 $("odds-button").addEventListener("click", async () => {
-  $("odds-note").textContent = "Sampling the file's degradation and pit loss.";
+  $("odds-note").textContent = "Sampling the file's degradation and pit loss as a race-time spread.";
   try {
     const odds = await postJson("/v1/f1/odds", { season: 2024, round: 1, iterations: 64 });
     $("odds-note").textContent = `P10 ${odds.p10_sec} s, median ${odds.p50_sec} s, P90 ${odds.p90_sec} s. ${odds.honesty}`;

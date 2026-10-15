@@ -104,7 +104,11 @@ class BacktestReport:
 
 
 def load_actuals(path: Path) -> RaceActuals:
-    return race_actuals_from_dict(json.loads(path.read_text(encoding="utf-8")))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"The fixture is not valid JSON ({exc.msg}).") from exc
+    return race_actuals_from_dict(payload)
 
 
 def run_fixture(
