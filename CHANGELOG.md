@@ -35,7 +35,11 @@ semantic versioning.
 - a malformed back-test fixture prints a readable error instead of a bare
   `KeyError`;
 - plan requests bound stint length, compound name length, season, round, and
-  the number of scenarios.
+  the number of scenarios;
+- the timing tower escapes grid and finish position before writing HTML, the
+  replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
+  into the race, and a bad replay override returns 422. The replay is opened
+  with POST only.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 

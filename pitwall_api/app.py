@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backtest.harness import run_fixture
+from backtest.harness import BUNDLED_FIXTURES, run_fixture
 from engine.series_config import colour_css, load_setup, setup_to_dict
 from historical.cache import CachingTransport, FileCache
 from historical.catalogue import F1History
@@ -62,10 +62,6 @@ def create_app(source: object | None = None) -> FastAPI:
     @app.get("/v1/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "engine": "pitwall", "version": __version__}
-
-    @app.get("/v1/replays/{fixture_id}")
-    def replay_get(fixture_id: str) -> dict[str, object]:
-        return _replay(fixture_id, {}, False)
 
     @app.post("/v1/replays/{fixture_id}")
     def replay_post(fixture_id: str, body: ReplayRequest) -> dict[str, object]:
@@ -143,12 +139,18 @@ def create_app(source: object | None = None) -> FastAPI:
 
 
 def _replay(fixture_id: str, overrides: dict, anchor_pace: bool) -> dict[str, object]:
+    if fixture_id not in BUNDLED_FIXTURES:
+        known = ", ".join(sorted(BUNDLED_FIXTURES))
+        raise RequestError(
+            f"Unknown replay fixture {fixture_id}. Known fixtures: {known}.",
+            status=404,
+        )
     try:
         script = build_replay(
             fixture_id, overrides=overrides or None, anchor_pace=anchor_pace
         )
     except ValueError as exc:
-        raise RequestError(str(exc), status=404) from exc
+        raise RequestError(str(exc), status=422) from exc
     return script.payload
 
 
