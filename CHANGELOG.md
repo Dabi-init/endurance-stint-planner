@@ -26,8 +26,8 @@ semantic versioning.
 
 - the F1 fuel check rejects a starting load above the tank before it compares
   fuel used with the fuel on board;
-- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
-  rule, so a crossover sequence can be planned;
+- a dry race searches slick compounds only, so Intermediate and Wet cannot
+  lift the two-compound rule. A wet race can still use a wet-weather tyre;
 - a safety-car re-plan can add a declared field lap-time loss and rival pit
   stops (both default to zero, so a pit-only window is unchanged);
 - an endurance safety car whose deploy minute sits outside the race returns

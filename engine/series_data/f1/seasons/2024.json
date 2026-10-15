@@ -3,7 +3,7 @@
   "series": "f1",
   "season": 2024,
   "evidence_level": "C",
-  "notes": "Strategy-relevant sporting shape for 2024: no refuelling during the race. The two-compound minimum applies when every stint is a slick; a wet-weather tyre lifts it. This is not an FIA text. Compound life and pace are set per event.",
+  "notes": "Strategy-relevant sporting shape for 2024: no refuelling during the race. A dry race searches slick compounds only, so Intermediate and Wet cannot lift the two-compound rule. A wet race can use a wet-weather tyre, and that tyre lifts the slick rule. This is not an FIA text. Compound life and pace are set per event.",
   "rules": {
     "refuelling_allowed": false,
     "dry_min_compounds": 2,
