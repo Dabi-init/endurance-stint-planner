@@ -22,18 +22,24 @@ from live.sources import LiveSourceError, describe_sources, iter_frames
 from pitwall import __version__
 from pitwall_api.schemas import (
     BacktestResponse,
+    ClassesRequest,
     CompareRequest,
     OddsRequest,
     PlanRequest,
     PrepareRequest,
     ReplayRequest,
     SafetyCarRequestIn,
+    TelemetryRequest,
     UndercutRequest,
 )
 from pitwall_api.service import (
     RequestError,
     compare,
     create_plan,
+    endurance_classes,
+    endurance_preset,
+    endurance_presets,
+    endurance_telemetry,
     f1_odds,
     f1_undercut,
     prepare_event,
@@ -141,6 +147,22 @@ def create_app(source: object | None = None) -> FastAPI:
                     await _pace(delay)
 
         return StreamingResponse(generate(), media_type="text/event-stream")
+
+    @app.get("/v1/endurance/presets")
+    def presets() -> dict[str, object]:
+        return endurance_presets()
+
+    @app.get("/v1/endurance/preset")
+    def preset(name: str) -> dict[str, object]:
+        return endurance_preset(name)
+
+    @app.post("/v1/endurance/classes")
+    def classes(body: ClassesRequest):
+        return endurance_classes(body)
+
+    @app.post("/v1/endurance/telemetry")
+    def telemetry(body: TelemetryRequest) -> dict[str, object]:
+        return endurance_telemetry(body)
 
     @app.post("/v1/f1/undercut")
     def undercut_route(body: UndercutRequest) -> dict[str, object]:

@@ -27,7 +27,11 @@ semantic versioning.
   server token is never returned to the browser;
 - an undercut sum from a gap, a number of laps, and a tyre-gain assumption you
   type in, plus a seeded sample of one plan's degradation and pit-lane loss.
-  That sample is labelled as not a historical P10–P90 forecast.
+  That sample is labelled as not a historical P10–P90 forecast;
+- an endurance view on the same pit wall for the bundled synthetic presets,
+  with Pro, Silver, and Bronze drive time, separate class plans, a safety-car
+  window you type in, and a lap-row preview. A pasted timing URL is refused.
+  Pitwall does not fetch or redistribute Al Kamel timing.
 
 ### Fixed
 
@@ -35,6 +39,7 @@ semantic versioning.
   fuel used with the fuel on board;
 - a dry race searches slick compounds only, so Intermediate and Wet cannot
   lift the two-compound rule. A wet race can still use a wet-weather tyre;
+- a pasted timing link is refused with the words "does not fetch a pasted URL";
 - a safety-car re-plan can add a declared field lap-time loss and rival pit
   stops (both default to zero, so a pit-only window is unchanged);
 - an endurance safety car whose deploy minute sits outside the race returns
@@ -51,6 +56,10 @@ semantic versioning.
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
+- the pit wall script is split into a format module, an F1 view, and an
+  endurance view. Classes are described as separate plans with no traffic,
+  passing, or shared pit lane, and a preset name cannot leave the bundled
+  directory;
 - the undercut sum includes an out-lap warm-up, an in-lap delta, and traffic
   avoided (all default to zero). A negative gap or pit loss is rejected, a
   reversed or negative safety-car window returns 422, a live deep link is

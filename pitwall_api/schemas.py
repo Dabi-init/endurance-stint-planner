@@ -89,6 +89,20 @@ class OddsRequest(BaseModel):
     iterations: int = Field(default=64, ge=1, le=400)
 
 
+class TelemetryRequest(BaseModel):
+    csv: str = Field(min_length=1, max_length=200_000)
+    synthetic: bool = False
+
+
+class ClassIn(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    race: dict
+
+
+class ClassesRequest(BaseModel):
+    classes: list[ClassIn] = Field(min_length=1, max_length=4)
+
+
 class IssueOut(BaseModel):
     code: str
     message: str
@@ -181,6 +195,16 @@ class CompareResponse(BaseModel):
     scenarios: list[PlanResponse]
     image_policy: str
     disclaimer: str
+
+
+class ClassPlanOut(BaseModel):
+    name: str
+    plan: PlanResponse
+
+
+class ClassesResponse(BaseModel):
+    classes: list[ClassPlanOut]
+    note: str
 
 
 class SafetyCarResponse(BaseModel):

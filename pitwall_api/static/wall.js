@@ -1,47 +1,7 @@
-import { clampLap, esc } from "./escape.js";
-
-const FIXTURE = "2024-r01-bahrain-verstappen";
-const RECORDED = [
-  { compound: "SOFT", laps: 17 },
-  { compound: "HARD", laps: 20 },
-  { compound: "SOFT", laps: 20 },
-];
-
-const state = {
-  mode: "plan",
-  lap: 1,
-  replay: null,
-  compare: null,
-  event: null,
-};
-
-const $ = (id) => document.getElementById(id);
-
-function safeUrl(url) {
-  return typeof url === "string" && url.startsWith("https://") ? url : "";
-}
-
-function colour(value) {
-  if (typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)) return value;
-  if (typeof value === "string" && /^[0-9a-fA-F]{6}$/.test(value)) return `#${value}`;
-  return "#d0d7e2";
-}
-
-async function getJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
-  return response.json();
-}
-
-async function postJson(url, body) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
-  return response.json();
-}
+import { renderEndurance, towerLabels } from "./endurance-view.js";
+import { renderCards, renderExplain, renderTimeline, renderTower } from "./f1-view.js";
+import { clampLap, esc, getJson, postJson } from "./format.js";
+import { $, FIXTURE, RECORDED, SAMPLE_CSV, state } from "./state.js";
 
 function overrides() {
   return {
@@ -51,143 +11,11 @@ function overrides() {
   };
 }
 
-function clock(seconds) {
-  if (seconds == null) return "—";
-  const total = Math.round(seconds * 1000);
-  const hours = Math.floor(total / 3600000);
-  const minutes = Math.floor((total % 3600000) / 60000);
-  const secs = Math.floor((total % 60000) / 1000);
-  const ms = total % 1000;
-  const pad = (n, w = 2) => String(n).padStart(w, "0");
-  return `${hours}:${pad(minutes)}:${pad(secs)}.${pad(ms, 3)}`;
-}
-
-function currentEvent() {
-  const events = state.replay?.events || [];
-  if (!events.length || state.mode === "plan") return events[0];
-  // A safety-car sentence is about the full-race plan, not a later slice.
-  if (state.mode === "live" && liveFrame()?.alert) return events[0];
-  let chosen = events[0];
-  for (const event of events) {
-    if (event.lap <= state.lap) chosen = event;
-  }
-  return chosen;
-}
-
-function lapState() {
-  return (state.replay?.laps || []).find((row) => row.lap === state.lap);
-}
-
-function renderTower() {
-  const lap = lapState();
-  $("tower").innerHTML = (state.replay?.tower || []).map((driver) => {
-    const photo = safeUrl(driver.headshot_url);
-    const pip = driver.focus && lap
-      ? `<span class="compound-pip" style="background:${colour(lap.colour)}">${esc(lap.compound)}</span>`
-      : "";
-    const face = photo
-      ? `<img class="face" alt="" src="${esc(photo)}" />`
-      : `<span class="initials">${esc(driver.code || "?")}</span>`;
-    return `<li class="driver${driver.focus ? " focus" : ""}">
-      <span class="stripe" style="background:${colour(driver.team_colour_css)}"></span>
-      <div class="who">${face}<div><strong>${esc(driver.code)}</strong><span>${esc(driver.team_name)}</span></div></div>
-      <span class="meta">${esc(driver.grid ?? "—")}</span>
-      <span class="meta">${pip || esc(driver.finish_position ?? "—")}</span>
-    </li>`;
-  }).join("");
-  for (const image of $("tower").querySelectorAll("img")) {
-    image.addEventListener("error", () => {
-      const initials = document.createElement("span");
-      initials.className = "initials";
-      initials.textContent = image.closest(".driver")?.querySelector("strong")?.textContent || "?";
-      image.replaceWith(initials);
-    });
-  }
-}
-
-function segments(stints, total) {
-  return stints.map((stint) => {
-    const width = (stint.laps / total) * 100;
-    return `<div class="seg" style="width:${width}%;background:${colour(stint.colour)}">${esc(stint.label)} ${stint.laps}</div>`;
-  }).join("");
-}
-
-function renderTimeline() {
-  const event = currentEvent();
-  const recorded = state.replay?.recorded_stints || [];
-  const raceLaps = state.replay?.race_laps || 57;
-  const planLaps = (event?.stints || []).reduce((sum, stint) => sum + stint.laps, 0) || raceLaps;
-  const window = event?.pit_window;
-  const band = window
-    ? `<div class="window" style="left:${((window[0] - 1) / planLaps) * 100}%;width:${((window[1] - window[0] + 1) / planLaps) * 100}%"></div>`
-    : "";
-  const frame = state.mode === "live" ? liveFrame() : null;
-  const label = frame?.alert
-    ? "Safety-car what-if"
-    : state.mode !== "plan" && event?.lap
-      ? `From lap ${event.lap}`
-      : "Suggested";
-  $("timeline").innerHTML = `
-    <div class="lane"><p>${label}</p><div class="track">${segments(event?.stints || [], planLaps)}${band}</div></div>
-    <div class="lane"><p>Recorded</p><div class="track">${segments(recorded, raceLaps)}</div></div>
-    <div class="ticks"><span>1</span><span>${Math.round(raceLaps / 2)}</span><span>${raceLaps}</span></div>`;
-  $("timeline-note").textContent = window
-    ? `Amber band: a legal stop for this tyre order, laps ${window[0]}–${window[1]}.`
-    : "No one-stop window for the plan on screen.";
-  const onPit = (state.mode === "replay" && lapState()?.pit) || frame?.kind === "pit";
-  $("pit-flag").hidden = !onPit;
-  $("lap-readout").textContent = state.mode === "plan" ? `Lap 1–${raceLaps}` : `Lap ${state.lap} / ${raceLaps}`;
-  $("scrub").hidden = state.mode === "plan";
-  const banner = $("live-banner");
-  if (frame && (frame.kind === "safety-car" || frame.kind === "vsc" || frame.kind === "pit")) {
-    banner.hidden = false;
-    banner.textContent = frame.message;
-  } else {
-    banner.hidden = true;
-  }
-}
-
-function renderExplain() {
-  const event = currentEvent();
-  const frame = state.mode === "live" ? liveFrame() : null;
-  const lead = frame?.alert ? `${frame.alert} ` : "";
-  $("explain").textContent = `${lead}${event?.explanation || "No plan yet."}`;
-  $("uncertainty").textContent = event?.uncertainty || "";
-}
-
-function card(name, seconds, summary, reason, preferred, rank) {
-  return `<article class="card${preferred ? " preferred" : ""}">
-      <header><h3><span class="rank">${esc(rank ?? "")}</span>${esc(name)}</h3></header>
-      <p class="time">${clock(seconds)}</p>
-      <p>${esc(summary)}</p>
-      <p>${esc(reason || "")}</p>
-    </article>`;
-}
-
-function renderCards() {
-  if (state.mode === "replay" || state.mode === "live") {
-    const event = currentEvent();
-    const frame = state.mode === "live" ? liveFrame() : null;
-    const name = frame?.alert
-      ? "Safety-car what-if"
-      : event?.lap
-        ? `From lap ${event.lap}`
-        : "Before the start";
-    $("cards").innerHTML = card(name, event?.race_time_sec, event?.summary, event?.why, event?.feasible, "•");
+function render() {
+  if (state.series === "endurance") {
+    renderEndurance();
     return;
   }
-  const rows = state.compare?.scenarios || [];
-  $("cards").innerHTML = rows.map((row) => card(
-    row.strategy_name,
-    row.race_time_sec,
-    row.summary,
-    row.ranking_reason || row.why,
-    row.preferred,
-    row.rank,
-  )).join("") || `<p class="fine">No scenarios yet.</p>`;
-}
-
-function render() {
   if (!state.replay) return;
   $("event-name").textContent = `${state.replay.season} ${state.replay.event_name}`;
   $("evidence-pill").textContent = state.replay.anchor_pace ? "Evidence C · same-race pace" : "Evidence C";
@@ -203,19 +31,17 @@ function setMode(mode) {
     clearInterval(state.playTimer);
     state.playTimer = null;
   }
-  for (const button of document.querySelectorAll(".mode")) {
+  for (const button of document.querySelectorAll(".mode[data-mode]")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
-  $("live-tools").hidden = mode !== "live";
+  $("live-tools").hidden = state.series === "endurance" || mode !== "live";
   if (mode !== "live") $("live-banner").hidden = true;
-  $("series-kicker").textContent = mode === "live"
-    ? "Formula 1 · replay feed, not live timing"
-    : "Formula 1 · file assumptions";
+  $("series-kicker").textContent = state.series === "endurance"
+    ? "Endurance · synthetic preset"
+    : mode === "live"
+      ? "Formula 1 · replay feed, not live timing"
+      : "Formula 1 · file assumptions";
   render();
-}
-
-function liveFrame() {
-  return (state.liveFrames || []).find((frame) => frame.lap === state.lap);
 }
 
 async function startLive(jumpLap) {
@@ -237,9 +63,10 @@ async function startLive(jumpLap) {
 }
 
 function playLive() {
+  if (state.series === "endurance" || state.mode !== "live") return;
   if (state.playTimer) clearInterval(state.playTimer);
   state.playTimer = setInterval(() => {
-    if (state.mode !== "live") return;
+    if (state.series === "endurance" || state.mode !== "live") return;
     if (state.lap >= (state.liveFrames || []).length) {
       clearInterval(state.playTimer);
       return;
@@ -271,6 +98,42 @@ async function refresh(withOverrides) {
   render();
 }
 
+async function loadEndurance(name) {
+  const preset = await getJson(`/v1/endurance/preset?name=${encodeURIComponent(name)}`);
+  const race = { ...preset.race, ...(state.pacePatch || {}) };
+  const plan = await postJson("/v1/plans", { series: "endurance", race });
+  const compare = await postJson("/v1/scenarios/compare", { series: "endurance", race });
+  state.endurance = {
+    preset: { ...preset, race },
+    plan,
+    compare,
+    classes: null,
+    safety: null,
+    selected: $("class-name").value,
+  };
+  render();
+}
+
+async function setSeries(series) {
+  state.series = series;
+  towerLabels(series);
+  if (series !== "endurance") {
+    $("series-kicker").textContent = state.mode === "live"
+      ? "Formula 1 · replay feed, not live timing"
+      : "Formula 1 · file assumptions";
+    render();
+    return;
+  }
+  if (state.playTimer) {
+    clearInterval(state.playTimer);
+    state.playTimer = null;
+  }
+  const listed = await getJson("/v1/endurance/presets");
+  $("preset-name").innerHTML = listed.presets.map((name) => `<option>${esc(name)}</option>`).join("");
+  $("preset-name").value = "6h Endurance";
+  await loadEndurance("6h Endurance");
+}
+
 async function boot() {
   try {
     state.event = await getJson("/v1/f1/events/2024/1");
@@ -297,13 +160,91 @@ async function boot() {
     }
     if (hash.get("sc") === "1") $("sc-on").checked = true;
     render();
-    if (hash.get("mode") === "live") {
+    if (hash.get("series") === "endurance") {
+      await setSeries("endurance");
+    } else if (hash.get("mode") === "live") {
       await startLive(hash.get("lap") || 35);
     }
   } catch (error) {
     $("explain").textContent = error.message;
   }
 }
+
+$("series-f1").addEventListener("click", () => setSeries("f1"));
+$("series-endurance").addEventListener("click", () => setSeries("endurance"));
+$("preset-name").addEventListener("change", () => {
+  state.pacePatch = null;
+  $("use-pace").hidden = true;
+  loadEndurance($("preset-name").value).catch((error) => {
+    $("explain").textContent = error.message;
+  });
+});
+$("add-class").addEventListener("click", async () => {
+  try {
+    const sprint = await getJson(`/v1/endurance/preset?name=${encodeURIComponent("4h Sprint Endurance")}`);
+    const result = await postJson("/v1/endurance/classes", {
+      classes: [
+        { name: $("class-name").value || "GT3", race: state.endurance.preset.race },
+        { name: "4h sprint", race: sprint.race },
+      ],
+    });
+    state.endurance.classes = result.classes;
+    state.endurance.classNote = result.note;
+    state.endurance.selected = $("class-name").value || "GT3";
+    state.endurance.plan = result.classes[0].plan;
+    render();
+  } catch (error) {
+    $("class-note").textContent = error.message;
+  }
+});
+$("sc-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("sc-note").textContent = "Re-planning the declared window.";
+  try {
+    const safety = await postJson("/v1/safety-car", {
+      series: "endurance",
+      race: state.endurance.preset.race,
+      safety_car: {
+        deploy_min: Number($("sc-minute").value),
+        duration_min: Number($("sc-duration").value),
+      },
+    });
+    state.endurance.safety = safety;
+    state.endurance.plan = safety.replanned;
+    state.endurance.classes = null;
+    $("sc-note").textContent = "What-if applied for this view. The bundled preset was not rewritten.";
+    render();
+  } catch (error) {
+    $("sc-note").textContent = error.message;
+  }
+});
+$("fill-sample").addEventListener("click", () => {
+  $("telemetry-csv").value = SAMPLE_CSV;
+});
+$("telemetry-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const preview = await postJson("/v1/endurance/telemetry", {
+      csv: $("telemetry-csv").value,
+      synthetic: true,
+    });
+    state.pacePatch = preview.usable_for_strategy ? preview.config_patch : null;
+    $("use-pace").hidden = !preview.usable_for_strategy;
+    const median = preview.calibration?.median_lap_time_sec;
+    $("telemetry-note").textContent = preview.usable_for_strategy
+      ? `Synthetic sample median ${Number(median).toFixed(3)} s. The preset file was not rewritten.`
+      : (preview.findings?.[0]?.message || "Those rows are not enough to calibrate pace.");
+  } catch (error) {
+    state.pacePatch = null;
+    $("use-pace").hidden = true;
+    $("telemetry-note").textContent = error.message;
+  }
+});
+$("use-pace").addEventListener("click", () => {
+  loadEndurance($("preset-name").value).catch((error) => {
+    $("telemetry-note").textContent = error.message;
+  });
+});
 
 $("mode-plan").addEventListener("click", () => setMode("plan"));
 $("mode-replay").addEventListener("click", () => setMode("replay"));
@@ -313,6 +254,7 @@ $("lap-slider").addEventListener("input", (event) => {
   render();
 });
 $("play-live").addEventListener("click", () => {
+  if (state.series === "endurance") return;
   state.lap = 1;
   playLive();
 });
@@ -358,7 +300,7 @@ $("builder").addEventListener("submit", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (state.mode !== "replay" || event.target.matches("input")) return;
+  if (state.series === "endurance" || state.mode !== "replay" || event.target.matches("input, textarea, select")) return;
   if (event.key === "ArrowRight") state.lap = Math.min(state.replay.race_laps, state.lap + 1);
   if (event.key === "ArrowLeft") state.lap = Math.max(1, state.lap - 1);
   $("lap-slider").value = String(state.lap);

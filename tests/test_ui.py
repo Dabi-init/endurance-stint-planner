@@ -21,6 +21,7 @@ def test_home_page_is_the_pit_wall_and_has_no_tracker() -> None:
     page = client.get("/")
     css = client.get("/static/wall.css")
     script = client.get("/static/wall.js")
+    tower = client.get("/static/f1-view.js")
     html = page.text
 
     assert page.status_code == 200
@@ -35,10 +36,13 @@ def test_home_page_is_the_pit_wall_and_has_no_tracker() -> None:
     assert "google-analytics" not in html
     assert css.status_code == 200
     assert script.status_code == 200
-    assert "headshot" in script.text
+    assert tower.status_code == 200
+    assert "headshot" in tower.text
     assert "clampLap" in script.text
-    assert "esc(driver.grid" in script.text
-    assert "esc(driver.finish_position" in script.text
+    assert "esc(driver.grid" in tower.text
+    assert "esc(driver.finish_position" in tower.text
+    assert 'from "./f1-view.js"' in script.text
+    assert 'from "./endurance-view.js"' in script.text
     assert "[hidden]" in css.text
     assert "display: none !important" in css.text
 

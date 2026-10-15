@@ -433,6 +433,14 @@ file's degradation and pit-lane loss with a fixed seed. The page calls that
 sample a race-time spread. The response says it is not a P10–P90 forecast
 from race history.
 
+The Endurance view uses the bundled synthetic presets (6h, 4h, and 24h). It is
+not a World Endurance Championship entry list. Pro, Silver, and Bronze limits
+come from the preset file. Classes do not interact: there is no traffic,
+passing, or shared pit lane between them. A safety-car
+window is a minute and a duration you type. `POST /v1/endurance/telemetry`
+previews lap rows you paste. If the text is an `http` or `https` link, the
+API refuses it and does not fetch the URL, including Al Kamel timing links.
+
 Each plan returns a plain-language summary and a why sentence, plus the rule
 checks an expert can read. An F1 result is one deterministic time, and it says
 that a P10–P90 range is not estimated yet. Endurance comparisons still return
@@ -450,10 +458,11 @@ gap is one comparison, not an accuracy claim.
 ## Honest scope
 
 Pitwall Agent is pre-race decision support in alpha. The lap feed replays a
-bundled recording; it does not receive live timing. It does not currently
-provide weather, traffic, a rival model, wave-by, pit-closure, class
-split, or validated real-session accuracy. Always verify the official event
-regulations and live fuel data.
+bundled recording; it does not receive live timing. A second endurance class
+is a separate plan from numbers you supply, not a combined multi-class race.
+It does not currently provide weather, traffic, a rival model, wave-by,
+pit-closure, or validated real-session accuracy. Always verify the official
+event regulations and live fuel data.
 
 The engine is credible when its assumptions match your race—not because an AI
 described it confidently. An F1 rule pack (tyre compounds, mandatory compound

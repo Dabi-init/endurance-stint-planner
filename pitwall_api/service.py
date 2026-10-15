@@ -18,7 +18,7 @@ from engine.f1 import (
 )
 from engine.f1_odds import race_time_odds, undercut
 from engine.models import PlanResult, RaceConfig
-from engine.planner import PlanOptions, compute_plan
+from engine.planner import PlanOptions, compute_plan, list_presets, load_preset
 from engine.safety_car import SafetyCarConfig, replan_with_safety_car
 from engine.series_config import (
     IMAGE_POLICY,
@@ -29,8 +29,12 @@ from engine.series_config import (
     setup_to_dict,
 )
 from engine.strategy import compare_strategies
+from engine.telemetry import calibrate_telemetry
 from historical.errors import HistoricalSourceError
 from pitwall_api.schemas import (
+    ClassesRequest,
+    ClassesResponse,
+    ClassPlanOut,
     CompareRequest,
     CompareResponse,
     DriverCard,
@@ -47,6 +51,7 @@ from pitwall_api.schemas import (
     SimulationOut,
     StintOut,
     TeamCard,
+    TelemetryRequest,
     UndercutRequest,
 )
 
@@ -427,6 +432,82 @@ def _driver_card(driver: object) -> DriverCard:
         pace_delta_sec=driver.pace_delta_sec,  # type: ignore[attr-defined]
         car_id=driver.car_id,  # type: ignore[attr-defined]
     )
+
+
+PRESET_NOTE = (
+    "Bundled synthetic preset. Not a World Endurance Championship entry list "
+    "and not timing from Al Kamel."
+)
+TIMING_REFUSAL = (
+    "Paste the lap rows you have the right to use. "
+    "Pitwall does not fetch a pasted URL, "
+    "and it does not redistribute timing data."
+)
+CLASS_NOTE = (
+    "Classes do not interact. There is no traffic, passing, or shared pit lane "
+    "between them. Each class is its own plan from the numbers you supplied. "
+    "Classes are not combined into one race."
+)
+
+
+def endurance_presets() -> dict[str, object]:
+    return {"presets": list_presets(), "note": PRESET_NOTE}
+
+
+def endurance_preset(name: str) -> dict[str, object]:
+    known = list_presets()
+    if name not in known:
+        raise RequestError(
+            f"Unknown preset {name}. Known presets: {', '.join(known)}.",
+            status=404,
+        )
+    config = load_preset(name)
+    return {
+        "name": name,
+        "synthetic": True,
+        "evidence_level": "C",
+        "note": PRESET_NOTE,
+        "race": config.to_dict(),
+    }
+
+
+def endurance_classes(body: ClassesRequest) -> ClassesResponse:
+    rows: list[ClassPlanOut] = []
+    for item in body.classes:
+        config = _endurance_config(item.race)
+        plan = compute_plan(config)
+        rows.append(
+            ClassPlanOut(
+                name=item.name,
+                plan=_endurance_plan(plan, "full", PlanOptions()),
+            )
+        )
+    return ClassesResponse(classes=rows, note=CLASS_NOTE)
+
+
+def endurance_telemetry(body: TelemetryRequest) -> dict[str, object]:
+    if _remote_timing(body.csv):
+        raise RequestError(TIMING_REFUSAL)
+    try:
+        calibrated = calibrate_telemetry(
+            body.csv, source_name="pasted.csv", is_synthetic=body.synthetic
+        )
+    except ValueError as exc:
+        raise RequestError(str(exc)) from exc
+    report = calibrated.to_report()
+    report["config_patch"] = calibrated.config_patch()
+    report["usable_for_strategy"] = calibrated.usable_for_strategy
+    return report
+
+
+def _remote_timing(text: str) -> bool:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        lowered = stripped.lower()
+        return lowered.startswith("http://") or lowered.startswith("https://")
+    return False
 
 
 def f1_undercut(body: UndercutRequest) -> dict[str, object]:

@@ -19,6 +19,10 @@
         <p class="kicker" id="series-kicker">Formula 1 · file assumptions</p>
         <h1 id="event-name">Loading the race</h1>
       </div>
+      <div class="modes" role="group" aria-label="Series">
+        <button type="button" id="series-f1" class="mode on">F1</button>
+        <button type="button" id="series-endurance" class="mode">Endurance</button>
+      </div>
       <div class="modes" role="group" aria-label="View">
         <button type="button" id="mode-plan" class="mode on" data-mode="plan">Plan</button>
         <button type="button" id="mode-replay" class="mode" data-mode="replay">Replay</button>
@@ -31,10 +35,10 @@
       <aside class="panel tower-panel" aria-labelledby="tower-title">
         <div class="panel-head">
           <h2 id="tower-title">Timing tower</h2>
-          <p>Grid and recorded finish. The lap feed is car 1 only.</p>
+          <p id="tower-blurb">Grid and recorded finish. The lap feed is car 1 only.</p>
         </div>
         <div class="tower-head" aria-hidden="true">
-          <span></span><span>Driver</span><span>Grid</span><span>Finish</span>
+          <span></span><span id="tower-col-driver">Driver</span><span id="tower-col-a">Grid</span><span id="tower-col-b">Finish</span>
         </div>
         <ol id="tower" class="tower"></ol>
       </aside>
@@ -71,9 +75,39 @@
         <section class="panel" aria-labelledby="cards-title">
           <div class="panel-head">
             <h2 id="cards-title">Scenario cards</h2>
-            <p>Suggested plan beside the recorded stints.</p>
+            <p id="cards-blurb">Suggested plan beside the recorded stints.</p>
           </div>
           <div id="cards" class="cards"></div>
+        </section>
+
+        <section class="panel" id="endurance-tools" hidden aria-labelledby="endurance-title">
+          <div class="panel-head">
+            <h2 id="endurance-title">Endurance</h2>
+            <p>Synthetic presets and numbers you type. No timing feed is fetched.</p>
+          </div>
+          <label class="stack">Preset
+            <select id="preset-name"></select>
+          </label>
+          <label class="stack">Class name
+            <input id="class-name" type="text" value="GT3" maxlength="40" />
+          </label>
+          <button type="button" id="add-class">Add the 4h synthetic preset as another class</button>
+          <p id="class-note" class="fine">Classes do not interact. There is no traffic, passing, or shared pit lane between them.</p>
+          <form id="sc-form" class="builder">
+            <p class="kicker">Manual safety car</p>
+            <label>Deploy minute<input id="sc-minute" type="number" min="0" step="1" value="120" /></label>
+            <label>Duration (minutes)<input id="sc-duration" type="number" min="0" step="1" value="20" /></label>
+            <button type="submit">Apply the what-if</button>
+            <p id="sc-note" class="fine">You declare the window. This is not live race control.</p>
+          </form>
+          <form id="telemetry-form" class="builder">
+            <p class="kicker">Lap rows</p>
+            <textarea id="telemetry-csv" rows="4" spellcheck="false" placeholder="lap,lap_time_sec,fuel_remaining_liters"></textarea>
+            <button type="button" id="fill-sample">Fill a synthetic sample</button>
+            <button type="submit">Preview pasted laps</button>
+            <button type="button" id="use-pace" hidden>Use this pace on the plan</button>
+            <p id="telemetry-note" class="fine">Paste rows you have the right to use. A link is refused and nothing is fetched.</p>
+          </form>
         </section>
 
         <section class="panel" id="live-tools" hidden aria-labelledby="live-title">
