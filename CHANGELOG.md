@@ -53,8 +53,9 @@ semantic versioning.
 
 - the F1 fuel check rejects a starting load above the tank before it compares
   fuel used with the fuel on board;
-- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
-  rule, so a crossover sequence can be planned;
+- a dry race searches slick compounds only, so Intermediate and Wet cannot
+  lift the two-compound rule. A wet race can still use a wet-weather tyre;
+- a pasted timing link is refused with the words "does not fetch a pasted URL";
 - a safety-car re-plan can add a declared field lap-time loss and rival pit
   stops (both default to zero, so a pit-only window is unchanged);
 - an endurance safety car whose deploy minute sits outside the race returns
@@ -67,8 +68,8 @@ semantic versioning.
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
-- a declared wet race with no wet-tyre life keeps the slick plan and says
-  intermediates and wets are not searched. The Bahrain back-test panel shows
+- a declared wet race uses Intermediate and Wet, not slicks. With no wet-tyre
+  life there is no wet plan. The Bahrain back-test panel shows
   predicted stop laps beside the recorded stop laps. Out-of-range weather and
   class requests return 422;
 - the pit wall script is split into a format module, an F1 view, and an

@@ -446,7 +446,7 @@ PRESET_NOTE = (
 )
 TIMING_REFUSAL = (
     "Paste the lap rows you have the right to use. "
-    "Pitwall does not fetch Al Kamel or any other timing URL, "
+    "Pitwall does not fetch a pasted URL, "
     "and it does not redistribute timing data."
 )
 CLASS_NOTE = (
@@ -521,21 +521,24 @@ def endurance_telemetry(body: TelemetryRequest) -> dict[str, object]:
 def declared_weather(body: DeclaredWeatherRequest) -> DeclaredWeatherResponse:
     overrides: dict[str, object] = {"dry_race": body.declared == "dry"}
     note = DECLARED_WEATHER
-    if body.declared == "wet" and body.wet_life_laps is not None:
-        life = body.wet_life_laps
-        overrides["compounds"] = {
-            "INTERMEDIATE": {"max_laps": life},
-            "WET": {"max_laps": life},
+    if body.declared == "wet":
+        compounds: dict[str, object] = {
+            name: {"max_laps": None} for name in ("SOFT", "MEDIUM", "HARD")
         }
-        note = (
-            f"{DECLARED_WEATHER} Intermediate and Wet life are the {life} laps you typed. "
-            "Their pace and degradation stay at the file default."
-        )
-    elif body.declared == "wet":
-        note = (
-            f"{DECLARED_WEATHER} Intermediate and Wet have no stint life in this file, "
-            "so they are not searched. The two-compound rule still applies to this slick plan."
-        )
+        life = body.wet_life_laps
+        if life is not None:
+            compounds["INTERMEDIATE"] = {"max_laps": life}
+            compounds["WET"] = {"max_laps": life}
+            note = (
+                f"{DECLARED_WEATHER} Intermediate and Wet life are the {life} laps you typed. "
+                "Their pace and degradation stay at the file default. Slicks are not used."
+            )
+        else:
+            note = (
+                f"{DECLARED_WEATHER} A declared wet race uses Intermediate and Wet, not slicks. "
+                "This file gives them no stint life, so there is no wet plan."
+            )
+        overrides["compounds"] = compounds
     setup = _f1_setup(body.season, body.round, None, overrides)
     return DeclaredWeatherResponse(
         declared=body.declared,

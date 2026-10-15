@@ -223,52 +223,38 @@ def test_starting_fuel_above_the_tank_fails_before_fuel_used() -> None:
     assert any("110.000 kg tank" in issue.message for issue in plan.infeasibilities)
 
 
-def test_a_wet_tyre_lifts_the_slick_rule_and_a_crossover_stays_legal() -> None:
-    setup = _setup(
-        compounds=[
-            CompoundSpec("SOFT", "Soft", True, "FF1E00", 4, -1.0, 0.0),
-            CompoundSpec("HARD", "Hard", True, "F0F0F0", 10, 0.0, 0.0),
-            CompoundSpec("INTERMEDIATE", "Intermediate", False, "43B02A", 8, -2.0, 0.0),
-        ]
-    )
-    crossover = _setup(
-        max_stops=1,
-        compounds=[
-            CompoundSpec("SOFT", "Soft", True, "FF1E00", 4, -1.0, 0.0),
-            CompoundSpec("HARD", "Hard", True, "F0F0F0", 10, 0.0, 0.0),
-            CompoundSpec("INTERMEDIATE", "Intermediate", False, "43B02A", 4, -2.0, 0.0),
-        ],
-    )
+def test_a_dry_race_does_not_let_a_wet_tyre_skip_the_compound_rule() -> None:
+    compounds = [
+        CompoundSpec("SOFT", "Soft", True, "FF1E00", 4, -1.0, 0.0),
+        CompoundSpec("HARD", "Hard", True, "F0F0F0", 10, 0.0, 0.0),
+        CompoundSpec("INTERMEDIATE", "Intermediate", False, "43B02A", 8, -2.0, 0.0),
+    ]
+    dry = _setup(compounds=compounds)
 
-    plan = best_f1_plan(setup)
-    mixed = score_stints(
-        setup,
-        [StintRequest("INTERMEDIATE", 8), StintRequest("HARD", 2)],
+    plan = best_f1_plan(dry)
+    dodged = score_stints(
+        dry, [StintRequest("INTERMEDIATE", 8), StintRequest("HARD", 2)]
     )
-    slick = score_stints(
-        setup,
-        [StintRequest("HARD", 6), StintRequest("SOFT", 4)],
-    )
-    crossed = best_f1_plan(crossover)
-    hard_only = score_stints(setup, [StintRequest("HARD", 10)])
-    blocked = best_f1_plan(_setup(max_stops=0))
+    wet = best_f1_plan(_setup(dry_race=False, compounds=compounds))
+    hard_only = score_stints(dry, [StintRequest("HARD", 10)])
 
     assert plan.feasible is True
-    assert plan.compounds_used == ["INTERMEDIATE", "INTERMEDIATE"]
-    assert plan.stint_laps == [2, 8]
-    assert plan.race_time_sec == 1000.0
-    assert "wet-weather" in plan.why
-    assert mixed.feasible is True
-    assert mixed.race_time_sec == 1004.0
-    assert slick.race_time_sec == 1016.0
-    assert mixed.race_time_sec < slick.race_time_sec
-    assert crossed.feasible is True
-    assert crossed.compounds_used == ["HARD", "INTERMEDIATE"]
-    assert crossed.stint_laps == [6, 4]
-    assert crossed.race_time_sec == 1012.0
+    assert plan.compounds_used == ["HARD", "SOFT"]
+    assert plan.stint_laps == [6, 4]
+    assert plan.race_time_sec == 1016.0
+    assert plan.why == (
+        "A dry race in this rule file needs at least 2 different tyre types. "
+        "This plan uses Hard and Soft. "
+        "Every stint stays within the tyre life in the file."
+    )
+    assert dodged.feasible is False
+    assert any(issue.code == "compound_rule" for issue in dodged.infeasibilities)
+    assert "Intermediate or Wet" in dodged.infeasibilities[0].message
+    assert wet.feasible is True
+    assert wet.compounds_used == ["INTERMEDIATE", "INTERMEDIATE"]
+    assert "wet-weather" in wet.why
     assert hard_only.feasible is False
     assert any(issue.code == "compound_rule" for issue in hard_only.infeasibilities)
-    assert blocked.infeasibilities[0].code == "no_legal_plan"
 
 
 def test_fuel_that_cannot_finish_the_race_is_refused() -> None:
