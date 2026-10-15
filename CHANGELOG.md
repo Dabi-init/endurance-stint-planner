@@ -39,6 +39,7 @@ semantic versioning.
   fuel used with the fuel on board;
 - a dry race searches slick compounds only, so Intermediate and Wet cannot
   lift the two-compound rule. A wet race can still use a wet-weather tyre;
+- a pasted timing link is refused with the words "does not fetch a pasted URL";
 - a safety-car re-plan can add a declared field lap-time loss and rival pit
   stops (both default to zero, so a pit-only window is unchanged);
 - an endurance safety car whose deploy minute sits outside the race returns
