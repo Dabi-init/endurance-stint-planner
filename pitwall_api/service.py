@@ -445,7 +445,7 @@ PRESET_NOTE = (
 )
 TIMING_REFUSAL = (
     "Paste the lap rows you have the right to use. "
-    "Pitwall does not fetch Al Kamel or any other timing URL, "
+    "Pitwall does not fetch a pasted URL, "
     "and it does not redistribute timing data."
 )
 CLASS_NOTE = (
