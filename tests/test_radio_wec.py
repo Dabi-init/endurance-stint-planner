@@ -417,8 +417,10 @@ def test_wec_http_does_not_fetch_until_enabled(monkeypatch: pytest.MonkeyPatch) 
     failed = client.get("/v1/live/wec", params={"enable": True})
 
     assert off.status_code == 200
-    assert off.json()["fetched"] is False
-    assert "livetiming.fiawec.com" in off.json()["notice"]
+    body = off.json()
+    assert body["fetched"] is False
+    assert body["notice"] == WEC_NOTICE
+    assert body["page"] == WEC_PAGE
     assert on.status_code == 200
     assert on.json()["enabled"] is True
     assert failed.status_code == 502
