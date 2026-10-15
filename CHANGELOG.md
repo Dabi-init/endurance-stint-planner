@@ -46,7 +46,12 @@ semantic versioning.
 - the timing tower escapes grid and finish position before writing HTML, the
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
-  with POST only.
+  with POST only;
+- the undercut sum includes an out-lap warm-up, an in-lap delta, and traffic
+  avoided (all default to zero). A negative gap or pit loss is rejected, a
+  reversed or negative safety-car window returns 422, a live deep link is
+  clamped into the race, and the lap stream waits with async sleep. The sample
+  on the page is labelled a race-time spread.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 

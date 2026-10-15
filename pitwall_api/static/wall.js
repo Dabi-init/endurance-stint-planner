@@ -229,7 +229,7 @@ async function startLive(jumpLap) {
   const sources = await getJson("/v1/live/sources");
   $("live-source").textContent = sources.map((row) => `${row.id}: ${row.detail}`).join(" ");
   setMode("live");
-  state.lap = jumpLap || 1;
+  state.lap = clampLap(jumpLap, state.liveFrames.length || state.replay?.race_laps || 57);
   $("lap-slider").max = String(state.liveFrames.length);
   $("lap-slider").value = String(state.lap);
   $("scrub").hidden = false;
@@ -298,7 +298,7 @@ async function boot() {
     if (hash.get("sc") === "1") $("sc-on").checked = true;
     render();
     if (hash.get("mode") === "live") {
-      await startLive(Number(hash.get("lap") || 35));
+      await startLive(hash.get("lap") || 35);
     }
   } catch (error) {
     $("explain").textContent = error.message;
@@ -328,6 +328,9 @@ $("undercut-form").addEventListener("submit", async (event) => {
       tyre_gain_sec_per_lap: Number($("tyre-gain").value),
       our_pit_loss_sec: 22,
       their_pit_loss_sec: 22,
+      out_lap_warmup_sec: Number($("out-lap").value),
+      in_lap_delta_sec: Number($("in-lap").value),
+      traffic_avoided_sec: Number($("traffic").value),
     });
     $("undercut-note").textContent = result.explanation;
   } catch (error) {
@@ -335,7 +338,7 @@ $("undercut-form").addEventListener("submit", async (event) => {
   }
 });
 $("odds-button").addEventListener("click", async () => {
-  $("odds-note").textContent = "Sampling the file's degradation and pit loss.";
+  $("odds-note").textContent = "Sampling the file's degradation and pit loss as a race-time spread.";
   try {
     const odds = await postJson("/v1/f1/odds", { season: 2024, round: 1, iterations: 64 });
     $("odds-note").textContent = `P10 ${odds.p10_sec} s, median ${odds.p50_sec} s, P90 ${odds.p90_sec} s. ${odds.honesty}`;

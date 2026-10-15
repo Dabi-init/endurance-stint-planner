@@ -37,6 +37,9 @@ def test_undercut_reports_the_gap_after_both_cars_stop() -> None:
         "net_sec": 0.5,
         "ahead": True,
         "tyre_gain_sec": 2.5,
+        "out_lap_warmup_sec": 0.0,
+        "in_lap_delta_sec": 0.0,
+        "traffic_avoided_sec": 0.0,
         "explanation": "Pit 5 laps earlier and this rival is 0.500 s behind when they stop.",
         "assumption": "Tyre gain per lap is your input, not a measured rival.",
     }
@@ -53,6 +56,26 @@ def test_undercut_reports_the_gap_after_both_cars_stop() -> None:
         undercut(
             gap_behind_sec=1,
             laps_ahead=0,
+            tyre_gain_sec_per_lap=0.2,
+            our_pit_loss_sec=22,
+            their_pit_loss_sec=22,
+        )
+    costly = undercut(
+        gap_behind_sec=2,
+        laps_ahead=5,
+        tyre_gain_sec_per_lap=0.5,
+        our_pit_loss_sec=22,
+        their_pit_loss_sec=22,
+        out_lap_warmup_sec=1.0,
+        in_lap_delta_sec=0.5,
+        traffic_avoided_sec=0.2,
+    )
+    assert costly["net_sec"] == -0.8
+    assert "Out-lap warm-up" in str(costly["explanation"])
+    with pytest.raises(ValueError, match="zero or higher"):
+        undercut(
+            gap_behind_sec=-1,
+            laps_ahead=1,
             tyre_gain_sec_per_lap=0.2,
             our_pit_loss_sec=22,
             their_pit_loss_sec=22,

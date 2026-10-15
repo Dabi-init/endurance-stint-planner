@@ -73,11 +73,14 @@ class ReplayRequest(BaseModel):
 
 
 class UndercutRequest(BaseModel):
-    gap_behind_sec: float
+    gap_behind_sec: float = Field(ge=0)
     laps_ahead: int = Field(ge=1)
     tyre_gain_sec_per_lap: float
-    our_pit_loss_sec: float
-    their_pit_loss_sec: float
+    our_pit_loss_sec: float = Field(ge=0)
+    their_pit_loss_sec: float = Field(ge=0)
+    out_lap_warmup_sec: float = Field(default=0, ge=0)
+    in_lap_delta_sec: float = Field(default=0, ge=0)
+    traffic_avoided_sec: float = Field(default=0, ge=0)
 
 
 class OddsRequest(BaseModel):

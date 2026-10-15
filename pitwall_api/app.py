@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-import time
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -126,11 +126,11 @@ def create_app(source: object | None = None) -> FastAPI:
         )
         delay = pace_delay_sec(pace_ms)
 
-        def generate():
+        async def generate():
             for frame in frames:
                 yield f"data: {json.dumps(frame)}\n\n"
                 if delay:
-                    time.sleep(delay)
+                    await _pace(delay)
 
         return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -194,6 +194,10 @@ def pace_delay_sec(pace_ms: int) -> float:
     return min(max(pace_ms, 0), 2_000) / 1000
 
 
+async def _pace(seconds: float) -> None:
+    await asyncio.sleep(seconds)
+
+
 def _safety_query(
     sc_start: int | None,
     sc_end: int | None,
@@ -204,6 +208,12 @@ def _safety_query(
         return None
     if sc_start is None or sc_end is None or sc_pit is None:
         raise RequestError("Safety car needs start_lap, end_lap, and pit_loss_sec.")
+    if sc_end < sc_start or sc_pit < 0:
+        raise RequestError(
+            "Safety car end_lap must be at or after start_lap, "
+            "and pit_loss_sec must be zero or higher.",
+            status=422,
+        )
     return {
         "kind": sc_kind,
         "start_lap": sc_start,

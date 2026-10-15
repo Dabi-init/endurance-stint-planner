@@ -424,10 +424,12 @@ not download or commit those images. A livery URL is used only when you or a
 source provide one.
 
 `POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
-the two pit losses. It does not model the rival. `POST /v1/f1/odds` samples
-one feasible plan by nudging the file's degradation and pit-lane loss with a
-fixed seed. The response says that sample is not a P10–P90 forecast from race
-history.
+the two pit losses, then subtracts an out-lap warm-up and an in-lap delta and
+adds any traffic you say was avoided. Those three default to zero. It does not
+model the rival. `POST /v1/f1/odds` samples one feasible plan by nudging the
+file's degradation and pit-lane loss with a fixed seed. The page calls that
+sample a race-time spread. The response says it is not a P10–P90 forecast
+from race history.
 
 Each plan returns a plain-language summary and a why sentence, plus the rule
 checks an expert can read. An F1 result is one deterministic time, and it says

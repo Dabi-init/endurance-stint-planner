@@ -432,6 +432,9 @@ def f1_undercut(body: UndercutRequest) -> dict[str, object]:
             tyre_gain_sec_per_lap=body.tyre_gain_sec_per_lap,
             our_pit_loss_sec=body.our_pit_loss_sec,
             their_pit_loss_sec=body.their_pit_loss_sec,
+            out_lap_warmup_sec=body.out_lap_warmup_sec,
+            in_lap_delta_sec=body.in_lap_delta_sec,
+            traffic_avoided_sec=body.traffic_avoided_sec,
         )
     except ValueError as exc:
         raise RequestError(str(exc)) from exc
