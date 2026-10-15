@@ -402,7 +402,23 @@ def test_endurance_safety_car_deploy_outside_the_race_is_422() -> None:
     assert "deploy_min" in late.json()["detail"]
     assert "past the race" in late.json()["detail"]
     assert negative.status_code == 422
-    assert "past the race" in negative.json()["detail"]
+    assert "past the race" not in negative.json()["detail"]
+    assert "zero or higher" in negative.json()["detail"]
+
+
+def test_event_round_outside_1_to_30_is_422() -> None:
+    client = _client()
+    low = client.get("/v1/f1/events/2024/0")
+    high = client.get("/v1/f1/events/2024/31")
+    prepare_low = client.post("/v1/f1/events/2024/0/prepare", json={"offline": True})
+    prepare_high = client.post("/v1/f1/events/2024/31/prepare", json={"offline": True})
+    ok = client.get("/v1/f1/events/2024/1")
+
+    assert low.status_code == 422
+    assert high.status_code == 422
+    assert prepare_low.status_code == 422
+    assert prepare_high.status_code == 422
+    assert ok.status_code == 200
 
 
 def test_request_bounds_reject_a_bad_stint_season_and_too_many_scenarios() -> None:

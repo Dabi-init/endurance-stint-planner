@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI
+from fastapi import Path as RequestPath
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -93,11 +95,17 @@ def create_app(source: object | None = None) -> FastAPI:
         return safety_car(body)
 
     @app.post("/v1/f1/events/{season}/{round_}/prepare")
-    def prepare(season: int, round_: int, body: PrepareRequest):
+    def prepare(
+        season: int,
+        round_: Annotated[int, RequestPath(ge=1, le=30)],
+        body: PrepareRequest,
+    ):
         return prepare_event(season, round_, body, history)
 
     @app.get("/v1/f1/events/{season}/{round_}")
-    def event(season: int, round_: int) -> dict[str, object]:
+    def event(
+        season: int, round_: Annotated[int, RequestPath(ge=1, le=30)]
+    ) -> dict[str, object]:
         try:
             setup = load_setup(season, round_)
         except ValueError as exc:

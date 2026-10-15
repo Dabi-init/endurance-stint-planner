@@ -393,7 +393,9 @@ python -m pitwall_api
 
 That listens on `127.0.0.1:8000`. Open <http://127.0.0.1:8000/> for the pit wall:
 a dark timing tower, strategy timeline, scenario cards, and a lap-by-lap replay
-of the bundled 2024 Bahrain Grand Prix. The Live view plays that recording as a
+of the bundled 2024 Bahrain Grand Prix. Open that replay with
+`POST /v1/replays/{fixture_id}`. `GET` on that path returns 405.
+The Live view plays that recording as a
 lap feed. It is not live timing. A what-if safety car on laps 34–36 is a
 declared scenario. Headshots load in the browser from OpenF1 `headshot_url`
 links. The page does not download or store those images.
