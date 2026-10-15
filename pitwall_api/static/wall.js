@@ -5,12 +5,24 @@ const RECORDED = [
   { compound: "SOFT", laps: 20 },
 ];
 
+const CATEGORY_COLOUR = { Pro: "#3ee0c5", Silver: "#d5dde6", Bronze: "#e0a15a" };
+const SAMPLE_CSV = [
+  "lap,driver,lap_time_sec,fuel_remaining_liters",
+  ...Array.from({ length: 12 }, (_, index) => {
+    const lap = index + 1;
+    return `${lap},Alex Pro,${(120 + lap * 0.2).toFixed(1)},${(100 - index * 3).toFixed(1)}`;
+  }),
+].join("\n");
+
 const state = {
+  series: "f1",
   mode: "plan",
   lap: 1,
   replay: null,
   compare: null,
   event: null,
+  endurance: null,
+  pacePatch: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -196,6 +208,10 @@ function renderCards() {
 }
 
 function render() {
+  if (state.series === "endurance") {
+    renderEndurance();
+    return;
+  }
   if (!state.replay) return;
   $("event-name").textContent = `${state.replay.season} ${state.replay.event_name}`;
   $("evidence-pill").textContent = state.replay.anchor_pace ? "Evidence C · same-race pace" : "Evidence C";
@@ -211,14 +227,16 @@ function setMode(mode) {
     clearInterval(state.playTimer);
     state.playTimer = null;
   }
-  for (const button of document.querySelectorAll(".mode")) {
+  for (const button of document.querySelectorAll(".mode[data-mode]")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
-  $("live-tools").hidden = mode !== "live";
+  $("live-tools").hidden = state.series === "endurance" || mode !== "live";
   if (mode !== "live") $("live-banner").hidden = true;
-  $("series-kicker").textContent = mode === "live"
-    ? "Formula 1 · replay feed, not live timing"
-    : "Formula 1 · file assumptions";
+  $("series-kicker").textContent = state.series === "endurance"
+    ? "Endurance · synthetic preset"
+    : mode === "live"
+      ? "Formula 1 · replay feed, not live timing"
+      : "Formula 1 · file assumptions";
   render();
 }
 
@@ -279,6 +297,154 @@ async function refresh(withOverrides) {
   render();
 }
 
+function initials(name) {
+  return String(name || "?").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
+}
+
+function towerLabels(series) {
+  const endurance = series === "endurance";
+  $("tower-title").textContent = endurance ? "Crew" : "Timing tower";
+  $("tower-blurb").textContent = endurance
+    ? "Pro, Silver, and Bronze from the preset. Drive time is the central plan."
+    : "Grid and recorded finish. The lap feed is car 1 only.";
+  $("tower-col-a").textContent = endurance ? "Drive" : "Grid";
+  $("tower-col-b").textContent = endurance ? "min" : "Finish";
+  $("mode-replay").hidden = endurance;
+  $("mode-live").hidden = endurance;
+  $("endurance-tools").hidden = !endurance;
+  $("builder").closest("section").hidden = endurance;
+  $("live-tools").hidden = endurance || state.mode !== "live";
+  $("cards-blurb").textContent = endurance
+    ? "P10, median, and P90 laps for each strategy. A second class is a separate plan."
+    : "Suggested plan beside the recorded stints.";
+  $("series-f1").classList.toggle("on", !endurance);
+  $("series-endurance").classList.toggle("on", endurance);
+}
+
+function lapCard(name, laps, summary, detail, preferred) {
+  return `<article class="card${preferred ? " preferred" : ""}">
+      <header><h3>${esc(name)}</h3></header>
+      <p class="time">${esc(laps)} laps</p>
+      <p>${esc(summary)}</p>
+      <p>${esc(detail || "")}</p>
+    </article>`;
+}
+
+function driveMinutes(plan) {
+  const minutes = new Map();
+  for (const stint of plan.stints || []) {
+    minutes.set(stint.driver, (minutes.get(stint.driver) || 0) + stint.duration_min);
+  }
+  return minutes;
+}
+
+function renderEnduranceTower(plan) {
+  const minutes = driveMinutes(plan);
+  $("tower").innerHTML = (plan.drivers || []).map((driver) => {
+    const driven = minutes.get(driver.full_name) || 0;
+    return `<li class="driver">
+      <span class="stripe" style="background:${CATEGORY_COLOUR[driver.team_name] || "#d0d7e2"}"></span>
+      <div class="who"><span class="initials">${esc(initials(driver.full_name))}</span>
+        <div><strong>${esc(driver.full_name)}</strong><span>${esc(driver.team_name)}</span></div>
+      </div>
+      <span class="meta">${driven ? driven.toFixed(0) : "—"}</span>
+      <span class="meta">${esc(driver.team_name)}</span>
+    </li>`;
+  }).join("");
+}
+
+function renderEnduranceTimeline(plan) {
+  const stints = plan.stints || [];
+  const total = stints.reduce((sum, stint) => sum + stint.duration_min, 0) || 1;
+  const drivers = new Map((plan.drivers || []).map((driver) => [driver.full_name, driver.team_name]));
+  const bars = stints.map((stint) => {
+    const category = drivers.get(stint.driver) || "";
+    const width = (stint.duration_min / total) * 100;
+    return `<div class="seg" style="width:${width}%;background:${CATEGORY_COLOUR[category] || "#d0d7e2"}">${esc(category)} ${stint.laps}</div>`;
+  }).join("");
+  $("timeline").innerHTML = `
+    <div class="lane"><p>Stints</p><div class="track">${bars}</div></div>
+    <div class="ticks"><span>0h</span><span>mid</span><span>finish</span></div>`;
+  $("timeline-note").textContent = "Bar length is time in the car. Colour is Pro, Silver, or Bronze from the file.";
+  $("pit-flag").hidden = true;
+  $("lap-readout").textContent = plan.feasible ? `${plan.predicted_laps} laps` : "No legal plan";
+  $("scrub").hidden = true;
+}
+
+function renderEndurance() {
+  const pack = state.endurance;
+  if (!pack?.plan) return;
+  const plan = pack.plan;
+  $("event-name").textContent = pack.preset.race.race_name;
+  $("series-kicker").textContent = "Endurance · synthetic preset";
+  $("evidence-pill").textContent = "Evidence C";
+  renderEnduranceTower(plan);
+  renderEnduranceTimeline(plan);
+  const minutes = driveMinutes(plan);
+  const crew = (plan.drivers || []).map((driver) => {
+    const driven = minutes.get(driver.full_name) || 0;
+    return driven
+      ? `${driver.full_name} (${driver.team_name}) drives ${driven.toFixed(0)} min`
+      : `${driver.full_name} (${driver.team_name}) is not scheduled in this central plan`;
+  }).join(". ");
+  const safety = pack.safety ? ` ${pack.safety.summary}` : "";
+  $("explain").textContent = `${plan.summary} ${crew}.${safety}`;
+  $("uncertainty").textContent = plan.uncertainty || pack.preset.note || "";
+  if (pack.classes && pack.classes.length > 1) {
+    $("cards").innerHTML = pack.classes.map((row) => lapCard(
+      row.name,
+      row.plan.predicted_laps,
+      `${row.plan.pit_stops} stops`,
+      row.plan.summary,
+      row.name === pack.selected,
+    )).join("");
+    $("class-note").textContent = pack.classNote || "";
+  } else {
+    const rows = pack.compare?.scenarios || [];
+    $("cards").innerHTML = rows.map((row) => {
+      const sim = row.simulation;
+      const range = sim ? `P10 ${sim.laps_p10} · median ${sim.laps_median} · P90 ${sim.laps_p90}` : "";
+      return lapCard(row.strategy_name, row.predicted_laps, range, row.summary, row.preferred);
+    }).join("") || `<p class="fine">No scenarios yet.</p>`;
+  }
+  const banner = $("live-banner");
+  if (pack.safety?.summary) {
+    banner.hidden = false;
+    banner.textContent = pack.safety.summary;
+  } else {
+    banner.hidden = true;
+  }
+}
+
+async function loadEndurance(name) {
+  const preset = await getJson(`/v1/endurance/preset?name=${encodeURIComponent(name)}`);
+  const race = { ...preset.race, ...(state.pacePatch || {}) };
+  const plan = await postJson("/v1/plans", { series: "endurance", race });
+  const compare = await postJson("/v1/scenarios/compare", { series: "endurance", race });
+  state.endurance = { preset: { ...preset, race }, plan, compare, classes: null, safety: null, selected: $("class-name").value };
+  render();
+}
+
+async function setSeries(series) {
+  state.series = series;
+  towerLabels(series);
+  if (series !== "endurance") {
+    $("series-kicker").textContent = state.mode === "live"
+      ? "Formula 1 · replay feed, not live timing"
+      : "Formula 1 · file assumptions";
+    render();
+    return;
+  }
+  if (state.playTimer) {
+    clearInterval(state.playTimer);
+    state.playTimer = null;
+  }
+  const listed = await getJson("/v1/endurance/presets");
+  $("preset-name").innerHTML = listed.presets.map((name) => `<option>${esc(name)}</option>`).join("");
+  $("preset-name").value = "6h Endurance";
+  await loadEndurance("6h Endurance");
+}
+
 async function boot() {
   try {
     state.event = await getJson("/v1/f1/events/2024/1");
@@ -302,13 +468,91 @@ async function boot() {
     }
     if (hash.get("sc") === "1") $("sc-on").checked = true;
     render();
-    if (hash.get("mode") === "live") {
+    if (hash.get("series") === "endurance") {
+      await setSeries("endurance");
+    } else if (hash.get("mode") === "live") {
       await startLive(Number(hash.get("lap") || 35));
     }
   } catch (error) {
     $("explain").textContent = error.message;
   }
 }
+
+$("series-f1").addEventListener("click", () => setSeries("f1"));
+$("series-endurance").addEventListener("click", () => setSeries("endurance"));
+$("preset-name").addEventListener("change", () => {
+  state.pacePatch = null;
+  $("use-pace").hidden = true;
+  loadEndurance($("preset-name").value).catch((error) => {
+    $("explain").textContent = error.message;
+  });
+});
+$("add-class").addEventListener("click", async () => {
+  try {
+    const sprint = await getJson(`/v1/endurance/preset?name=${encodeURIComponent("4h Sprint Endurance")}`);
+    const result = await postJson("/v1/endurance/classes", {
+      classes: [
+        { name: $("class-name").value || "GT3", race: state.endurance.preset.race },
+        { name: "4h sprint", race: sprint.race },
+      ],
+    });
+    state.endurance.classes = result.classes;
+    state.endurance.classNote = result.note;
+    state.endurance.selected = $("class-name").value || "GT3";
+    state.endurance.plan = result.classes[0].plan;
+    render();
+  } catch (error) {
+    $("class-note").textContent = error.message;
+  }
+});
+$("sc-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("sc-note").textContent = "Re-planning the declared window.";
+  try {
+    const safety = await postJson("/v1/safety-car", {
+      series: "endurance",
+      race: state.endurance.preset.race,
+      safety_car: {
+        deploy_min: Number($("sc-minute").value),
+        duration_min: Number($("sc-duration").value),
+      },
+    });
+    state.endurance.safety = safety;
+    state.endurance.plan = safety.replanned;
+    state.endurance.classes = null;
+    $("sc-note").textContent = "What-if applied for this view. The bundled preset was not rewritten.";
+    render();
+  } catch (error) {
+    $("sc-note").textContent = error.message;
+  }
+});
+$("fill-sample").addEventListener("click", () => {
+  $("telemetry-csv").value = SAMPLE_CSV;
+});
+$("telemetry-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const preview = await postJson("/v1/endurance/telemetry", {
+      csv: $("telemetry-csv").value,
+      synthetic: true,
+    });
+    state.pacePatch = preview.usable_for_strategy ? preview.config_patch : null;
+    $("use-pace").hidden = !preview.usable_for_strategy;
+    const median = preview.calibration?.median_lap_time_sec;
+    $("telemetry-note").textContent = preview.usable_for_strategy
+      ? `Synthetic sample median ${Number(median).toFixed(3)} s. The preset file was not rewritten.`
+      : (preview.findings?.[0]?.message || "Those rows are not enough to calibrate pace.");
+  } catch (error) {
+    state.pacePatch = null;
+    $("use-pace").hidden = true;
+    $("telemetry-note").textContent = error.message;
+  }
+});
+$("use-pace").addEventListener("click", () => {
+  loadEndurance($("preset-name").value).catch((error) => {
+    $("telemetry-note").textContent = error.message;
+  });
+});
 
 $("mode-plan").addEventListener("click", () => setMode("plan"));
 $("mode-replay").addEventListener("click", () => setMode("replay"));

@@ -27,7 +27,11 @@ semantic versioning.
   server token is never returned to the browser;
 - an undercut sum from a gap, a number of laps, and a tyre-gain assumption you
   type in, plus a seeded sample of one plan's degradation and pit-lane loss.
-  That sample is labelled as not a historical P10–P90 forecast.
+  That sample is labelled as not a historical P10–P90 forecast;
+- an endurance view on the same pit wall for the bundled synthetic presets,
+  with Pro, Silver, and Bronze drive time, separate class plans, a safety-car
+  window you type in, and a lap-row preview. A pasted timing URL is refused.
+  Pitwall does not fetch or redistribute Al Kamel timing.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
