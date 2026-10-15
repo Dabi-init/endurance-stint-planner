@@ -51,6 +51,9 @@ def test_home_page_is_the_pit_wall_and_has_no_tracker() -> None:
     assert 'audio.removeAttribute("src")' in tower.text
     assert "audio.load()" in tower.text
     assert 'if (state.series === "endurance") return;' in script.text
+    mode = script.text.split("function setMode", 1)[1].split("function ", 1)[0]
+    assert "pauseRecording()" in mode
+    assert "esc(row.lap" in script.text
 
 
 def test_replay_endpoint_returns_the_bahrain_plan() -> None:

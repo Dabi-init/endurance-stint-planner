@@ -38,10 +38,7 @@ state.paint = render;
 
 function setMode(mode) {
   state.mode = mode;
-  if (state.playTimer) {
-    clearInterval(state.playTimer);
-    state.playTimer = null;
-  }
+  pauseRecording();
   for (const button of document.querySelectorAll(".mode[data-mode]")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
@@ -383,7 +380,7 @@ $("wec-form")?.addEventListener("submit", async (event) => {
   try {
     const timing = await getJson("/v1/live/wec?enable=true");
     $("wec-rows").innerHTML = (timing.rows || []).map((row) =>
-      `<li><span>${esc(row.position ?? "—")}</span><span>${esc(row.car)}</span><span>${esc(row.team || row.class_name)}</span><span>${row.lap ?? "—"}</span><span>${esc(row.gap)}</span></li>`
+      `<li><span>${esc(row.position ?? "—")}</span><span>${esc(row.car)}</span><span>${esc(row.team || row.class_name)}</span><span>${esc(row.lap ?? "—")}</span><span>${esc(row.gap)}</span></li>`
     ).join("");
     const session = timing.session ? `${timing.session.event} ${timing.session.name}. ` : "";
     $("wec-note").textContent = `${session}${timing.notice}`;

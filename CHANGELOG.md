@@ -88,7 +88,10 @@ semantic versioning.
 - team-radio clips stay a list of https links on each lap, and the player
   pauses and reloads when you leave that lap. The optional WEC read names the
   public JSON host it fetches, keeps one in-memory copy for 15 seconds, and
-  says this project has no commercial licence for that feed.
+  says this project has no commercial licence for that feed. The WEC lap is
+  escaped before it is written into the page. Switching to Plan during
+  playback pauses the recording, so Play does not stay lit and a speed change
+  does not resume it.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 
