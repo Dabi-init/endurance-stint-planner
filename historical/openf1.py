@@ -43,6 +43,13 @@ class OpenF1Client:
             {"session_key": str(session_key), "driver_number": str(driver_number)},
         )
 
+    def team_radio(self, session_key: int, driver_number: int) -> list[dict[str, Any]]:
+        """Metadata only. ``recording_url`` is a link. This does not download audio."""
+        return self._get(
+            "/team_radio",
+            {"session_key": str(session_key), "driver_number": str(driver_number)},
+        )
+
     def _get(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
         payload = self.transport.get_json(f"{self.base_url}{path}", params, HEADERS)
         if isinstance(payload, dict):

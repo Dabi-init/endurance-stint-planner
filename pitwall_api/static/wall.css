@@ -197,9 +197,38 @@ button, input { font: inherit; color: inherit; }
 }
 .ticks { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; font-family: "JetBrains Mono", ui-monospace, monospace; margin: -4px 0 0 102px; }
 .lap-readout { margin: 0; font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--amber); font-size: 18px; }
-.scrub { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; margin-top: 12px; }
+.scrub { display: grid; gap: 8px; margin-top: 12px; }
+.scrub-row, .transport { display: flex; gap: 10px; align-items: center; }
 .scrub label { color: var(--muted); font-size: 12px; }
-.scrub input[type="range"] { width: 100%; accent-color: var(--cyan); }
+.scrub input[type="range"] { flex: 1; accent-color: var(--cyan); }
+.transport select, .transport button {
+  background: #0b1118;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.transport button.on { background: var(--cyan); color: var(--ink); border-color: transparent; font-weight: 700; }
+.radio-box { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.radio-box h3 { margin: 0; font-size: 14px; }
+.radio-box audio { width: 100%; }
+.radio-lane { position: relative; height: 16px; }
+.radio-mark {
+  position: absolute;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--cyan);
+  cursor: pointer;
+}
+.radio-mark.on { background: var(--amber); }
+.wec-rows { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.wec-rows li { display: grid; grid-template-columns: 28px 48px 1fr auto auto; gap: 8px; font-size: 12px; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
 .pit-flag { margin: 0; color: var(--ink); background: var(--amber); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
 .live-banner { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 176, 32, 0.16); color: var(--amber); font-size: 14px; }
 #live-tools .builder { margin-top: 8px; }

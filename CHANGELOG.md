@@ -35,7 +35,19 @@ semantic versioning.
 - a declared wet or dry setting that does not call a weather service, a
   strategy sheet that is created once and never replaces `race.json`, the
   Bahrain back-test on the pit wall, and the OpenF1 and Jolpica terms. The
-  back-test is one comparison and is not a validation claim.
+  back-test is one comparison and is not a validation claim;
+- OpenF1 team-radio links for the Bahrain replay, played in the browser beside
+  the strategy timeline. Audio files are not downloaded;
+- a browser speech-synthesis toggle for the strategy call. The server does not
+  generate audio;
+- an optional personal-use read of the public JSON at
+  https://insights.griiip.com/ for livetiming.fiawec.com. It is off until
+  asked, one in-memory copy is kept for a few seconds, it is not written to
+  disk or redistributed, and it does not capture video or broadcast audio.
+  This project does not have a commercial licence for that feed. A pasted
+  timing link is still refused;
+- play, pause, speed, and jump-to-lap on the Bahrain recording. The paid
+  OpenF1 live socket stays closed unless a server transport is plugged in.
 
 ### Fixed
 
@@ -72,7 +84,14 @@ semantic versioning.
   avoided (all default to zero). A negative gap or pit loss is rejected, a
   reversed or negative safety-car window returns 422, a live deep link is
   clamped into the race, and the lap stream waits with async sleep. The sample
-  on the page is labelled a race-time spread.
+  on the page is labelled a race-time spread;
+- team-radio clips stay a list of https links on each lap, and the player
+  pauses and reloads when you leave that lap. The optional WEC read names the
+  public JSON host it fetches, keeps one in-memory copy for 15 seconds, and
+  says this project has no commercial licence for that feed. The WEC lap is
+  escaped before it is written into the page. Switching to Plan during
+  playback pauses the recording, so Play does not stay lit and a speed change
+  does not resume it.
 
 ## [0.4.0-alpha.2] - 2026-08-02
 

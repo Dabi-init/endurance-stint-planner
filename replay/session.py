@@ -18,6 +18,7 @@ from backtest.harness import BUNDLED_FIXTURES, load_actuals
 from engine.f1 import F1Plan, F1Setup, best_f1_plan, legal_one_stop_window
 from engine.series_config import IMAGE_POLICY, apply_overrides, colour_css, load_setup
 from historical.models import RaceActuals
+from replay.radio import RADIO_NOTE, load_radio
 
 ENTRY_FILES = {
     "2024-r01-bahrain-verstappen": (
@@ -89,6 +90,8 @@ def build_replay(
             "honesty": _honesty(anchor_pace),
             "tower": _tower(fixture_id, actuals),
             "laps": _laps(actuals, setup),
+            "radio": load_radio(fixture_id),
+            "radio_note": RADIO_NOTE,
             "recorded_stints": [
                 {
                     "compound": stint.compound,

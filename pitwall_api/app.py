@@ -19,6 +19,7 @@ from historical.catalogue import F1History
 from historical.errors import HistoricalSourceError
 from historical.http import HttpxTransport
 from live.sources import LiveSourceError, describe_sources, iter_frames
+from live.wec import read_wec
 from pitwall import __version__
 from pitwall_api.schemas import (
     BacktestResponse,
@@ -120,6 +121,13 @@ def create_app(source: object | None = None) -> FastAPI:
     @app.get("/v1/live/sources")
     def live_sources() -> list[dict[str, object]]:
         return describe_sources()
+
+    @app.get("/v1/live/wec")
+    def wec_timing(enable: bool = False) -> dict[str, object]:
+        try:
+            return read_wec(enabled=enable)
+        except LiveSourceError as exc:
+            raise RequestError(str(exc), status=502) from exc
 
     @app.get("/v1/live/{source_id}/frames")
     def live_frames(

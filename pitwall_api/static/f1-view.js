@@ -70,10 +70,27 @@ export function renderTimeline() {
     : state.mode !== "plan" && event?.lap
       ? `From lap ${event.lap}`
       : "Suggested";
+  const clips = state.mode === "plan" ? [] : (state.replay?.radio || []);
+  const marks = clips.map((clip) => {
+    const left = ((Number(clip.lap) - 1) / raceLaps) * 100;
+    const on = Number(clip.lap) === state.lap ? " on" : "";
+    return `<button type="button" class="radio-mark${on}" style="left:${left}%" data-lap="${Number(clip.lap)}" title="Team radio, lap ${Number(clip.lap)}"></button>`;
+  }).join("");
+  const radioLane = marks
+    ? `<div class="lane"><p>Radio</p><div class="radio-lane">${marks}</div></div>`
+    : "";
   $("timeline").innerHTML = `
     <div class="lane"><p>${label}</p><div class="track">${segments(event?.stints || [], planLaps)}${band}</div></div>
     <div class="lane"><p>Recorded</p><div class="track">${segments(recorded, raceLaps)}</div></div>
+    ${radioLane}
     <div class="ticks"><span>1</span><span>${Math.round(raceLaps / 2)}</span><span>${raceLaps}</span></div>`;
+  for (const mark of $("timeline").querySelectorAll(".radio-mark")) {
+    mark.addEventListener("click", () => {
+      state.lap = Number(mark.dataset.lap);
+      $("lap-slider").value = String(state.lap);
+      state.paint?.();
+    });
+  }
   $("timeline-note").textContent = window
     ? `Amber band: a legal stop for this tyre order, laps ${window[0]}–${window[1]}.`
     : "No one-stop window for the plan on screen.";
@@ -90,12 +107,72 @@ export function renderTimeline() {
   }
 }
 
+export function speakIfNeeded(text) {
+  if (!$("speak-call")?.checked || !text) return;
+  if (state.spoken === text) return;
+  const synth = window.speechSynthesis;
+  if (!synth || typeof SpeechSynthesisUtterance !== "function") {
+    $("speak-note").textContent = "This browser has no speech synthesis.";
+    return;
+  }
+  synth.cancel();
+  synth.speak(new SpeechSynthesisUtterance(text));
+  state.spoken = text;
+}
+
+export function setExplain(text, uncertainty) {
+  $("explain").textContent = text;
+  if (uncertainty != null) $("uncertainty").textContent = uncertainty;
+  speakIfNeeded(text);
+}
+
 export function renderExplain() {
   const event = currentEvent();
   const frame = state.mode === "live" ? liveFrame() : null;
   const lead = frame?.alert ? `${frame.alert} ` : "";
-  $("explain").textContent = `${lead}${event?.explanation || "No plan yet."}`;
-  $("uncertainty").textContent = event?.uncertainty || "";
+  setExplain(`${lead}${event?.explanation || "No plan yet."}`, event?.uncertainty || "");
+}
+
+function httpsUrls(clip) {
+  const listed = Array.isArray(clip.recording_urls)
+    ? clip.recording_urls
+    : [clip.recording_url];
+  return listed.filter((url) => typeof url === "string" && url.startsWith("https://"));
+}
+
+export function renderRadio() {
+  const box = $("radio-box");
+  if (!box) return;
+  const show = state.series !== "endurance" && state.mode !== "plan";
+  box.hidden = !show;
+  if (!show) {
+    const quiet = $("team-radio");
+    if (quiet && quiet.dataset.src) {
+      quiet.pause();
+      quiet.removeAttribute("src");
+      quiet.load();
+      quiet.dataset.src = "";
+    }
+    return;
+  }
+  const clips = (state.replay?.radio || []).filter((row) => Number(row.lap) === state.lap);
+  const urls = clips.flatMap(httpsUrls);
+  const audio = $("team-radio");
+  const next = urls[0] || "";
+  if (audio.dataset.src !== next) {
+    audio.pause();
+    audio.dataset.src = next;
+    if (next) {
+      audio.src = next;
+    } else {
+      audio.removeAttribute("src");
+      audio.load();
+    }
+    if (next && $("radio-auto")?.checked) audio.play().catch(() => {});
+  }
+  $("radio-note").textContent = urls.length
+    ? `Lap ${state.lap}. ${urls.length} OpenF1 link${urls.length === 1 ? "" : "s"}. The browser plays the first. Pitwall does not store the audio.`
+    : "No team-radio clip on this lap. Clips are OpenF1 links, not stored audio.";
 }
 
 function card(name, seconds, summary, reason, preferred, rank) {

@@ -1,5 +1,12 @@
 import { renderEndurance, towerLabels } from "./endurance-view.js";
-import { renderCards, renderExplain, renderTimeline, renderTower } from "./f1-view.js";
+import {
+  renderCards,
+  renderExplain,
+  renderRadio,
+  renderTimeline,
+  renderTower,
+  speakIfNeeded,
+} from "./f1-view.js";
 import { clampLap, esc, getJson, postJson } from "./format.js";
 import { $, FIXTURE, RECORDED, SAMPLE_CSV, state } from "./state.js";
 
@@ -14,6 +21,7 @@ function overrides() {
 function render() {
   if (state.series === "endurance") {
     renderEndurance();
+    renderRadio();
     return;
   }
   if (!state.replay) return;
@@ -23,14 +31,14 @@ function render() {
   renderTimeline();
   renderExplain();
   renderCards();
+  renderRadio();
 }
+
+state.paint = render;
 
 function setMode(mode) {
   state.mode = mode;
-  if (state.playTimer) {
-    clearInterval(state.playTimer);
-    state.playTimer = null;
-  }
+  pauseRecording();
   for (const button of document.querySelectorAll(".mode[data-mode]")) {
     button.classList.toggle("on", button.dataset.mode === mode);
   }
@@ -60,21 +68,6 @@ async function startLive(jumpLap) {
   $("lap-slider").value = String(state.lap);
   $("scrub").hidden = false;
   render();
-}
-
-function playLive() {
-  if (state.series === "endurance" || state.mode !== "live") return;
-  if (state.playTimer) clearInterval(state.playTimer);
-  state.playTimer = setInterval(() => {
-    if (state.series === "endurance" || state.mode !== "live") return;
-    if (state.lap >= (state.liveFrames || []).length) {
-      clearInterval(state.playTimer);
-      return;
-    }
-    state.lap += 1;
-    $("lap-slider").value = String(state.lap);
-    render();
-  }, 180);
 }
 
 async function refresh(withOverrides) {
@@ -116,6 +109,7 @@ async function loadEndurance(name) {
 
 async function setSeries(series) {
   state.series = series;
+  if (series === "endurance") pauseRecording();
   towerLabels(series);
   if (series !== "endurance") {
     $("series-kicker").textContent = state.mode === "live"
@@ -159,6 +153,7 @@ async function boot() {
       $("mode-plan").classList.remove("on");
     }
     if (hash.get("sc") === "1") $("sc-on").checked = true;
+    if (hash.get("speak") === "1") $("speak-call").checked = true;
     render();
     if (hash.get("series") === "endurance") {
       await setSeries("endurance");
@@ -301,7 +296,7 @@ $("accuracy-button").addEventListener("click", async () => {
 $("terms-button").addEventListener("click", async () => {
   try {
     const terms = await getJson("/v1/terms");
-    $("terms-note").textContent = `${terms.openf1} ${terms.jolpica} ${terms.commercial}`;
+    $("terms-note").textContent = `${terms.openf1} ${terms.jolpica} ${terms.wec || ""} ${terms.commercial}`;
   } catch (error) {
     $("terms-note").textContent = error.message;
   }
@@ -314,10 +309,84 @@ $("lap-slider").addEventListener("input", (event) => {
   state.lap = Number(event.target.value);
   render();
 });
-$("play-live").addEventListener("click", () => {
+function raceLength() {
+  return state.replay?.race_laps || (state.liveFrames || []).length || 1;
+}
+
+function tickMs() {
+  const value = Number($("play-speed")?.value);
+  return value >= 100 && value <= 5000 ? value : 1000;
+}
+
+function pauseRecording() {
+  if (state.playTimer) clearInterval(state.playTimer);
+  state.playTimer = null;
+  state.playing = false;
+  $("play-recording")?.classList.remove("on");
+}
+
+function playRecording() {
   if (state.series === "endurance") return;
-  state.lap = 1;
-  playLive();
+  if (state.mode !== "live" && state.mode !== "replay") return;
+  const resumeLap = state.lap;
+  pauseRecording();
+  state.lap = resumeLap >= raceLength() ? 1 : resumeLap;
+  $("lap-slider").value = String(state.lap);
+  state.playing = true;
+  $("play-recording")?.classList.add("on");
+  state.playTimer = setInterval(() => {
+    if (state.series === "endurance" || (state.mode !== "live" && state.mode !== "replay")) {
+      pauseRecording();
+      return;
+    }
+    if (state.lap >= raceLength()) {
+      pauseRecording();
+      return;
+    }
+    state.lap += 1;
+    $("lap-slider").value = String(state.lap);
+    render();
+  }, tickMs());
+}
+
+$("play-live")?.addEventListener("click", () => playRecording());
+$("play-recording")?.addEventListener("click", () => playRecording());
+$("pause-recording")?.addEventListener("click", () => pauseRecording());
+$("play-speed")?.addEventListener("change", () => {
+  if (state.playing) playRecording();
+});
+$("speak-call")?.addEventListener("change", () => {
+  state.spoken = "";
+  if (!$("speak-call").checked && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    return;
+  }
+  speakIfNeeded($("explain").textContent);
+});
+$("wec-enable")?.addEventListener("change", () => {
+  $("wec-refresh").disabled = !$("wec-enable").checked;
+  if (!$("wec-enable").checked) {
+    $("wec-rows").innerHTML = "";
+    $("wec-note").textContent = "Off. Nothing is fetched. The feed is not stored or redistributed.";
+  }
+});
+$("wec-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!$("wec-enable").checked) {
+    $("wec-note").textContent = "Turn on personal-use timing before refreshing. Nothing was fetched.";
+    return;
+  }
+  $("wec-note").textContent = "Reading the public timing page for this screen only.";
+  try {
+    const timing = await getJson("/v1/live/wec?enable=true");
+    $("wec-rows").innerHTML = (timing.rows || []).map((row) =>
+      `<li><span>${esc(row.position ?? "—")}</span><span>${esc(row.car)}</span><span>${esc(row.team || row.class_name)}</span><span>${esc(row.lap ?? "—")}</span><span>${esc(row.gap)}</span></li>`
+    ).join("");
+    const session = timing.session ? `${timing.session.event} ${timing.session.name}. ` : "";
+    $("wec-note").textContent = `${session}${timing.notice}`;
+  } catch (error) {
+    $("wec-note").textContent = error.message;
+  }
 });
 $("sc-on").addEventListener("change", () => {
   if (state.mode === "live") startLive(state.lap);

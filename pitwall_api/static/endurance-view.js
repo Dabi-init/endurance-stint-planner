@@ -1,3 +1,4 @@
+import { setExplain } from "./f1-view.js";
 import { esc } from "./format.js";
 import { $, CATEGORY_COLOUR, state } from "./state.js";
 
@@ -93,8 +94,10 @@ export function renderEndurance() {
       : `${driver.full_name} (${driver.team_name}) is not scheduled in this central plan`;
   }).join(". ");
   const safety = pack.safety ? ` ${pack.safety.summary}` : "";
-  $("explain").textContent = `${plan.summary} ${crew}.${safety}`;
-  $("uncertainty").textContent = plan.uncertainty || pack.preset.note || "";
+  setExplain(
+    `${plan.summary} ${crew}.${safety}`,
+    plan.uncertainty || pack.preset.note || "",
+  );
   if (pack.classes && pack.classes.length > 1) {
     $("cards").innerHTML = pack.classes.map((row) => lapCard(
       row.name,
