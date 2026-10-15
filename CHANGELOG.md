@@ -51,6 +51,10 @@ semantic versioning.
   replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
   into the race, and a bad replay override returns 422. The replay is opened
   with POST only;
+- the pit wall script is split into a format module, an F1 view, and an
+  endurance view. Classes are described as separate plans with no traffic,
+  passing, or shared pit lane, and a preset name cannot leave the bundled
+  directory;
 - the undercut sum includes an out-lap warm-up, an in-lap delta, and traffic
   avoided (all default to zero). A negative gap or pit loss is rejected, a
   reversed or negative safety-car window returns 422, a live deep link is

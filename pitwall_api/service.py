@@ -439,7 +439,8 @@ TIMING_REFUSAL = (
     "and it does not redistribute timing data."
 )
 CLASS_NOTE = (
-    "Each class is its own plan from the numbers you supplied. "
+    "Classes do not interact. There is no traffic, passing, or shared pit lane "
+    "between them. Each class is its own plan from the numbers you supplied. "
     "Classes are not combined into one race."
 )
 

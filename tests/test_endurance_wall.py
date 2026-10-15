@@ -31,6 +31,27 @@ def test_an_unknown_preset_name_stays_inside_the_bundled_directory() -> None:
     assert "not a real preset" not in str(fallback.race_name)
 
 
+def test_preset_names_cannot_leave_the_bundled_directory() -> None:
+    from engine.planner import PRESETS_DIR, _bundled_preset_files
+
+    root = PRESETS_DIR.resolve()
+    files = _bundled_preset_files()
+    default = load_preset(DEFAULT_PRESET)
+
+    assert files
+    for path in files.values():
+        assert path.resolve().is_relative_to(root)
+        assert ".." not in path.parts
+    for name in (
+        "../pyproject.toml",
+        "/etc/passwd",
+        "..\\..\\secret.json",
+        "6h Endurance/../../pyproject.toml",
+    ):
+        loaded = load_preset(name)
+        assert loaded.race_name == default.race_name
+
+
 def test_presets_are_the_bundled_synthetic_files() -> None:
     client = _client()
     listed = client.get("/v1/endurance/presets")
@@ -74,6 +95,8 @@ def test_classes_are_separate_plans() -> None:
     assert rows[0]["plan"]["predicted_laps"] == 174
     assert rows[1]["plan"]["predicted_laps"] == compute_plan(sprint).predicted_laps
     assert "not combined" in response.json()["note"]
+    assert "Classes do not interact" in response.json()["note"]
+    assert "shared pit lane" in response.json()["note"]
     assert any(driver["team_name"] == "Silver" for driver in rows[0]["plan"]["drivers"])
 
 
