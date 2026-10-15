@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from engine.f1 import readiness_gaps
 from engine.series_config import (
     EntryDriver,
@@ -143,3 +145,8 @@ def test_missing_season_uses_the_latest_bundled_template() -> None:
 
 def test_colour_helper_accepts_a_leading_hash() -> None:
     assert colour_css("#3671C6") == "#3671C6"
+
+
+def test_season_outside_the_calendar_range_is_refused() -> None:
+    with pytest.raises(ValueError, match="1950 to 2100"):
+        load_setup(1800, 1)

@@ -136,23 +136,44 @@ def _as_bool(value: Any, label: str) -> bool:
     return value
 
 
+def _calendar_year(season: int) -> int:
+    """Keep a season number inside a fixed range before it is used as a label."""
+    if isinstance(season, bool) or not isinstance(season, int):
+        raise ValueError("season must be an integer")
+    if season < 1950 or season > 2100:
+        raise ValueError("season must be from 1950 to 2100")
+    return season
+
+
+def _season_files(folder: Path) -> dict[int, Path]:
+    """Map bundled season files. The path always comes from this directory listing."""
+    if not folder.is_dir():
+        return {}
+    found: dict[int, Path] = {}
+    for path in folder.glob("*.json"):
+        if path.stem.isdigit():
+            found[int(path.stem)] = path
+    return found
+
+
 def load_season_document(
     season: int, root: Path | None = None
 ) -> tuple[dict[str, Any], str]:
-    base = root or series_root()
-    folder = base / "seasons"
-    exact = folder / f"{season}.json"
-    if exact.is_file():
-        return json.loads(exact.read_text(encoding="utf-8")), "season"
-    years = sorted(
-        int(path.stem) for path in folder.glob("*.json") if path.stem.isdigit()
-    )
-    if not years:
+    year = _calendar_year(season)
+    folder = (root or series_root()) / "seasons"
+    files = _season_files(folder)
+    if not files:
         raise ValueError(f"No F1 season files in {folder}")
-    prior = [year for year in years if year <= season]
+    exact = files.get(year)
+    if exact is not None:
+        return json.loads(exact.read_text(encoding="utf-8")), "season"
+    years = sorted(files)
+    prior = [item for item in years if item <= year]
     chosen = prior[-1] if prior else years[-1]
-    path = folder / f"{chosen}.json"
-    return json.loads(path.read_text(encoding="utf-8")), f"season-template-{chosen}"
+    return (
+        json.loads(files[chosen].read_text(encoding="utf-8")),
+        f"season-template-{chosen}",
+    )
 
 
 def load_event_document(
