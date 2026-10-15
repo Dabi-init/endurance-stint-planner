@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from engine.f1 import StintRequest, best_f1_plan, score_stints
+from engine.f1 import best_f1_plan
 from engine.series_config import apply_overrides, load_setup
 from historical.terms import JOLPICA_TERMS, OPENF1_TERMS
 from pitwall_api.app import create_app
@@ -39,20 +39,19 @@ def test_declared_weather_is_not_a_forecast() -> None:
     assert dry.json()["open_meteo"] == "not called"
     assert dry.json()["plan"]["race_time_sec"] == 5466.21
     assert "Open-Meteo is not called" in dry.json()["note"]
-    assert wet.json()["plan"]["feasible"] is True
-    assert wet.json()["plan"]["race_time_sec"] == 5466.21
-    assert [stint["compound"] for stint in wet.json()["plan"]["stints"]] == [
-        "HARD",
-        "SOFT",
-    ]
-    assert "not searched" in wet.json()["note"]
-    assert "two-compound" in wet.json()["note"]
+    assert wet.json()["plan"]["feasible"] is False
+    assert wet.json()["plan"]["stints"] == []
+    assert "not slicks" in wet.json()["note"]
+    assert "no wet plan" in wet.json()["note"]
     assert "stint life" in wet.json()["note"]
     setup = apply_overrides(
         load_setup(2024, 1),
         {
             "dry_race": False,
             "compounds": {
+                "SOFT": {"max_laps": None},
+                "MEDIUM": {"max_laps": None},
+                "HARD": {"max_laps": None},
                 "INTERMEDIATE": {"max_laps": 30},
                 "WET": {"max_laps": 30},
             },
@@ -60,15 +59,14 @@ def test_declared_weather_is_not_a_forecast() -> None:
     )
     expected = best_f1_plan(setup)
     body = assumed.json()
+    used = {stint["compound"] for stint in body["plan"]["stints"]}
     assert body["plan"]["feasible"] is True
+    assert used <= {"INTERMEDIATE", "WET"}
+    assert used
     assert body["plan"]["race_time_sec"] == expected.race_time_sec
     assert "30 laps you typed" in body["note"]
+    assert "Slicks are not used" in body["note"]
     assert body["forecast"] is False
-    mixed = score_stints(
-        setup,
-        [StintRequest("INTERMEDIATE", 30), StintRequest("HARD", 27)],
-    )
-    assert mixed.feasible is True
 
 
 def test_weather_and_class_validation_errors_are_422() -> None:
