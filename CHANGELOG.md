@@ -37,6 +37,34 @@ semantic versioning.
   Bahrain back-test on the pit wall, and the OpenF1 and Jolpica terms. The
   back-test is one comparison and is not a validation claim.
 
+### Fixed
+
+- the F1 fuel check rejects a starting load above the tank before it compares
+  fuel used with the fuel on board;
+- a wet-weather tyre is legal in a dry race and lifts the two-compound slick
+  rule, so a crossover sequence can be planned;
+- a safety-car re-plan can add a declared field lap-time loss and rival pit
+  stops (both default to zero, so a pit-only window is unchanged);
+- an endurance safety car whose deploy minute sits outside the race returns
+  422 instead of being clamped;
+- a malformed back-test fixture prints a readable error instead of a bare
+  `KeyError`;
+- plan requests bound stint length, compound name length, season, round, and
+  the number of scenarios;
+- the timing tower escapes grid and finish position before writing HTML, the
+  replay scrub stays hidden outside replay mode, a deep-linked lap is clamped
+  into the race, and a bad replay override returns 422. The replay is opened
+  with POST only;
+- the pit wall script is split into a format module, an F1 view, and an
+  endurance view. Classes are described as separate plans with no traffic,
+  passing, or shared pit lane, and a preset name cannot leave the bundled
+  directory;
+- the undercut sum includes an out-lap warm-up, an in-lap delta, and traffic
+  avoided (all default to zero). A negative gap or pit loss is rejected, a
+  reversed or negative safety-car window returns 422, a live deep link is
+  clamped into the race, and the lap stream waits with async sleep. The sample
+  on the page is labelled a race-time spread.
+
 ## [0.4.0-alpha.2] - 2026-08-02
 
 ### Added

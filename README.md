@@ -424,14 +424,17 @@ not download or commit those images. A livery URL is used only when you or a
 source provide one.
 
 `POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
-the two pit losses. It does not model the rival. `POST /v1/f1/odds` samples
-one feasible plan by nudging the file's degradation and pit-lane loss with a
-fixed seed. The response says that sample is not a P10–P90 forecast from race
-history.
+the two pit losses, then subtracts an out-lap warm-up and an in-lap delta and
+adds any traffic you say was avoided. Those three default to zero. It does not
+model the rival. `POST /v1/f1/odds` samples one feasible plan by nudging the
+file's degradation and pit-lane loss with a fixed seed. The page calls that
+sample a race-time spread. The response says it is not a P10–P90 forecast
+from race history.
 
 The Endurance view uses the bundled synthetic presets (6h, 4h, and 24h). It is
 not a World Endurance Championship entry list. Pro, Silver, and Bronze limits
-come from the preset file. Each class is planned on its own. A safety-car
+come from the preset file. Classes do not interact: there is no traffic,
+passing, or shared pit lane between them. A safety-car
 window is a minute and a duration you type. `POST /v1/endurance/telemetry`
 previews lap rows you paste. If the text is an `http` or `https` link, the
 API refuses it and does not fetch the URL, including Al Kamel timing links.

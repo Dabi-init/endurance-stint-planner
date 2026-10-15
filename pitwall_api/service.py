@@ -158,6 +158,8 @@ def safety_car(body: SafetyCarRequestIn) -> SafetyCarResponse:
                 end_lap=int(window["end_lap"]),
                 pit_loss_sec=float(window["pit_loss_sec"]),
                 pull_pit_into_sc=bool(window.get("pull_pit_into_sc", True)),
+                field_lap_delta_sec=float(window.get("field_lap_delta_sec", 0.0)),
+                rival_stops=int(window.get("rival_stops", 0)),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise RequestError(
@@ -193,6 +195,15 @@ def safety_car(body: SafetyCarRequestIn) -> SafetyCarResponse:
         raise RequestError(
             "Endurance safety_car needs deploy_min and duration_min."
         ) from exc
+    race_end = config.race_duration_min
+    if scenario.deploy_min < 0 or scenario.deploy_min > race_end:
+        raise RequestError(
+            (
+                f"deploy_min {scenario.deploy_min:g} is past the race "
+                f"(0 to {race_end:g} minutes)."
+            ),
+            status=422,
+        )
     result = replan_with_safety_car(original, scenario)
     return SafetyCarResponse(
         series="endurance",
@@ -438,7 +449,8 @@ TIMING_REFUSAL = (
     "and it does not redistribute timing data."
 )
 CLASS_NOTE = (
-    "Each class is its own plan from the numbers you supplied. "
+    "Classes do not interact. There is no traffic, passing, or shared pit lane "
+    "between them. Each class is its own plan from the numbers you supplied. "
     "Classes are not combined into one race."
 )
 DECLARED_WEATHER = (
@@ -593,6 +605,9 @@ def f1_undercut(body: UndercutRequest) -> dict[str, object]:
             tyre_gain_sec_per_lap=body.tyre_gain_sec_per_lap,
             our_pit_loss_sec=body.our_pit_loss_sec,
             their_pit_loss_sec=body.their_pit_loss_sec,
+            out_lap_warmup_sec=body.out_lap_warmup_sec,
+            in_lap_delta_sec=body.in_lap_delta_sec,
+            traffic_avoided_sec=body.traffic_avoided_sec,
         )
     except ValueError as exc:
         raise RequestError(str(exc)) from exc

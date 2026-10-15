@@ -51,17 +51,55 @@ class RaceActuals:
     country_code: str | None = None
 
 
+_REQUIRED_FIELDS = (
+    "season",
+    "round",
+    "event_name",
+    "driver_number",
+    "driver_code",
+    "race_laps",
+    "stints",
+)
+
+
 def race_actuals_from_dict(body: dict[str, Any]) -> RaceActuals:
-    stints = tuple(
-        ActualStint(
-            compound=str(row["compound"]).upper(),
-            laps=int(row["laps"]),
-            lap_start=int(row["lap_start"]),
-            lap_end=int(row["lap_end"]),
-            tyre_age_at_start=int(row.get("tyre_age_at_start", 0)),
+    if not isinstance(body, dict):
+        raise ValueError(
+            "The fixture could not be read: the top level must be an object."
         )
-        for row in body["stints"]
-    )
+    missing = [name for name in _REQUIRED_FIELDS if name not in body]
+    if missing:
+        raise ValueError(
+            "The fixture is missing "
+            + ", ".join(missing)
+            + ". Each stint needs compound, laps, lap_start, and lap_end."
+        )
+    try:
+        stints = tuple(
+            ActualStint(
+                compound=str(row["compound"]).upper(),
+                laps=int(row["laps"]),
+                lap_start=int(row["lap_start"]),
+                lap_end=int(row["lap_end"]),
+                tyre_age_at_start=int(row.get("tyre_age_at_start", 0)),
+            )
+            for row in body["stints"]
+        )
+    except KeyError as exc:
+        key = exc.args[0] if exc.args else "field"
+        raise ValueError(
+            f"The fixture is missing {key}. "
+            "Each stint needs compound, laps, lap_start, and lap_end."
+        ) from exc
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"The fixture could not be read: {exc}.") from exc
+    try:
+        return _race_actuals(body, stints)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"The fixture could not be read: {exc}.") from exc
+
+
+def _race_actuals(body: dict[str, Any], stints: tuple[ActualStint, ...]) -> RaceActuals:
     return RaceActuals(
         season=int(body["season"]),
         round=int(body["round"]),
