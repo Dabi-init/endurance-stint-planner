@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -321,6 +322,16 @@ def test_accuracy_route_reads_the_stored_log(tmp_path: Path) -> None:
     assert missing.status_code == 404
     assert missing.json()["detail"] == "No accuracy log for 2025."
     assert rejected.status_code == 422
+
+
+def test_log_path_stays_inside_the_data_directory(tmp_path: Path) -> None:
+    from accuracy.publish import log_path
+
+    assert log_path(2026, tmp_path) == Path(os.path.realpath(tmp_path)) / "2026.json"
+    with pytest.raises(ValueError, match="1950"):
+        log_path(1800, tmp_path)
+    with pytest.raises(ValueError, match="integer"):
+        log_path(True, tmp_path)  # type: ignore[arg-type]
 
 
 def test_cli_writes_a_log_and_rejects_bad_input(tmp_path: Path, monkeypatch) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from html import escape
 from pathlib import Path
 
@@ -20,7 +21,16 @@ PAGES_PATH = Path(__file__).resolve().parent.parent / "docs" / "accuracy" / "ind
 
 
 def log_path(season: int, root: Path | None = None) -> Path:
-    return (root or DATA_DIR) / f"{season}.json"
+    """Season file inside the data directory. The name is a four-digit year."""
+    if isinstance(season, bool) or not isinstance(season, int):
+        raise ValueError("season must be an integer")
+    if season < 1950 or season > 2100:
+        raise ValueError("season must be from 1950 to 2100")
+    base = os.path.realpath(os.fspath(root or DATA_DIR))
+    path = os.path.normpath(os.path.join(base, f"{season}.json"))
+    if not path.startswith(base):
+        raise ValueError("The accuracy log must stay in the data directory.")
+    return Path(path)
 
 
 def read_log(season: int, root: Path | None = None) -> dict[str, object] | None:
