@@ -34,8 +34,21 @@ class OpenF1Client:
             )
         return rows[0]
 
+    def sessions(self, meeting_key: int) -> list[dict[str, Any]]:
+        return self._get("/sessions", {"meeting_key": str(meeting_key)})
+
     def drivers(self, session_key: int) -> list[dict[str, Any]]:
         return self._get("/drivers", {"session_key": str(session_key)})
+
+    def session_result(self, session_key: int) -> list[dict[str, Any]]:
+        return self._get("/session_result", {"session_key": str(session_key)})
+
+    def pits(self, session_key: int) -> list[dict[str, Any]]:
+        return self._get("/pit", {"session_key": str(session_key)})
+
+    def session_stints(self, session_key: int) -> list[dict[str, Any]]:
+        """Every car's stints for one session. This is the post-session list, not live timing."""
+        return self._get("/stints", {"session_key": str(session_key)})
 
     def stints(self, session_key: int, driver_number: int) -> list[dict[str, Any]]:
         return self._get(

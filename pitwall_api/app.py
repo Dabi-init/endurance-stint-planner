@@ -12,6 +12,7 @@ from fastapi import Path as RequestPath
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from accuracy.publish import read_log
 from backtest.harness import BUNDLED_FIXTURES, run_fixture
 from engine.series_config import colour_css, load_setup, setup_to_dict
 from historical.cache import CachingTransport, FileCache
@@ -62,7 +63,9 @@ def default_source(cache_dir: Path | None = None) -> F1History:
     return F1History(transport)
 
 
-def create_app(source: object | None = None) -> FastAPI:
+def create_app(
+    source: object | None = None, *, accuracy_dir: Path | None = None
+) -> FastAPI:
     app = FastAPI(title="Pitwall", version=__version__)
     history = source if source is not None else default_source()
 
@@ -196,6 +199,15 @@ def create_app(source: object | None = None) -> FastAPI:
     @app.post("/v1/f1/odds")
     def odds_route(body: OddsRequest) -> dict[str, object]:
         return f1_odds(body)
+
+    @app.get("/v1/accuracy/{season}")
+    def accuracy(
+        season: Annotated[int, RequestPath(ge=1950, le=2100)],
+    ) -> dict[str, object]:
+        payload = read_log(season, accuracy_dir)
+        if payload is None:
+            raise RequestError(f"No accuracy log for {season}.", status=404)
+        return payload
 
     @app.post("/v1/backtests/{fixture_id}")
     def backtest(fixture_id: str) -> BacktestResponse:
