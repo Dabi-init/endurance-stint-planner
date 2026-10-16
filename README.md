@@ -430,6 +430,20 @@ source provide one. Team radio for the Bahrain replay is the same idea:
 stored in this repository. A checkbox can speak the strategy sentence with the
 browser's own speech synthesis. The server does not generate that audio.
 
+`GET /v1/accuracy/2026` returns the stored post-session log. The Accuracy
+button on the pit wall, and `docs/accuracy/index.html` on GitHub Pages, show
+the same figures: pit-lap error, stint-length error, stop-count error,
+undercut-call error, and finish-order error. The planner runs once per race
+on one assumption pack (22 s pit loss, 95 s base lap, the bundled Bahrain
+compound life, 110 kg of fuel, and 1 kg per lap). Predicted finish order is qualifying order. An undercut is
+predicted only when that pack stops the car behind earlier than the car
+ahead. The log is unofficial, not affiliated with Formula 1, and not a
+validation claim. `python -m accuracy` refreshes it from OpenF1 with 2.1
+seconds between requests, under the free tier of 30 requests a minute, and
+does not save the raw feed. `--source fastf1`
+is a local option; its cache stays in a temporary directory. A scheduled
+Action runs the OpenF1 update on Mondays.
+
 `POST /v1/f1/undercut` adds a tyre-gain assumption you supply to the gap and
 the two pit losses, then subtracts an out-lap warm-up and an in-lap delta and
 adds any traffic you say was avoided. Those three default to zero. It does not

@@ -11,4 +11,5 @@ recursive-include examples *
 recursive-include tests *.py
 recursive-include engine/series_data *.json
 recursive-include backtest/fixtures *.json
+recursive-include accuracy/data *.json
 recursive-include pitwall_api/static *

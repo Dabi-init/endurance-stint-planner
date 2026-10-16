@@ -1,3 +1,4 @@
+import { renderAccuracy } from "./accuracy-view.js";
 import { renderEndurance, towerLabels } from "./endurance-view.js";
 import {
   renderCards,
@@ -44,7 +45,13 @@ function setMode(mode) {
   }
   $("live-tools").hidden = state.series === "endurance" || mode !== "live";
   if (mode !== "live") $("live-banner").hidden = true;
-  $("series-kicker").textContent = state.series === "endurance"
+  const accuracy = mode === "accuracy";
+  $("accuracy-page").hidden = !accuracy;
+  $("wall").hidden = accuracy;
+  if (accuracy) renderAccuracy();
+  $("series-kicker").textContent = accuracy
+    ? "Formula 1 · post-session accuracy log"
+    : state.series === "endurance"
     ? "Endurance · synthetic preset"
     : mode === "live"
       ? "Formula 1 · replay feed, not live timing"
@@ -159,6 +166,8 @@ async function boot() {
       await setSeries("endurance");
     } else if (hash.get("mode") === "live") {
       await startLive(hash.get("lap") || 35);
+    } else if (hash.get("mode") === "accuracy") {
+      setMode("accuracy");
     }
   } catch (error) {
     $("explain").textContent = error.message;

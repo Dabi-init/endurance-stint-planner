@@ -27,11 +27,12 @@
         <button type="button" id="mode-plan" class="mode on" data-mode="plan">Plan</button>
         <button type="button" id="mode-replay" class="mode" data-mode="replay">Replay</button>
         <button type="button" id="mode-live" class="mode" data-mode="live">Live</button>
+        <button type="button" id="mode-accuracy" class="mode" data-mode="accuracy">Accuracy</button>
       </div>
       <p class="pill" id="evidence-pill">Evidence C</p>
     </header>
 
-    <div class="wall">
+    <div class="wall" id="wall">
       <aside class="panel tower-panel" aria-labelledby="tower-title">
         <div class="panel-head">
           <h2 id="tower-title">Timing tower</h2>
@@ -211,6 +212,17 @@
         </section>
       </aside>
     </div>
+
+    <section id="accuracy-page" class="accuracy-page" hidden aria-labelledby="accuracy-title">
+      <p id="accuracy-notice" class="accuracy-notice">Unofficial, not affiliated with Formula 1.</p>
+      <div class="panel-head">
+        <h2 id="accuracy-title">Season accuracy log</h2>
+        <p id="accuracy-honesty">Not validated yet. Loading the stored log.</p>
+      </div>
+      <div id="accuracy-rates" class="rate-grid"></div>
+      <p id="accuracy-assumption" class="fine"></p>
+      <div id="accuracy-log"></div>
+    </section>
 
     <footer class="disclaimer">
       Pre-race estimate from the configured rules and assumptions.

@@ -7,6 +7,14 @@ semantic versioning.
 
 ### Added
 
+- a public accuracy log for the 2026 Grands Prix completed so far. After a
+  race, `python -m accuracy` reads free OpenF1 post-session results (FastF1 is
+  an optional local reader) and compares the planner's pit laps, stint lengths,
+  undercut calls, and finish order with what happened. Error rates and the
+  season log are on the pit wall's Accuracy page and in `docs/accuracy/` for
+  GitHub Pages. A Monday Action updates only that small derived log. The page
+  says it is unofficial and not affiliated with Formula 1, and it is not a
+  validation claim;
 - a local API (`python -m pitwall_api`, optional `api` extra) that creates a
   plan, compares scenarios, and re-plans a safety car for the endurance engine
   and a new F1 planner;

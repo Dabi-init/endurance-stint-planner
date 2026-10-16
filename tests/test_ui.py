@@ -43,6 +43,13 @@ def test_home_page_is_the_pit_wall_and_has_no_tracker() -> None:
     assert "esc(driver.finish_position" in tower.text
     assert 'from "./f1-view.js"' in script.text
     assert 'from "./endurance-view.js"' in script.text
+    assert 'from "./accuracy-view.js"' in script.text
+    assert 'id="mode-accuracy"' in html
+    assert "Unofficial, not affiliated with Formula 1." in html
+    accuracy = client.get("/static/accuracy-view.js")
+    assert accuracy.status_code == 200
+    assert "Unofficial, not affiliated with Formula 1." in accuracy.text
+    assert 'hash.get("mode") === "accuracy"' in script.text
     assert "[hidden]" in css.text
     assert "display: none !important" in css.text
     assert "quiet.pause()" in tower.text
