@@ -61,3 +61,10 @@ python -m http.server 8080 --directory docs                                     
 - Do not present a single number where a P10–P90 range is the honest answer.
 - Do not add unsourced circuit, tyre, or fuel multipliers as if they were facts.
 - Do not remove evidence levels, disclaimers, or the pre-race-only headers.
+
+## Cursor Cloud specific instructions
+
+- The image does not include the `venv` module. Install runs `apt-get install python3.12-venv`, then `/usr/bin/python3 -m venv ~/.local/pitwall-venv`, then `pip install -e ".[dev]"`.
+- `python`, `python3`, `pip`, and `pip3` on `PATH` are wrappers that exec that virtualenv. Do not replace them with symlinks: a symlinked interpreter loses the virtualenv prefix and cannot import installed packages. `pitwall`, `pytest`, and `ruff` are symlinks to the virtualenv `bin` directory.
+- Ollama is optional and is not installed. Core checks are `pitwall doctor`, `pitwall compare`, `pitwall plan`, and `pitwall export`. Use `--home` with a scratch directory so a smoke test does not write `.pitwall` into the repo.
+- `start` serves `docs/` at <http://127.0.0.1:8080>. Running it again is a no-op when that port is already responding.
